@@ -1,0 +1,40 @@
+# .dockerignore — Archivos excluidos al construir la imagen Docker
+# Esto reduce el tamaño de la imagen y evita incluir datos sensibles
+
+# Entorno virtual Python (se recrea dentro del contenedor)
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Base vectorial (se monta como volumen externo)
+chroma_neuro_db/
+chroma_neuro_db_backup/
+chroma_neuro_db_temp/
+
+# PDFs (se montan como volumen externo)
+Docs/
+
+# Control de versiones
+.git/
+.gitignore
+
+# Variables de entorno sensibles
+.env
+
+# Archivos de desarrollo y documentación
+*.ipynb
+*.docx
+*.md
+Avance2_*
+Evaluacion_RAG.md
+Flujo_RAG_Evaluacion.ipynb
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Logs y temporales
+*.log

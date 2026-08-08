@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  # ── Servicio 1: La aplicación del Consultor ──
+  app:
+    build: .
+    container_name: consultor-app
+    restart: unless-stopped
+    ports:
+      - "8502:8501"
+    volumes:
+      - ./Docs:/app/Docs
+      - ./chroma_neuro_db:/app/chroma_neuro_db
+      - ./shared_logs:/app/shared_logs
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Servicio 2: Túnel público seguro (Cloudflare) ──
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: consultor-tunnel
+    restart: unless-stopped
+    volumes:
+      - ./shared_logs:/shared_logs
+    command: tunnel --logfile /shared_logs/tunnel.log --no-autoupdate --url http://app:8501
+    depends_on:
+      - app

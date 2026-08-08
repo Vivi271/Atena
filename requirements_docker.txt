@@ -1,0 +1,23 @@
+# requirements_docker.txt — Dependencias mínimas para el contenedor Docker
+# Solo lo que necesita la app Streamlit + RAG con Ollama
+
+# Core
+streamlit>=1.40.0
+python-dotenv>=1.0.0
+
+# LangChain + Ollama
+langchain-community>=0.3.0
+langchain-text-splitters>=0.3.0
+langchain-ollama>=1.1.0
+langchain-chroma>=1.1.0
+langchain-core>=1.2.0
+
+# PDF processing
+pypdf>=6.0.0
+
+# Vector DB
+chromadb>=1.5.0
+
+# Visualization (para panel de evaluación)
+plotly>=5.18.0
+pandas>=2.0.0
