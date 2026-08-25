@@ -1,23 +1,28 @@
-# requirements_docker.txt — Dependencias mínimas para el contenedor Docker
-# Solo lo que necesita la app Streamlit + RAG con Ollama
+# requirements_docker.txt — Dependencias para Cloud Run (Gemini API + FastAPI)
+
+# API REST
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
 
 # Core
-streamlit>=1.40.0
 python-dotenv>=1.0.0
 
-# LangChain + Ollama
-langchain-community>=0.3.0
+# LangChain + Google Gemini
+langchain-google-genai>=2.0.0
 langchain-text-splitters>=0.3.0
-langchain-ollama>=1.1.0
 langchain-chroma>=1.1.0
 langchain-core>=1.2.0
+langchain-community>=0.3.0
 
-# PDF processing
+# PDF / DOCX processing
 pypdf>=6.0.0
 
 # Vector DB
 chromadb>=1.5.0
 
-# Visualization (para panel de evaluación)
+# Streamlit (por si se necesita la UI también)
+streamlit>=1.40.0
+
+# Visualization
 plotly>=5.18.0
 pandas>=2.0.0

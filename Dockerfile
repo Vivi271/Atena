@@ -1,51 +1,22 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Dockerfile — Consultor IA en Neuroanatomía (100% Local con Ollama)
-# Universidad Konrad Lorenz · Programa de Psicología · Laboratorio de Neurociencias
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# NOTA: Este Dockerfile empaqueta SOLO la app Streamlit.
-# Ollama debe correr en el HOST (PC del laboratorio), no dentro del contenedor.
-#
-# INSTRUCCIONES DE USO:
-#
-# 1. En el PC del laboratorio, tener Ollama corriendo con los modelos:
-#    ollama pull nomic-embed-text
-#    ollama pull llama3.2
-#
-# 2. Construir la imagen (desde la carpeta del proyecto):
-#    docker build -t consultor-neuroanatomia .
-#
-# 3. Correr el contenedor:
-#    docker run -p 8501:8501 \
-#      -v "$(pwd)/Docs:/app/Docs" \
-#      -v "$(pwd)/chroma_neuro_db:/app/chroma_neuro_db" \
-#      --add-host=host.docker.internal:host-gateway \
-#      -e OLLAMA_HOST=http://host.docker.internal:11434 \
-#      consultor-neuroanatomia
-#
-# 4. Abrir en el navegador: http://localhost:8501
+# Dockerfile — Atena (FastAPI + RAG + Gemini API)
+# Deploy en Google Cloud Run
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.11-slim
 
-# Metadatos
 LABEL maintainer="Universidad Konrad Lorenz - Programa de Psicología"
-LABEL description="Consultor IA en Neuroanatomía - Sistema RAG 100% local"
-LABEL version="2.0"
+LABEL description="Atena — Consultor RAG de Neuroanatomía (Cloud Run)"
+LABEL version="3.0"
 
 # Variables de entorno
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    STREAMLIT_SERVER_PORT=8501 \
-    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
-    STREAMLIT_SERVER_HEADLESS=true \
-    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
-    OLLAMA_HOST=http://host.docker.internal:11434
+    PORT=8080
 
-# Directorio de trabajo
 WORKDIR /app
 
-# Instalar dependencias del sistema
+# Dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
@@ -53,29 +24,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements primero (aprovechar caché de Docker)
-COPY requirements_docker.txt ./requirements.txt
-
 # Instalar dependencias Python
+COPY requirements_docker.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código fuente
-COPY app.py rag_pipeline.py config.py database.py style.css ./
+# Copiar código fuente
+COPY api.py rag_pipeline.py config.py database.py ./
 COPY components/ ./components/
 
-# Copiar configuración de Streamlit
-COPY .streamlit/ ./.streamlit/
+# Copiar la ChromaDB ya indexada (corpus de neuroanatomía listo)
+COPY chroma_neuro_db/ ./chroma_neuro_db/
 
-# Crear carpetas necesarias (Docs y chroma_neuro_db se montan como volúmenes)
-RUN mkdir -p Docs chroma_neuro_db
+# Copiar documentos fuente (por si se necesita re-indexar)
+COPY Docs/ ./Docs/
 
-# Exponer el puerto de Streamlit
-EXPOSE 8501
+# Exponer puerto de Cloud Run
+EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/salud || exit 1
 
-# Comando de inicio
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Arrancar FastAPI con uvicorn
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
