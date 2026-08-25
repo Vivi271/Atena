@@ -8,7 +8,11 @@ import sqlite3
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "chroma_neuro_db", "neuro_metrics.db")
+# La DB de métricas va en su propia carpeta 'data/', NUNCA dentro de chroma_neuro_db
+# (que se borra al reconstruir la VectorDB)
+DATA_DIR = os.path.join(BASE_DIR, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, "neuro_metrics.db")
 
 def get_connection():
     """Retorna una conexión a la base de datos con soporte para tipos de datos estándar."""

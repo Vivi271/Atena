@@ -43,7 +43,6 @@ def render_sidebar(vs, disabled=False):
                 "📤 Agregar documentos (PDF / DOCX)",
                 type=["pdf", "docx"],
                 accept_multiple_files=True,
-                key="uploader_docs",
                 disabled=disabled,
                 help="Sube uno o más PDFs o archivos Word. Luego se indexarán automáticamente."
             )
@@ -138,14 +137,14 @@ def render_sidebar(vs, disabled=False):
             
             st.markdown("""
             <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 0.82rem; color: #94a3b8; margin-top: 10px;">
-                <b>LLM:</b> qwen2.5:1.5b (Ollama local)
-                <span title="Modelo de lenguaje que corre 100% en tu PC." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
-                <b>Embeddings:</b> nomic-embed-text (local)
-                <span title="Modelo de vectorización local." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
-                <b>Temp:</b> 0.1
-                <span title="Respuestas académicas concretas y deterministas." style="cursor:help; color:#5dade2;"> ℹ️</span>
-                | <b>Chunk:</b> 800
-                | <b>🔒 Sin internet</b>
+                <b>LLM:</b> gemini-2.5-flash (Gemini API)
+                <span title="Modelo de lenguaje en la nube de Google. Rápido y sin carga local." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
+                <b>Embeddings:</b> gemini-embedding-001 (Google)
+                <span title="Modelo de vectorización de Google." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
+                <b>Temp:</b> 0.0
+                <span title="Respuestas académicas deterministas." style="cursor:help; color:#5dade2;"> ℹ️</span>
+                | <b>Chunk:</b> 1800
+                | <b>🌐 Gemini Cloud</b>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -210,18 +209,45 @@ def render_sidebar(vs, disabled=False):
             # Botón de rebuild completo
             with st.expander("🛠️ Reparar / Reconstruir DB completa", expanded=False):
                 if st.button("Reconstruir VectorDB", use_container_width=True, key="rebuild_db_btn", disabled=disabled):
-                    with st.spinner("Reconstruyendo base de datos completa..."):
+                    progress_bar = st.progress(0, text="Preparando reconstrucción...")
+                    try:
+                        # PASO 1: Cerrar la conexión activa a ChromaDB (libera el lock de SQLite)
+                        progress_bar.progress(10, text="Cerrando conexión a la base actual...")
                         try:
-                            from app import get_vector_store
-                            get_vector_store.clear()
-                            from rag_pipeline import build_vector_store
-                            nuevo_vs = build_vector_store(force_rebuild=True)
-                            st.success(f"Reconstrucción exitosa: {nuevo_vs._collection.count()} vectores.")
-                            time.sleep(1)
-                            vs = nuevo_vs
-                        except Exception as e:
-                            st.error(f"Error: {e}")
-                            time.sleep(2)
+                            if vs is not None:
+                                vs._client._system.stop()
+                        except Exception:
+                            pass
+
+                        # PASO 2: Limpiar caché de Streamlit (evita import circular)
+                        progress_bar.progress(20, text="Limpiando caché...")
+                        st.cache_resource.clear()
+
+                        # PASO 3: Eliminar DB vieja (puede tener vectores incompatibles de Ollama)
+                        progress_bar.progress(30, text="Eliminando base de datos anterior...")
+                        import shutil as _shutil
+                        _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                        for _dir in ["chroma_neuro_db", "chroma_neuro_db_backup", "chroma_neuro_db_temp"]:
+                            _path = os.path.join(_base, _dir)
+                            if os.path.exists(_path):
+                                _shutil.rmtree(_path)
+
+                        # PASO 4: Reconstruir con Gemini embeddings
+                        progress_bar.progress(40, text="Iniciando vectorización con Gemini API...")
+                        from rag_pipeline import build_vector_store
+                        nuevo_vs = build_vector_store(force_rebuild=True)
+
+                        progress_bar.progress(100, text=f"✅ Reconstrucción exitosa: {nuevo_vs._collection.count()} vectores.")
+                        time.sleep(2)
+                        vs = nuevo_vs
+                        st.success(f"¡Base reconstruida! {nuevo_vs._collection.count()} vectores indexados con Gemini.")
+                        time.sleep(1)
+                    except Exception as e:
+                        progress_bar.empty()
+                        st.error(f"❌ Error durante la reconstrucción:\n\n{str(e)}")
+                        import traceback
+                        st.code(traceback.format_exc(), language="python")
+                        time.sleep(3)
                     st.rerun()
 
     # Historial reciente

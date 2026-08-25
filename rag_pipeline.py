@@ -1,32 +1,41 @@
 """
 rag_pipeline.py — Pipeline RAG para el Consultor Especialista en Neuroanatomía
-Versión 2.0: 100% LOCAL con Ollama (sin API keys, sin cuotas, sin internet)
-- Embeddings: nomic-embed-text (via Ollama)
-- LLM: llama3.2 (via Ollama)
+Versión 3.0: Google Gemini API
+- Embeddings: text-embedding-004 (via Google Generative AI)
+- LLM: gemini-2.0-flash (via Google Generative AI)
 - VectorDB: ChromaDB local (SQLite)
 """
 
 import os
 import shutil
-import time
+import unicodedata
 from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama import OllamaEmbeddings, ChatOllama
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
 
 # ─────────────────────────────────────────────
 # 1. CONFIGURACIÓN
 # ─────────────────────────────────────────────
 load_dotenv()
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DOCS_DIR = os.path.join(BASE_DIR, "Docs")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise EnvironmentError(
+        "No se encontró GEMINI_API_KEY en las variables de entorno. "
+        "Agrégala al archivo .env como: GEMINI_API_KEY=tu_clave_aqui"
+    )
 
-# _get_docs_files es dinámico — se lee en cada llamada para capturar archivos nuevos (.pdf y .docx)
+BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+DOCS_DIR  = os.path.join(BASE_DIR, "Docs")
+
+
 def _get_docs_files():
+    """Lista dinámica de PDFs/DOCX en la carpeta Docs/ para capturar archivos nuevos."""
     if not os.path.exists(DOCS_DIR):
         return []
     return sorted([
@@ -35,8 +44,9 @@ def _get_docs_files():
         if f.lower().endswith((".pdf", ".docx"))
     ])
 
+
 def _load_any_document(file_path: str) -> list:
-    """Carga un PDF usando PyPDFLoader o un DOCX usando un parser local de XML."""
+    """Carga un PDF con PyPDFLoader o un DOCX usando un parser local de XML."""
     if file_path.lower().endswith(".pdf"):
         loader = PyPDFLoader(file_path)
         return loader.load()
@@ -45,29 +55,29 @@ def _load_any_document(file_path: str) -> list:
             import zipfile
             import xml.etree.ElementTree as ET
             with zipfile.ZipFile(file_path) as docx:
-                tree = ET.parse(docx.open('word/document.xml'))
+                tree = ET.parse(docx.open("word/document.xml"))
                 root = tree.getroot()
-                ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-                text = ' '.join(n.text for n in root.findall('.//w:t', ns) if n.text)
-            
-            # Retorna como una sola página de Documento (será fragmentada en el split)
+                ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+                text = " ".join(n.text for n in root.findall(".//w:t", ns) if n.text)
             return [Document(page_content=text, metadata={"source": file_path, "page": 1})]
         except Exception as e:
             print(f"  [!] Error leyendo Word {os.path.basename(file_path)}: {e}")
             return []
     return []
 
-PERSIST_DIR = os.path.join(BASE_DIR, "chroma_neuro_db")
+
+PERSIST_DIR     = os.path.join(BASE_DIR, "chroma_neuro_db")
 COLLECTION_NAME = "neuroanatomia_cientifica"
 
 # ─────────────────────────────────────────────
-# 2. MODELOS — 100% LOCAL via Ollama
+# 2. MODELOS — Google Gemini API
 # ─────────────────────────────────────────────
-OLLAMA_EMBED_MODEL = "nomic-embed-text"
-OLLAMA_LLM_MODEL   = "llama3.2:latest"
+GEMINI_EMBED_MODEL = "gemini-embedding-001"
+GEMINI_LLM_MODEL   = "gemini-2.5-flash"
 
-embeddings_model = OllamaEmbeddings(
-    model=OLLAMA_EMBED_MODEL,
+embeddings_model = GoogleGenerativeAIEmbeddings(
+    model=GEMINI_EMBED_MODEL,
+    google_api_key=GEMINI_API_KEY,
 )
 
 # ─────────────────────────────────────────────
@@ -124,7 +134,7 @@ def _restaurar_backup(temp_dir: str, backup_dir: str, persist_dir: str) -> None:
 def build_vector_store(force_rebuild: bool = False) -> Chroma:
     """
     PASO 1-4 del pipeline RAG:
-    Carga PDFs → Chunking → Vectorización (Embeddings locales) → ChromaDB
+    Carga PDFs → Chunking → Vectorización (Gemini Embeddings) → ChromaDB
 
     Backup permanente en ~/.neuro_db_permanent/ — se restaura automáticamente
     si la DB local desaparece.
@@ -132,7 +142,6 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
     PERMANENT_BACKUP = os.path.join(os.path.expanduser("~"), ".neuro_db_permanent")
 
     if not force_rebuild:
-        # Modo carga: SOLO cargar si existe, NUNCA reconstruir automáticamente
         if not os.path.exists(PERSIST_DIR):
             if os.path.exists(PERMANENT_BACKUP):
                 print("[RESTORE] DB no encontrada localmente. Restaurando desde backup permanente...")
@@ -154,11 +163,9 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
     TEMP_DIR   = PERSIST_DIR + "_temp"
     BACKUP_DIR = PERSIST_DIR + "_backup"
 
-    # 1. Limpiar temp anterior si existe
     if os.path.exists(TEMP_DIR):
         shutil.rmtree(TEMP_DIR)
 
-    # 2. Hacer backup de la DB actual ANTES de tocarla
     if os.path.exists(PERSIST_DIR):
         if os.path.exists(BACKUP_DIR):
             shutil.rmtree(BACKUP_DIR)
@@ -188,9 +195,10 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
     chunks = splitter.split_documents(documents)
     print(f"  Fragmentos generados: {len(chunks)}")
 
-    # PASO 3 & 4 — Embeddings locales + ChromaDB
-    # OllamaEmbeddings no tiene límite de cuota — 100% local
-    print(f"\n[PASO 3 & 4] Vectorizando con Ollama ({OLLAMA_EMBED_MODEL}) — sin cuotas, 100% local...")
+    # PASO 3 & 4 — Embeddings con Gemini + ChromaDB
+    # Gemini text-embedding-004 tiene límite de 100 solicitudes/min en el plan gratuito
+    # Por eso usamos lotes de 50 con pausa opcional
+    print(f"\n[PASO 3 & 4] Vectorizando con Gemini ({GEMINI_EMBED_MODEL})...")
     print("  (lotes de 50 fragmentos)")
 
     BATCH_SIZE = 50
@@ -215,7 +223,7 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
                 vector_store.add_documents(lote)
         except Exception as e:
             _restaurar_backup(TEMP_DIR, BACKUP_DIR, PERSIST_DIR)
-            raise RuntimeError(f"Error vectorizando: {e}") from e
+            raise RuntimeError(f"Error vectorizando lote {numero_lote}: {e}") from e
 
     # ── Swap seguro ──
     total = vector_store._collection.count()
@@ -333,13 +341,21 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
     print(f"  Fragmentos nuevos: {len(chunks)}")
 
     vs = vs_existente
-    if vs is None and os.path.exists(PERSIST_DIR):
-        vs = Chroma(
-            persist_directory=PERSIST_DIR,
-            embedding_function=embeddings_model,
-            collection_name=COLLECTION_NAME,
-            collection_metadata={"hnsw:space": "cosine"},
-        )
+    if vs is None:
+        sqlite_file = os.path.join(PERSIST_DIR, "chroma.sqlite3")
+        if os.path.exists(PERSIST_DIR) and os.path.exists(sqlite_file):
+            # DB válida → abrir
+            vs = Chroma(
+                persist_directory=PERSIST_DIR,
+                embedding_function=embeddings_model,
+                collection_name=COLLECTION_NAME,
+                collection_metadata={"hnsw:space": "cosine"},
+            )
+        elif os.path.exists(PERSIST_DIR):
+            # Directorio existe pero está vacío/corrupto → limpiar para empezar limpio
+            print(f"  [WARN] {PERSIST_DIR} existe pero está corrupto. Limpiando...")
+            shutil.rmtree(PERSIST_DIR)
+        # Si vs sigue None, se crea en el primer lote del loop de abajo
 
     for i in range(0, len(chunks), BATCH_SIZE):
         lote = chunks[i:i + BATCH_SIZE]
@@ -370,9 +386,7 @@ def _limpiar_texto_ocr(texto: str) -> str:
     """Corrige errores comunes de extracción de PDF (OCR) para ayudar al modelo."""
     if not texto:
         return texto
-    # Corregir saltos de línea con guiones
     texto = texto.replace("-\n", "").replace("- \n", "")
-    # Corregir espaciados rotos y typos del OCR
     reemplazos = {
         "co mplejo": "complejo",
         "neur ociencia": "neurociencia",
@@ -393,16 +407,10 @@ def _limpiar_texto_ocr(texto: str) -> str:
 # ─────────────────────────────────────────────
 # 5. SINÓNIMOS NEUROANATÓMICOS PARA EXPANSIÓN DE QUERY
 # ─────────────────────────────────────────────
-# Cada clave es un término coloquial/común, y los valores son sinónimos
-# técnicos que aparecen en los libros de texto pero que el estudiante
-# probablemente no escribirá en su consulta.
-import unicodedata
-
 def _normalizar_acentos(texto: str) -> str:
     """Elimina acentos y diacríticos del texto para búsquedas insensibles a tildes."""
     if not texto:
         return ""
-    # Normalizar a NFKD y filtrar caracteres de combinación diacrítica (tildes, etc.)
     return "".join(
         c for c in unicodedata.normalize("NFKD", texto)
         if not unicodedata.combining(c)
@@ -463,7 +471,7 @@ def _get_query_keywords(pregunta: str) -> tuple:
     preg_limpia = _normalizar_acentos(pregunta.lower())
     words = [w.strip("?,.¡!¿") for w in preg_limpia.split()
              if w.strip("?,.¡!¿") not in _STOPWORDS_ES and len(w.strip("?,.¡!¿")) > 1]
-    
+
     expanded = list(words)
     for w in words:
         for termino, sinonimos in _SINONIMOS_NEURO.items():
@@ -483,7 +491,6 @@ def _reranking_por_relevancia(pregunta: str, docs_con_score: list, top_n: int = 
     pregunta_lower = _normalizar_acentos(pregunta.lower())
     tema_principal = None
     temas_excluir = []
-    # Usamos términos normalizados sin acentos para las comparaciones
     confusiones = [
         ("cerebro", ["cerebelo", "cerebeloso", "cerebelosa", "cerebellum"]),
         ("cerebelo", []),
@@ -534,14 +541,11 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
     docs_vector = vector_store.similarity_search_with_relevance_scores(
         query_expandida, k=100
     )
-    vector_scores = {}
-    for doc, score in docs_vector:
-        vector_scores[doc.page_content] = score
+    vector_scores = {doc.page_content: score for doc, score in docs_vector}
 
     # 2. Escaneo de toda la base por keywords
     all_data = vector_store._collection.get(include=["documents", "metadatas"])
 
-    # Palabras clave anatómicas técnicas conocidas normalizadas
     anatomical_keywords = set()
     for termino in _SINONIMOS_NEURO.keys():
         anatomical_keywords.add(_normalizar_acentos(termino.lower()))
@@ -551,12 +555,9 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
 
     scored_docs = []
     for doc_content, meta in zip(all_data["documents"], all_data["metadatas"]):
-        # Normalizamos el contenido del documento para buscar keywords de forma insensible a tildes
         doc_lower = _normalizar_acentos(doc_content.lower())
-        
-        # Coincidencia por palabra completa limpiando puntuación (evita falsos positivos como "encefalo" en "mesencefalo")
         palabras_doc = set(w.strip(".,;:()[]{}-\"'/¿?¡!_") for w in doc_lower.split() if w.strip(".,;:()[]{}-\"'/¿?¡!_"))
-        
+
         keyword_score = 0.0
         for word in expanded_words:
             if word in palabras_doc:
@@ -566,23 +567,17 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
                 keyword_score += weight
 
         doc_len = len(doc_lower.split())
-        # Penalización por longitud más suave (0.001 en lugar de 0.005) para no descartar párrafos definitorios largos
         keyword_score = keyword_score / (1 + 0.001 * doc_len) if doc_len > 0 else 0
         vec_score = vector_scores.get(doc_content, 0.0)
 
         # Penalizar fragmentos de baja calidad (tablas, índices, bibliografías)
         lines = doc_content.strip().split("\n")
         num_lines = len(lines)
-        if num_lines > 0:
-            avg_words_per_line = doc_len / num_lines
-        else:
-            avg_words_per_line = doc_len
+        avg_words_per_line = doc_len / num_lines if num_lines > 0 else doc_len
         page_num = meta.get("page", 0)
         prose_penalty = 1.0
-        # Fragmentos con líneas muy cortas = tabla/diagrama/índice
         if avg_words_per_line < 4 and num_lines > 5:
             prose_penalty = 0.3
-        # Páginas de índice/bibliografía (Lange > p.350)
         src = meta.get("source", "")
         if "Lange" in src and isinstance(page_num, int) and page_num > 350:
             prose_penalty = 0.1
@@ -595,23 +590,21 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
 
     scored_docs.sort(key=lambda x: x[1], reverse=True)
 
-    # 3. Re-ranking temático (eliminar cerebelo cuando preguntan por cerebro, etc.)
+    # 3. Re-ranking temático
     return _reranking_por_relevancia(pregunta, scored_docs, top_n=k)
 
 
 # ─────────────────────────────────────────────
-# 5b. CONSULTA RAG — 100% LOCAL con Ollama LLM
+# 5b. CONSULTA RAG — Google Gemini API
 # ─────────────────────────────────────────────
 def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "avanzado") -> dict:
     """
     PASOS 5-7 del pipeline RAG:
-    Búsqueda híbrida → Re-ranking → Prompt aumentado → Generación local
+    Búsqueda híbrida → Re-ranking → Prompt aumentado → Generación con Gemini
     """
-    # PASO 5 — Búsqueda híbrida con mínimo 6 fragmentos (óptimo para modelo 3B)
     k_recuperacion = max(k, 6)
     docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k_recuperacion)
 
-    # PASO 6 — Construcción del prompt aumentado con citas reales del metadata
     context_parts = []
     for i, doc in enumerate(docs_contexto):
         fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
@@ -624,16 +617,13 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
 
     system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
 
-    # PASO 7 — Generación LOCAL con Ollama sin repeat_penalty para términos científicos precisos
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
+    llm = ChatGoogleGenerativeAI(
+        model=GEMINI_LLM_MODEL,
+        google_api_key=GEMINI_API_KEY,
         temperature=0.0,
-        num_predict=800,
-        num_ctx=4096,
+        max_output_tokens=2048,
     )
 
-    # pyrefly: ignore [missing-import]
-    from langchain_core.messages import HumanMessage, SystemMessage
     messages = [
         SystemMessage(content=system_instruction),
         HumanMessage(content=PROMPT_TEMPLATE.format(context=context, question=pregunta)),
@@ -644,18 +634,23 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
     return {
         "pregunta": pregunta,
         "respuesta": texto,
-        "fragmentos": docs_contexto[:k],  # Devolvemos exactamente k fragmentos al solicitante
+        "fragmentos": docs_contexto[:k],
         "tokens_contexto_aprox": len(context) // 4,
     }
 
 
 def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "avanzado"):
     """
-    Igual que consultar() pero devuelve un GENERADOR de tokens.
-    Se usa con st.write_stream() en Streamlit para streaming en tiempo real.
+    Igual que consultar() pero devuelve un GENERADOR de tokens para streaming
+    en tiempo real con st.write_stream() en Streamlit.
     Retorna: (generator, docs, context_tokens)
     """
-    # Búsqueda híbrida con mínimo 6 fragmentos (óptimo para modelo 3B)
+    # Guard: VectorDB no inicializada
+    if vector_store is None:
+        def _sin_db():
+            yield "⚠️ **Base de conocimientos vacía.** Por favor, inicia sesión como administrador y usa el botón **'Reconstruir VectorDB'** en la barra lateral para indexar los documentos."
+        return _sin_db(), [], 0
+
     k_recuperacion = max(k, 6)
     docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k_recuperacion)
 
@@ -671,14 +666,13 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
 
     system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
 
-    # pyrefly: ignore [missing-import]
-    from langchain_core.messages import HumanMessage, SystemMessage
-    llm = ChatOllama(
-        model=OLLAMA_LLM_MODEL,
+    llm = ChatGoogleGenerativeAI(
+        model=GEMINI_LLM_MODEL,
+        google_api_key=GEMINI_API_KEY,
         temperature=0.0,
-        num_predict=800,
-        num_ctx=4096,
+        max_output_tokens=2048,
     )
+
     messages = [
         SystemMessage(content=system_instruction),
         HumanMessage(content=PROMPT_TEMPLATE.format(context=context, question=pregunta)),
@@ -697,7 +691,7 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
     print("=" * 65)
-    print("🧠 CONSULTOR RAG — NEUROANATOMÍA (100% LOCAL con Ollama)")
+    print("🧠 CONSULTOR RAG — NEUROANATOMÍA (Google Gemini API)")
     print("=" * 65)
 
     vs = build_vector_store(force_rebuild=False)
