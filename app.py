@@ -1,5 +1,5 @@
 """
-app.py — Punto de entrada limpio del Consultor de Neuroanatomía RAG
+app.py — Punto de entrada de Atena RAG
 """
 import streamlit as st
 import os
@@ -7,7 +7,7 @@ import time
 
 # ── 1. Configuración de página (DEBE ser la primera instrucción de Streamlit) ──
 st.set_page_config(
-    page_title="Consultor Neuroanatomía",
+    page_title="Atena",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -32,20 +32,8 @@ if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
 if "is_generating" not in st.session_state:
     st.session_state.is_generating = False
-
-import urllib.request as _urllib_request
-import os as _os
-
-_ollama_host = _os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-if not _ollama_host.startswith("http"):
-    _ollama_host = f"http://{_ollama_host}"
-
-try:
-    _urllib_request.urlopen(f"{_ollama_host}/api/tags", timeout=3)
-except Exception:
-    st.error("Ollama no está corriendo. Inicia Ollama en tu PC y recarga la página.")
-    st.info(f"Asegúrate de que Ollama esté activo en: {_ollama_host}\n\nEn macOS abre la aplicación Ollama o ejecuta `ollama serve` en la terminal.")
-    st.stop()
+if "_uploader_key" not in st.session_state:
+    st.session_state["_uploader_key"] = 0
 
 try:
     from rag_pipeline import build_vector_store, consultar, stream_consultar
@@ -253,7 +241,7 @@ with chat_container:
                 st.download_button(
                     label="📥 Descargar Reporte PDF/TXT",
                     data=msg["reporte"],
-                    file_name="consulta_neuroanatomia.txt",
+                    file_name="consulta_atena.txt",
                     mime="text/plain",
                     key=f"dl_{msg['id']}"
                 )
@@ -359,7 +347,7 @@ with chat_container:
                         st.download_button(
                             label="📥 Descargar Reporte PDF/TXT",
                             data=reporte_txt,
-                            file_name="consulta_neuroanatomia.txt",
+                            file_name="consulta_atena.txt",
                             mime="text/plain",
                             key=f"dl_new_{time.time()}"
                         )

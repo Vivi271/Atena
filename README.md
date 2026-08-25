@@ -54,7 +54,7 @@ flowchart TD
 ## 📁 Estructura del Proyecto
 
 ```bash
-Consultor-NeuroK/
+Atena/
 ├── app.py                     # Aplicación principal Streamlit y orquestación
 ├── config.py                  # Variables globales, PIN de admin y utilidades
 ├── database.py                # Gestión de base de datos SQLite (telemetría e historial)
@@ -115,8 +115,8 @@ Consultor-NeuroK/
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/Vivi271/Consultor-NeuroK.git
-cd Consultor-NeuroK
+git clone https://github.com/Vivi271/Atena.git
+cd Atena
 
 # 2. Crear y activar el entorno virtual
 python3 -m venv env
