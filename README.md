@@ -1,4 +1,4 @@
-# 🧠 Consultor Especialista en Neuroanatomía (RAG Local)
+# 🧠 Atena — Consultor RAG de Neuroanatomía
 
 Sistema de Inteligencia Artificial que actúa como **consultor científico especializado en neuroanatomía**. Diseñado para responder consultas académicas y clínicas basándose **exclusivamente** en literatura científica indexada localmente, implementando una arquitectura **RAG (Retrieval-Augmented Generation)** de forma 100% local, soberana y privada.
 
@@ -6,7 +6,7 @@ Sistema de Inteligencia Artificial que actúa como **consultor científico espec
 
 ## 📌 Descripción General
 
-El **Consultor en Neuroanatomía** procesa textos académicos y libros de texto especializados en formato PDF y DOCX, los fragmenta e indexa vectorialmente en una base de datos local (**ChromaDB**). Ante las consultas de estudiantes, docentes e investigadores en psicología y medicina, el sistema recupera la evidencia más relevante y la inyecta como contexto a un Modelo de Lenguaje Local (**Ollama - Qwen2.5 1.5B**), garantizando **cero alucinaciones** y citando explícitamente los documentos y páginas fuente.
+**Atena** procesa textos académicos y libros de texto especializados en formato PDF y DOCX, los fragmenta e indexa vectorialmente en una base de datos local (**ChromaDB**). Ante las consultas de estudiantes, docentes e investigadores en psicología y medicina, el sistema recupera la evidencia más relevante y la inyecta como contexto a un Modelo de Lenguaje Local (**Ollama - Qwen2.5 1.5B**), garantizando **cero alucinaciones** y citando explícitamente los documentos y páginas fuente.
 
 ### 🛡️ Soberanía Tecnológica y Privacidad
 - **100% Local:** Ninguna consulta ni documento procesado viaja a servidores externos o APIs de terceros.
