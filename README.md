@@ -1,21 +1,21 @@
-# 🧠 Atena — Consultor RAG de Neuroanatomía
+# Atena — Consultor RAG de Neuroanatomía
 
 Sistema de Inteligencia Artificial que actúa como **consultor científico especializado en neuroanatomía**. Diseñado para responder consultas académicas y clínicas basándose **exclusivamente** en literatura científica indexada localmente, implementando una arquitectura **RAG (Retrieval-Augmented Generation)** de forma 100% local, soberana y privada.
 
 ---
 
-## 📌 Descripción General
+## Descripción General
 
 **Atena** procesa textos académicos y libros de texto especializados en formato PDF y DOCX, los fragmenta e indexa vectorialmente en una base de datos local (**ChromaDB**). Ante las consultas de estudiantes, docentes e investigadores en psicología y medicina, el sistema recupera la evidencia más relevante y la inyecta como contexto a un Modelo de Lenguaje Local (**Ollama - Qwen2.5 1.5B**), garantizando **cero alucinaciones** y citando explícitamente los documentos y páginas fuente.
 
-### 🛡️ Soberanía Tecnológica y Privacidad
+### Soberanía Tecnológica y Privacidad
 - **100% Local:** Ninguna consulta ni documento procesado viaja a servidores externos o APIs de terceros.
 - **Sin Costos de Operación:** Funciona completamente offline tras descargar los modelos locales.
 - **Trazabilidad y Evidencia:** Cada afirmación incluye las citas exactas de los libros y modelos indexados.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ```mermaid
 flowchart TD
@@ -51,7 +51,7 @@ flowchart TD
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```bash
 Atena/
@@ -83,7 +83,7 @@ Atena/
 
 ---
 
-## ⚙️ Especificación del Pipeline RAG
+## Especificación del Pipeline RAG
 
 | Parámetro | Valor | Descripción |
 |-----------|-------|-------------|
@@ -97,7 +97,7 @@ Atena/
 
 ---
 
-## 🚀 Instalación y Ejecución
+## Instalación y Ejecución
 
 ### Prerrequisitos
 
@@ -143,7 +143,7 @@ El contenedor se compilará e iniciará exponiendo el servicio en el puerto `850
 
 ---
 
-## 📊 Módulos Principales de la Aplicación
+## Módulos Principales de la Aplicación
 
 1. **Consultor de Aprendizaje:**
    - Selección de Nivel: **Básico** (explicaciones pedagógicas) o **Avanzado** (profundidad clínica y formal).
@@ -160,6 +160,6 @@ El contenedor se compilará e iniciará exponiendo el servicio en el puerto `850
 
 ---
 
-## 🏫 Créditos e Institución
+## Créditos e Institución
 
 Proyecto desarrollado en el marco del programa de Psicología / Neurociencia de la **Fundación Universitaria Konrad Lorenz**.
