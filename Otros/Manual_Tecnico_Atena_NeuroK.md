@@ -1,4 +1,4 @@
-# 📋 Manual Técnico de Infraestructura en la Nube
+# Manual Técnico de Infraestructura en la Nube
 ## Proyecto Atena — NeuroK AR (Fundación Universitaria Konrad Lorenz)
 
 ---
@@ -9,7 +9,7 @@
 
 ---
 
-## 🗂️ Tabla de Contenidos
+## Tabla de Contenidos
 
 1. [Resumen del Ecosistema](#1-resumen-del-ecosistema)
 2. [Justificación Arquitectónica: De Docker Local + Ollama a Cloud Native (Render + Gemini)](#2-justificación-arquitectónica-de-docker-local--ollama-a-cloud-native-render--gemini)
