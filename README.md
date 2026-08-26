@@ -1,165 +1,187 @@
-# Atena — Consultor RAG de Neuroanatomía
+# 🧠 Atena — Consultor RAG de Neuroanatomía
 
-Sistema de Inteligencia Artificial que actúa como **consultor científico especializado en neuroanatomía**. Diseñado para responder consultas académicas y clínicas basándose **exclusivamente** en literatura científica indexada localmente, implementando una arquitectura **RAG (Retrieval-Augmented Generation)** de forma 100% local, soberana y privada.
-
----
-
-## Descripción General
-
-**Atena** procesa textos académicos y libros de texto especializados en formato PDF y DOCX, los fragmenta e indexa vectorialmente en una base de datos local (**ChromaDB**). Ante las consultas de estudiantes, docentes e investigadores en psicología y medicina, el sistema recupera la evidencia más relevante y la inyecta como contexto a un Modelo de Lenguaje Local (**Ollama - Qwen2.5 1.5B**), garantizando **cero alucinaciones** y citando explícitamente los documentos y páginas fuente.
-
-### Soberanía Tecnológica y Privacidad
-- **100% Local:** Ninguna consulta ni documento procesado viaja a servidores externos o APIs de terceros.
-- **Sin Costos de Operación:** Funciona completamente offline tras descargar los modelos locales.
-- **Trazabilidad y Evidencia:** Cada afirmación incluye las citas exactas de los libros y modelos indexados.
+Sistema de Inteligencia Artificial que actúa como **consultor científico especializado en neuroanatomía**. Diseñado para responder consultas académicas y clínicas basándose **exclusivamente** en literatura científica indexada, implementando una arquitectura **RAG (Retrieval-Augmented Generation)** conectada con **Google Gemini API** y expuesta mediante una **API REST en FastAPI** para su integración con aplicaciones de Realidad Aumentada (**Unity — NeuroK AR**) y plataformas web.
 
 ---
 
-## Arquitectura del Sistema
+## 📌 Descripción General
+
+**Atena** procesa textos académicos y libros de texto especializados en neuroanatomía (formato PDF y DOCX), los fragmenta e indexa vectorialmente en una base de datos (**ChromaDB**). Ante las consultas de estudiantes, docentes e investigadores, el sistema recupera la evidencia más relevante y la inyecta como contexto a un Modelo de Lenguaje de última generación (**Google Gemini 2.5 Flash**), garantizando respuestas precisas y citando explícitamente los documentos y páginas fuente.
+
+### Características Principales
+- **Cero Alucinaciones:** Respuestas fundamentadas únicamente en el corpus científico indexado.
+- **Doble Nivel Pedagógico:** Respuestas adaptadas a nivel **Básico** (estudiantes iniciales/visitantes) y **Avanzado** (estudiantes de psicología, medicina y docentes).
+- **API REST Multiplataforma:** Endpoints listos para ser consumidos desde **Unity (C#)**, aplicaciones móviles, web o sistemas externos.
+- **Despliegue Continuo en la Nube:** Alojado en **Render.com** con integración directa desde GitHub y base de datos NoSQL en **Firebase Firestore**.
+- **Trazabilidad Bibliográfica:** Cada respuesta incluye las citas exactas de los libros y manuales de referencia.
+
+---
+
+## 🏛️ Arquitectura del Sistema
 
 ```mermaid
 flowchart TD
-    subgraph Frontend ["🖥️ Capa de Presentación (Streamlit)"]
-        UI["app.py (Punto de Entrada)"]
-        CSS["style.css (Hojas de Estilo Centralizadas)"]
-        COMP["components/ (Header, Sidebar, Consultor, Resultados, Admin Panel)"]
+    subgraph Clientes ["📱 Clientes & Interfaces"]
+        UNITY["🎮 Unity — NeuroK AR (App Móvil C#)"]
+        WEB["🖥️ Streamlit — Interfaz Web (app.py)"]
+        DOCS_UI["📖 Swagger UI (/docs)"]
     end
 
-    subgraph Backend ["⚙️ Capa de Lógica & RAG Engine"]
-        CONF["config.py (Constantes & Nomenclatura)"]
-        RAG["rag_pipeline.py (Chunking, Embeddings & Retrieval)"]
+    subgraph API_Layer ["☁️ Capa de Servicios (Render.com)"]
+        API["⚡ api.py (FastAPI REST Service)"]
+        CONF["⚙️ config.py (Configuración & Mapeos)"]
     end
 
-    subgraph Storage ["💾 Capa de Persistencia Local"]
-        VEC["ChromaDB (chroma_neuro_db/)"]
-        SQL["SQLite (neuro_metrics.db)"]
-        DOCS["Docs/ (PDFs & DOCX de Neuroanatomía)"]
+    subgraph RAG_Engine ["🧠 Motor RAG & Base de Conocimientos"]
+        RAG["rag_pipeline.py (Búsqueda Híbrida & Re-ranking)"]
+        CHROMA["💾 ChromaDB (Vectores de Neuroanatomía)"]
+        DOCS["📚 Docs/ (Literatura Científica y Manuales 3D)"]
     end
 
-    subgraph LLM ["🤖 Inferencia de IA Local"]
-        OLL["Ollama (qwen2.5:1.5b + nomic-embed-text)"]
+    subgraph AI_Cloud ["🤖 Inteligencia Artificial (Google Cloud)"]
+        LLM["Google Gemini 2.5 Flash (Generación de Respuestas)"]
+        EMB["Google Gemini Embedding 001 (Vectorización Semántica)"]
     end
 
-    UI --> COMP
-    COMP --> RAG
-    DOCS --> RAG
-    RAG --> OLL
-    RAG --> VEC
-    RAG --> SQL
-    SQL --> COMP
+    subgraph Persistence ["🔥 Persistencia en la Nube"]
+        FIREBASE["Firebase Firestore (Evaluaciones, Sesiones y Métricas)"]
+    end
+
+    UNITY -->|POST /consultar| API
+    UNITY -->|Lectura / Escritura| FIREBASE
+    WEB --> RAG
+    DOCS_UI --> API
+    API --> RAG
+    RAG --> CHROMA
+    RAG --> DOCS
+    RAG -->|Prompt Aumentado| LLM
+    RAG -->|Generación de Embeddings| EMB
 ```
 
 ---
 
-## Estructura del Proyecto
+## 🌐 Servicios en la Nube (Producción)
 
-```bash
-Atena/
-├── app.py                     # Aplicación principal Streamlit y orquestación
-├── config.py                  # Variables globales, PIN de admin y utilidades
-├── database.py                # Gestión de base de datos SQLite (telemetría e historial)
-├── rag_pipeline.py            # Pipeline RAG (LangChain, ChromaDB y Ollama)
-├── style.css                  # Hoja de estilos CSS institucional
-├── requirements.txt           # Dependencias principales de Python
-├── requirements_docker.txt    # Dependencias optimizadas para el entorno Docker
-├── Dockerfile                 # Definición del contenedor de la aplicación
-├── docker-compose.yml         # Orquestación de app + tunelización opcional
-├── .gitignore                 # Exclusión de temporales, DBs y entornos virtuales
-├── .dockerignore              # Exclusión de archivos para el build de Docker
-├── .streamlit/
-│   └── config.toml            # Configuración de tema y puertos de Streamlit
-├── Docs/                      # Literatura científica indexable (PDF / DOCX)
-│   ├── El cerebro y la conducta Neuroanatomía para psicólogos.pdf
-│   ├── MODELO NEUROANATÓMICO 3D.docx
-│   └── Neuroanatomia clinica  26va Edición - Lange.pdf
-└── components/                # Módulos de la interfaz de usuario
-    ├── __init__.py
-    ├── admin_panel.py         # Panel de control del administrador y métricas
-    ├── consultor.py           # Cuadro de entrada de consultas y sugerencias
-    ├── header.py              # Encabezado institucional y branding
-    ├── resultados.py          # Renderizado de respuestas y tarjetas de citas
-    └── sidebar.py             # Control de nivel, carga de archivos y autenticación
+| Servicio | URL / Acceso | Descripción |
+|---|---|---|
+| **API REST en Producción** | `https://atena-ic4u.onrender.com` | Backend en la nube (Render.com) |
+| **Documentación Interactiva (Swagger)** | [https://atena-ic4u.onrender.com/docs](https://atena-ic4u.onrender.com/docs) | Pruebas interactivas de endpoints |
+| **Health Check** | [https://atena-ic4u.onrender.com/salud](https://atena-ic4u.onrender.com/salud) | Estado de salud y verificación de base de datos |
+| **Base de Datos NoSQL** | Firebase Cloud Firestore (`atena-2d765`) | Métricas, evaluaciones e historial |
+| **Manual Técnico Completo** | [Manual_Tecnico_Atena_NeuroK.md](Manual_Tecnico_Atena_NeuroK.md) | Guía técnica detallada de infraestructura |
+
+---
+
+## 🚀 Endpoints de la API REST
+
+### 1. `POST /consultar`
+Recibe una consulta de neuroanatomía y devuelve la respuesta del asistente con fuentes citadas.
+
+**Request (JSON):**
+```json
+{
+  "pregunta": "¿Cuáles son las funciones del lóbulo frontal?",
+  "nivel": "basico",
+  "k": 6
+}
 ```
 
----
+**Response (JSON):**
+```json
+{
+  "respuesta": "El lóbulo frontal es el encargado de las funciones ejecutivas, la planificación motora...",
+  "fuentes": [
+    {
+      "fuente": "Neuroanatomia clinica  26va Edición - Lange.pdf",
+      "pagina": 214,
+      "fragmento": "El lóbulo frontal ocupa la porción anterior del hemisferio cerebral..."
+    }
+  ],
+  "nivel": "basico"
+}
+```
 
-## Especificación del Pipeline RAG
+### 2. `GET /salud`
+Verifica la disponibilidad del servidor y si el vector store de neuroanatomía está cargado.
 
-| Parámetro | Valor | Descripción |
-|-----------|-------|-------------|
-| **LLM Local** | `qwen2.5:1.5b` (Ollama) | Modelo de lenguaje optimizado de 1.5B parámetros (baja latencia y alta precisión). |
-| **Embeddings** | `nomic-embed-text` | Modelo vectorial local de 768 dimensiones. |
-| **Tamaño de Fragmento (chunk_size)** | 800 caracteres | Dimensión ideal para mantener contexto anatómico coherente. |
-| **Solapamiento (chunk_overlap)** | 80 caracteres | Preserva la continuidad entre límites de fragmentos. |
-| **Búsqueda Semántica** | Similitud de Coseno | Recuperación vectorial rápida y precisa en ChromaDB. |
-| **Fragmentos Recuperados (k)** | 3 a 8 (Ajustable) | Inyección dinámica de evidencia documental al prompt del LLM. |
-| **Temperatura de Inferencia** | 0.1 | Configuración determinista óptima para responder datos médicos precisos. |
-
----
-
-## Instalación y Ejecución
-
-### Prerrequisitos
-
-1. **Python 3.10+** instalado.
-2. **Ollama** instalado y corriendo en segundo plano ([ollama.com](https://ollama.com)).
-3. Descargar los modelos requeridos en Ollama:
-   ```bash
-   ollama pull qwen2.5:1.5b
-   ollama pull nomic-embed-text
-   ```
+### 3. `GET /info`
+Retorna información técnica sobre los modelos y capacidades del sistema.
 
 ---
 
-### Opción 1: Ejecución Directa en Entorno Virtual (Recomendado)
+## 🎮 Integración con Unity (C#)
 
+Para conectar la app de Realidad Aumentada en Unity con Atena, utiliza el cliente oficial:
+
+- **Archivo C#:** [`AtenaClient.cs`](AtenaClient.cs)
+- **Uso en Unity:**
+  ```csharp
+  AtenaClient.Instance.ConsultarAsistente(
+      "¿Qué es la sustancia negra?",
+      "avanzado",
+      (response) => {
+          Debug.Log("Respuesta IA: " + response.respuesta);
+      },
+      (error) => {
+          Debug.LogError("Error: " + error);
+      }
+  );
+  ```
+
+---
+
+## 🛠️ Ejecución Local (Desarrollo)
+
+### Requisitos Previos
+- Python 3.10 o 3.11
+- Clave de API de Google Gemini (`GEMINI_API_KEY`)
+
+### Instalación
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/Vivi271/Atena.git
 cd Atena
 
-# 2. Crear y activar el entorno virtual
+# 2. Crear y activar entorno virtual
 python3 -m venv env
-source env/bin/activate        # En macOS / Linux
-# env\Scripts\activate         # En Windows
+source env/bin/activate  # En Windows: env\Scripts\activate
 
-# 3. Instalar dependencias de Python
+# 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Iniciar la aplicación Streamlit
-streamlit run app.py
+# 4. Configurar variables de entorno
+cp .env.example .env
+# Añade tu clave en .env:
+# GEMINI_API_KEY=tu_clave_aqui
 ```
-Accede desde tu navegador en `http://localhost:8502`.
+
+### Iniciar Servicios Locales
+
+- **Iniciar API REST (FastAPI):**
+  ```bash
+  python3 api.py
+  # Disponible en http://localhost:8080/docs
+  ```
+
+- **Iniciar Interfaz Web (Streamlit):**
+  ```bash
+  streamlit run app.py
+  # Disponible en http://localhost:8501
+  ```
 
 ---
 
-### Opción 2: Ejecución mediante Docker Compose
+## 📚 Literatura Científica Indexada
 
-```bash
-# 1. Asegúrate de tener Docker Engine y Docker Compose instalados
-docker-compose up --build -d
-```
-El contenedor se compilará e iniciará exponiendo el servicio en el puerto `8502`.
+1. **Neuroanatomía Clínica (26ª Edición)** — *Stephen G. Waxman (Lange / McGraw-Hill)*.
+2. **El Cerebro y la Conducta: Neuroanatomía para Psicólogos** — *David L. Clark, Nash N. Boutros, Mario F. Mendez*.
+3. **Manual de Modelo Neuroanatómico 3D** — *Laboratorio de Neurociencias Aplicadas (NeuroK)*.
 
 ---
 
-## Módulos Principales de la Aplicación
+## 📄 Licencia y Créditos
 
-1. **Consultor de Aprendizaje:**
-   - Selección de Nivel: **Básico** (explicaciones pedagógicas) o **Avanzado** (profundidad clínica y formal).
-   - Detección de saludos y consultas fuera de dominio.
-   - Previsualización expandible de fragmentos originales recuperados con número de página y nombre de fuente.
+Proyecto desarrollado en el marco del trabajo de grado de la **Fundación Universitaria Konrad Lorenz** para el **Laboratorio de Neurociencias Aplicadas – NeuroK**.
 
-2. **Panel de Administración (PIN por defecto en `config.py`):**
-   - **Gestión del Corpus:** Cargar nuevos artículos (PDF/DOCX) y eliminarlos del índice en tiempo real.
-   - **Telemetría SQLite:** Gráficos de tiempo de respuesta (latencias en segundos), volumen de consultas y preferencia de niveles.
-   - **Banco de Evaluaciones:** Crear, editar y eliminar preguntas de autoevaluación pedagógica.
-
-3. **Base de Datos de Métricas (SQLite):**
-   - Registra de forma transparente todas las consultas, respuestas, latencias y resultados de las evaluaciones tomadas por los usuarios en `chroma_neuro_db/neuro_metrics.db`.
-
----
-
-## Créditos e Institución
-
-Proyecto desarrollado en el marco del programa de Psicología / Neurociencia de la **Fundación Universitaria Konrad Lorenz**.
+- **Autora:** Viviana Marcela García Valderrama
+- **Institución:** Fundación Universitaria Konrad Lorenz (2026)
