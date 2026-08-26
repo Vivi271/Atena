@@ -5,7 +5,7 @@
 
 > **Documento preparado para entrega institucional al Laboratorio de Neurociencias Aplicadas – NeuroK**  
 > Fecha: Agosto 2026  
-> Autora: Viviana Marcela García Valderrama  
+> **Autores:** Viviana Marcela García Valderrama — Braian Felipe Ramirez Ortiz  
 
 ---
 
@@ -235,7 +235,7 @@ La capa gratuita de Render entra en reposo tras 15 minutos de inactividad. Abrir
 | **Aplicación Móvil Cliente** | NeuroK AR (Unity / Android) |
 | **Institución** | Fundación Universitaria Konrad Lorenz |
 | **Laboratorio** | Neurociencias Aplicadas – NeuroK |
-| **Autora** | Viviana Marcela García Valderrama |
+| **Autores** | Viviana Marcela García Valderrama — Braian Felipe Ramirez Ortiz |
 | **Año** | 2026 |
 | | |
 | **URL Base de Producción** | `https://atena-vugz.onrender.com` |
