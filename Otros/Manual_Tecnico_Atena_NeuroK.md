@@ -5,7 +5,7 @@
 
 > **Documento preparado para entrega institucional al Laboratorio de Neurociencias Aplicadas – NeuroK**  
 > Fecha: Agosto 2026  
-> Autora: Viviana Marcela García Valderrama  
+> Autores: Viviana Marcela García Valderrama - Braian Felipe Ramirez Ortiz
 
 ---
 
