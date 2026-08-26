@@ -15,7 +15,7 @@
 2. [Cuenta Institucional del Proyecto](#2-cuenta-institucional-del-proyecto)
 3. [Repositorio de Código — GitHub](#3-repositorio-de-código--github)
 4. [Backend en la Nube — Render.com](#4-backend-en-la-nube--rendercom)
-5. [Base de Datos NoSQL — Firebase Firestore](#5-base-de-datos-nosql--firebase-firestore)
+5. [Base de Datos NoSQL — Firebase Firestore (Conexión y Flujo de Datos)](#5-base-de-datos-nosql--firebase-firestore-conexión-y-flujo-de-datos)
 6. [Modelo de IA — Gemini API (Google AI Studio)](#6-modelo-de-ia--gemini-api-google-ai-studio)
 7. [API REST — Endpoints y Funcionamiento](#7-api-rest--endpoints-y-funcionamiento)
 8. [Script para Unity — AtenaClient.cs](#8-script-para-unity--atenaclientcs)
@@ -40,15 +40,12 @@ El proyecto está compuesto por **cuatro capas** que trabajan juntas de forma in
          ┌──────────────────────┐     ┌────────────────────────────┐
          │  FIREBASE (Google)   │     │   RENDER.COM (API Atena)   │
          │  ─────────────────── │     │   ────────────────────────  │
-         │  Auth: Perfil de     │     │  POST /consultar            │
-         │  usuario (nivel      │     │  → rag_pipeline.py          │
-         │  básico/avanzado)    │     │  → ChromaDB (libros)        │
-         │                      │     │  → Gemini API (IA)          │
-         │  Firestore: Guarda   │     │  ← Respuesta + Fuentes      │
-         │  • Evaluaciones      │     │                             │
-         │  • Puntajes          │     │   GET /salud                │
-         │  • Historial chat    │     │   GET /info                 │
-         │  • Métricas de uso   │     │   GET /docs                 │
+         │  Base NoSQL en Nube: │     │  POST /consultar            │
+         │  • Evaluaciones      │     │  → rag_pipeline.py          │
+         │  • Puntajes          │     │  → ChromaDB (libros)        │
+         │  • Historial chat    │     │  → Gemini API (IA)          │
+         │  • Métricas de uso   │     │  ← Respuesta + Fuentes      │
+         │  (SDK gRPC/HTTPS)    │     │   GET /salud, /info, /docs │
          └──────────────────────┘     └────────────────────────────┘
                         │                         │
                         └──────────┬──────────────┘
@@ -80,95 +77,181 @@ Para garantizar la **soberanía institucional** del proyecto (que la Fundación 
 
 ## 3. Repositorio de Código — GitHub
 
-### ¿Qué es GitHub?
-GitHub es la plataforma donde vive el **código fuente completo del sistema**. Es el punto de verdad (Single Source of Truth) de la arquitectura. Cualquier actualización que se haga al código se sube aquí primero, y automáticamente se propaga al despliegue en Render.
-
-### Datos del Repositorio
-
 | Campo | Valor |
 |-------|-------|
 | **URL del Repositorio** | https://github.com/Vivi271/Atena |
 | **Tipo de Repositorio** | Público (acceso abierto para compilación y auditoría) |
 | **Rama principal** | `main` |
 
-### Estructura del Repositorio
-
-```
-Atena/
-├── api.py                  ← Servidor FastAPI (endpoints REST)
-├── rag_pipeline.py         ← Lógica del RAG (búsqueda + IA)
-├── config.py               ← Configuración del sistema
-├── database.py             ← Gestión de métricas locales
-├── app.py                  ← Interfaz Streamlit (local)
-├── AtenaClient.cs          ← Script de C# para Unity
-├── Dockerfile              ← Receta de construcción del servidor
-├── requirements_docker.txt ← Librerías Python necesarias
-├── .dockerignore           ← Archivos excluidos del contenedor
-├── .gitignore              ← Archivos ignorados por Git
-├── components/             ← Componentes de interfaz de usuario
-└── Docs/                   ← Literatura científica indexada
-    ├── El cerebro y la conducta...pdf
-    ├── Neuroanatomia clinica 26va...pdf
-    └── MODELO NEUROANATÓMICO 3D.docx
-```
-
 ---
 
 ## 4. Backend en la Nube — Render.com
 
-### Proceso de Despliegue Institucional Paso a Paso
+### Proceso de Despliegue Institucional
 
-El despliegue se realizó directamente con la **cuenta institucional del proyecto**:
+El despliegue se realizó directamente con la cuenta `atena.unikonrad@gmail.com`:
 
-**Paso 1 — Registro con la cuenta institucional:**
-- Se ingresó a [dashboard.render.com/register](https://dashboard.render.com/register)
-- Se seleccionó **"Sign up with Google"** usando el correo **`atena.unikonrad@gmail.com`**
-
-**Paso 2 — Creación del Web Service:**
-- En el panel principal, se hizo clic en **"New +"** → **"Web Service"**
-- Se conectó mediante el repositorio público: `https://github.com/Vivi271/Atena`
-
-**Paso 3 — Configuración del servicio:**
 | Parámetro | Valor Configurado |
 |-----------|-------------------|
 | **Name** | `Atena` |
 | **Region** | `Oregon (US West)` |
-| **Runtime** | `Docker` (detectado automáticamente desde el repositorio) |
-| **Branch** | `main` |
+| **Runtime** | `Docker` |
 | **Instance Type** | **`Free`** ($0 USD/mes permanente) |
-| **Auto-Deploy** | `On Commit` (actualizaciones continuas al hacer cambios en GitHub) |
 | **Health Check Path** | `/salud` |
+| **URL Oficial** | `https://atena-vugz.onrender.com` |
 
-**Paso 4 — Variable de Entorno:**
-| Clave | Valor |
-|-------|-------|
-| `GEMINI_API_KEY` | *(Clave API de Google Gemini generada para el proyecto)* |
+---
 
-**Paso 5 — Lanzamiento y Estado:**
-- Se ejecutó **"Deploy Web Service"**
-- Estado: **✅ Live (Desplegado y en producción)**
+## 5. Base de Datos NoSQL — Firebase Firestore (Conexión y Flujo de Datos)
 
-### URL Oficial de Producción
+### ¿Qué es y por qué una base de datos NoSQL?
+Cloud Firestore es una base de datos orientada a documentos (NoSQL) alojada en la infraestructura de Google Cloud. A diferencia de las bases de datos relacionales tradicionales (SQL), Firestore organiza la información en **Colecciones** y **Documentos JSON**, lo que permite:
+1. **Escalabilidad automática:** Soporta múltiples usuarios simultáneos en el laboratorio sin saturar el servidor.
+2. **Sincronización en tiempo real:** Los datos se transmiten de forma reactiva y bidireccional.
+3. **Persistencia y Caché Offline:** Si el dispositivo móvil en el laboratorio pierde la conexión Wi-Fi temporalmente, los datos se guardan en el almacenamiento local del celular y se sincronizan automáticamente con la nube en cuanto se restablece la red.
+
+---
+
+### ¿Cómo se Conecta la Aplicación Móvil (Unity) con Firestore?
+
+La comunicación entre el dispositivo del estudiante y la base de datos en la nube sigue este flujo:
+
 ```
-https://atena-vugz.onrender.com
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          DISPOSITIVO MÓVIL (ANDROID)                        │
+│                                                                             │
+│   1. Estudiante realiza una acción (termina Quiz o envía Consulta a IA)    │
+│                                   │                                         │
+│                                   ▼                                         │
+│   2. Unity C# construye el objeto de datos (Score, Nivel, Fecha, Pregunta)  │
+│                                   │                                         │
+│                                   ▼                                         │
+│   3. Firebase Unity SDK lee el archivo de configuración:                    │
+│      Assets/google-services.json (contiene ProjectID: atena-2d765 y APIKey)│
+│                                   │                                         │
+│                                   ▼                                         │
+│   4. Envío seguro vía canal encriptado (gRPC / HTTPS con TLS 1.3)           │
+└───────────────────────────────────┬─────────────────────────────────────────┘
+                                    │
+                                    ▼ (Internet)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    NUBE DE GOOGLE (Cloud Firestore)                         │
+│                                                                             │
+│   5. Recepción en centro de datos nam5 (us-central)                         │
+│   6. Validación de reglas de seguridad (Modo Test / Reglas Institucionales) │
+│   7. Escritura atómica e indexación en la colección correspondiente         │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Base de Datos NoSQL — Firebase Firestore
+### Estructura de Colecciones y Esquema de Documentos
 
-### Proceso de Configuración Institucional
+#### 1. Colección `/evaluaciones` (Resultados de Quizzes)
+Almacena cada intento de evaluación realizado en el módulo interactivo de selección múltiple:
 
-**Paso 1 — Creación del Proyecto:**
-- Se ingresó a [console.firebase.google.com](https://console.firebase.google.com) con **`atena.unikonrad@gmail.com`**
-- Se creó el proyecto **`Atena`** (ID asignado: `atena-2d765`)
+```json
+{
+  "id_evaluacion": "eval_8f9a2b",
+  "perfil_usuario": "estudiante",
+  "nivel": "basico",
+  "fecha_hora": "2026-08-25T14:30:00Z",
+  "puntaje_total": 4,
+  "total_preguntas": 5,
+  "porcentaje_acierto": 80.0,
+  "detalle_respuestas": [
+    {
+      "pregunta": "¿Qué estructura conecta los hemisferios cerebrales?",
+      "respuesta_seleccionada": "Cuerpo calloso",
+      "es_correcta": true
+    },
+    {
+      "pregunta": "¿Dónde se localiza el lóbulo occipital?",
+      "respuesta_seleccionada": "Región anterior",
+      "es_correcta": false
+    }
+  ]
+}
+```
 
-**Paso 2 — Habilitación de Cloud Firestore:**
-- En el menú lateral se seleccionó **Bases de datos y almacenamiento** → **Cloud Firestore**
-- **Edición:** Standard
-- **Ubicación de Servidores:** `nam5 (United States)`
-- **Reglas de Seguridad:** Modo de prueba (lectura y escritura desde Unity)
-- Se habilitó la base de datos con éxito
+#### 2. Colección `/consultas` (Historial del Asistente IA)
+Permite al cuerpo docente analizar cuáles son los temas o dudas más frecuentes de los estudiantes:
+
+```json
+{
+  "id_consulta": "chat_4c7e1d",
+  "perfil_usuario": "estudiante",
+  "nivel": "avanzado",
+  "pregunta": "¿Cuál es la función del núcleo caudado?",
+  "respuesta_generada": "El núcleo caudado integra el cuerpo estriado y participa en el control motor...",
+  "fuentes_consultadas": ["Neuroanatomia clinica - Lange.pdf (pág. 182)"],
+  "fecha_hora": "2026-08-25T15:10:22Z"
+}
+```
+
+#### 3. Colección `/metricas` (Telemetría de Uso del Laboratorio)
+Registra la interacción con los modelos 3D y la alternancia de niveles de contenido:
+
+```json
+{
+  "id_sesion": "ses_001928",
+  "estructura_3d_explorada": "Cerebelo",
+  "tiempo_interaccion_segundos": 145,
+  "alternancias_nivel_realizadas": 3,
+  "fecha": "2026-08-25"
+}
+```
+
+---
+
+### Código C# para Unity (`FirebaseManager.cs`)
+
+Para guardar datos en Firestore desde Unity, se utiliza el siguiente script:
+
+```csharp
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Firebase.Firestore;
+using Firebase.Extensions;
+
+public class FirebaseManager : MonoBehaviour
+{
+    private FirebaseFirestore db;
+
+    void Start()
+    {
+        // Inicializa la instancia de Firestore conectada al proyecto atena-2d765
+        db = FirebaseFirestore.DefaultInstance;
+    }
+
+    /// <summary>
+    /// Guarda el resultado de un quiz completado en la nube.
+    /// </summary>
+    public void GuardarResultadoEvaluacion(string perfil, string nivel, int aciertos, int total)
+    {
+        DocumentReference docRef = db.Collection("evaluaciones").Document();
+        
+        Dictionary<string, object> evaluacion = new Dictionary<string, object>
+        {
+            { "perfil_usuario", perfil },
+            { "nivel", nivel },
+            { "fecha_hora", DateTime.UtcNow.ToString("o") },
+            { "puntaje_total", aciertos },
+            { "total_preguntas", total },
+            { "porcentaje_acierto", (float)aciertos / total * 100f }
+        };
+
+        docRef.SetAsync(evaluacion).ContinueWithOnMainThread(task => {
+            if (task.IsCompleted && !task.IsFaulted) {
+                Debug.Log("[Firebase] Evaluación guardada exitosamente con ID: " + docRef.Id);
+            } else {
+                Debug.LogError("[Firebase] Error al guardar evaluación: " + task.Exception);
+            }
+        });
+    }
+}
+```
 
 ---
 
@@ -179,8 +262,6 @@ https://atena-vugz.onrender.com
 | **Generación de Respuestas RAG** | `gemini-2.5-flash` |
 | **Vectorización Semántica** | `gemini-embedding-001` |
 
-La gestión de cuotas y claves se realiza directamente desde [aistudio.google.com](https://aistudio.google.com) con la cuenta `atena.unikonrad@gmail.com`.
-
 ---
 
 ## 7. API REST — Endpoints y Funcionamiento
@@ -190,28 +271,16 @@ La gestión de cuotas y claves se realiza directamente desde [aistudio.google.co
 https://atena-vugz.onrender.com
 ```
 
-### Catálogo de Endpoints
-
-#### 1. `GET /docs` — Documentación Interactiva (Swagger UI)
-Interfaz gráfica para interactuar con la API directamente desde el navegador web.
-- **Enlace:** https://atena-vugz.onrender.com/docs
-
-#### 2. `GET /salud` — Health Check
-Verifica que el servicio esté activo y que el almacén vectorial esté cargado.
-- **Enlace:** https://atena-vugz.onrender.com/salud
-
-#### 3. `GET /info` — Ficha Técnica del Servicio
-Muestra metadatos y modelos configurados en el pipeline.
-- **Enlace:** https://atena-vugz.onrender.com/info
-
-#### 4. `POST /consultar` — Inferencia RAG (Consumo desde Unity)
-Endpoint que procesa las preguntas neuroanatómicas.
+- **`GET /docs`** — Documentación interactiva Swagger UI
+- **`GET /salud`** — Health check de verificación
+- **`GET /info`** — Metadatos y modelos
+- **`POST /consultar`** — Inferencia RAG para Unity
 
 ---
 
 ## 8. Script para Unity — AtenaClient.cs
 
-Script oficial en C# para la aplicación móvil NeuroK AR (Unity / Android):
+Script oficial en C# para la aplicación móvil NeuroK AR:
 - **Archivo:** [`AtenaClient.cs`](AtenaClient.cs)
 - **URL Base integrada:** `https://atena-vugz.onrender.com`
 
@@ -219,11 +288,7 @@ Script oficial en C# para la aplicación móvil NeuroK AR (Unity / Android):
 
 ## 9. Cómo Agregar y Vectorizar Nueva Literatura Científica
 
-El sistema está diseñado para ser **extensible y modular**. Si los docentes o investigadores del Laboratorio de NeuroK desean incorporar nuevos libros, guías clínicas o artículos científicos en el futuro, el proceso de vectorización es automático.
-
 ### ¿Cómo funciona el Pipeline de Vectorización?
-Cuando se agrega un documento, el motor RAG (`rag_pipeline.py`) ejecuta automáticamente las siguientes etapas:
-
 ```
 ┌─────────────────┐     ┌─────────────────────┐     ┌───────────────────────┐
 │  Nuevo Archivo  │ ──► │  Limpieza & OCR     │ ──► │  Chunking Recursivo   │
@@ -239,47 +304,12 @@ Cuando se agrega un documento, el motor RAG (`rag_pipeline.py`) ejecuta automát
 └─────────────────┘     └─────────────────────┘     └───────────────────────┘
 ```
 
----
-
-### Método 1: Actualización Automática en la Nube (Vía GitHub — Recomendado)
-
-Es el método más sencillo y no requiere instalar nada en la computadora:
-
-1. **Subir el nuevo archivo:**
-   - Entrar al repositorio: https://github.com/Vivi271/Atena/tree/main/Docs
-   - Hacer clic en el botón superior **"Add file"** ➡️ **"Upload files"**.
-   - Arrastrar el nuevo archivo PDF o DOCX dentro de la carpeta `Docs/`.
-   - Escribir un mensaje de commit (ej. `docs: agregar Guia_Neuroanatomia_2026.pdf`) y hacer clic en **"Commit changes"**.
-
-2. **Re-vectorización Automática:**
-   - Render detecta el nuevo commit en GitHub de forma automática (*Auto-Deploy*).
-   - El contenedor lee la carpeta `Docs/`, procesa el nuevo archivo, genera los embeddings vectoriales con Gemini y actualiza la base de datos ChromaDB en la nube.
-   - En ~2 minutos, las nuevas consultas en Unity ya tendrán en cuenta la nueva literatura.
-
----
-
-### Método 2: Indexación Local desde el Panel Web (Streamlit UI)
-
-Si se desea probar la vectorización de forma interactiva en la computadora antes de subirla a la nube:
-
-1. Iniciar la aplicación web local:
-   ```bash
-   streamlit run app.py
-   ```
-2. En la barra lateral izquierda, ingresar al **"Panel de Administración"** con el PIN de acceso:
-   ```text
-   PIN: 1234
-   ```
-3. En la sección **"Gestión de Documentos"**:
-   - Arrastrar el nuevo archivo PDF o DOCX en el cargador de archivos.
-   - Hacer clic en **"Indexar Nuevos Documentos"** (indexación incremental) o **"Reconstruir VectorDB"** (re-indexación completa desde cero).
-4. El sistema mostrará una barra de progreso indicando cuántos fragmentos (*chunks*) fueron creados y vectorizados exitosamente.
+1. **Vía GitHub (Automático):** Subir el PDF a `Docs/` y hacer commit. Render re-indexa el contenido en 2 minutos.
+2. **Vía Streamlit UI (Local):** Abrir `streamlit run app.py`, ingresar al Panel Admin con PIN `1234` y usar el cargador de archivos.
 
 ---
 
 ## 10. Cómo Administrar el Sistema
-
-La administración está completamente centralizada en la cuenta institucional:
 
 | Plataforma | URL de Administración | Cuenta de Acceso |
 |------------|-----------------------|------------------|
@@ -292,9 +322,7 @@ La administración está completamente centralizada en la cuenta institucional:
 
 ## 11. Cómo Actualizar el Código y el Despliegue
 
-### Despertar el Servidor en Demostraciones
-La capa gratuita de Render entra en modo de reposo tras 15 minutos sin peticiones. Para una sustentación o demostración en vivo:
-- Abrir la URL `https://atena-vugz.onrender.com/salud` en el navegador 1 minuto antes para que el servidor responda de inmediato en Unity.
+La capa gratuita de Render entra en reposo tras 15 minutos de inactividad. Abrir `https://atena-vugz.onrender.com/salud` 1 minuto antes de una demostración para despertar el servicio de inmediato.
 
 ---
 
