@@ -195,7 +195,7 @@ Render es la plataforma gratuita donde está desplegado el servidor que procesa 
 ### URL del Servicio (Producción)
 
 ```
-https://atena-ic4u.onrender.com
+https://atena-vugz.onrender.com
 ```
 
 ---
@@ -282,7 +282,7 @@ Es la "ventanilla" de comunicación entre Unity (o cualquier cliente) y el servi
 ### URL Base
 
 ```
-https://atena-ic4u.onrender.com
+https://atena-vugz.onrender.com
 ```
 
 ### Endpoints Disponibles
@@ -369,7 +369,7 @@ Recibe una pregunta y devuelve la respuesta generada por IA con fuentes bibliogr
 
 Interfaz visual donde se pueden probar los endpoints directamente desde el navegador sin necesidad de escribir código.
 
-**URL:** https://atena-ic4u.onrender.com/docs
+**URL:** https://atena-vugz.onrender.com/docs
 
 ---
 
@@ -416,7 +416,7 @@ https://github.com/Vivi271/Atena/blob/main/AtenaClient.cs
 2. Copiar el archivo dentro de la carpeta `Assets/Scripts/` del proyecto de Unity
 3. En la escena principal, crear un `GameObject` vacío y nombrarlo `[NetworkManager]`
 4. Arrastrar el script `AtenaClient.cs` al `GameObject`
-5. En el Inspector de Unity, verificar que el campo **Base Url** diga: `https://atena-ic4u.onrender.com`
+5. En el Inspector de Unity, verificar que el campo **Base Url** diga: `https://atena-vugz.onrender.com`
 
 ### Cómo Usarlo desde el Script del Chat
 
@@ -495,7 +495,7 @@ El sistema usa **Auto-Deploy** en Render: cualquier cambio que se suba al reposi
 
 La instancia gratuita de Render "duerme" después de 15 minutos de inactividad. Cuando llega una nueva petición, tarda ~50 segundos en "despertar" (cold start). Para evitar esto en el día de la sustentación:
 
-1. Abrir el navegador y acceder a: `https://atena-ic4u.onrender.com/salud` unos minutos antes de la demo
+1. Abrir el navegador y acceder a: `https://atena-vugz.onrender.com/salud` unos minutos antes de la demo
 2. Esto "despierta" el servidor y queda listo para responder de inmediato
 
 ### Desplegar una Copia del Sistema (Para la Universidad)
@@ -524,9 +524,9 @@ El sistema estará en vivo en ~3 minutos bajo una nueva URL propia de la univers
 | **Autora**                      | Viviana Marcela García Valderrama        |
 | **Año**                        | 2026                                      |
 |                                       |                                           |
-| **URL de la API (Producción)** | `https://atena-ic4u.onrender.com`       |
-| **Documentación Interactiva**  | `https://atena-ic4u.onrender.com/docs`  |
-| **Health Check**                | `https://atena-ic4u.onrender.com/salud` |
+| **URL de la API (Producción)** | `https://atena-vugz.onrender.com`       |
+| **Documentación Interactiva**  | `https://atena-vugz.onrender.com/docs`  |
+| **Health Check**                | `https://atena-vugz.onrender.com/salud` |
 | **Repositorio de Código**      | `https://github.com/Vivi271/Atena`      |
 |                                       |                                           |
 | **Cuenta Institucional**        | `atena.unikonrad@gmail.com`             |

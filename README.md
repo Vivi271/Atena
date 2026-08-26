@@ -64,9 +64,9 @@ flowchart TD
 
 | Servicio | URL / Acceso | Descripción |
 |---|---|---|
-| **API REST en Producción** | `https://atena-ic4u.onrender.com` | Backend en la nube (Render.com) |
-| **Documentación Interactiva (Swagger)** | [https://atena-ic4u.onrender.com/docs](https://atena-ic4u.onrender.com/docs) | Pruebas interactivas de endpoints |
-| **Health Check** | [https://atena-ic4u.onrender.com/salud](https://atena-ic4u.onrender.com/salud) | Estado de salud y verificación de base de datos |
+| **API REST en Producción** | `https://atena-vugz.onrender.com` | Backend en la nube (Render.com) |
+| **Documentación Interactiva (Swagger)** | [https://atena-vugz.onrender.com/docs](https://atena-vugz.onrender.com/docs) | Pruebas interactivas de endpoints |
+| **Health Check** | [https://atena-vugz.onrender.com/salud](https://atena-vugz.onrender.com/salud) | Estado de salud y verificación de base de datos |
 | **Base de Datos NoSQL** | Firebase Cloud Firestore (`atena-2d765`) | Métricas, evaluaciones e historial |
 | **Manual Técnico Completo** | [Manual_Tecnico_Atena_NeuroK.md](Manual_Tecnico_Atena_NeuroK.md) | Guía técnica detallada de infraestructura |
 

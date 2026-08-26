@@ -13,7 +13,7 @@ public class AtenaClient : MonoBehaviour
 {
     [Header("Configuración del Servidor")]
     [Tooltip("URL pública de la API de Atena en Render")]
-    public string baseUrl = "https://atena-ic4u.onrender.com";
+    public string baseUrl = "https://atena-vugz.onrender.com";
 
     // Instancia Singleton para acceso global fácil desde cualquier script o UI
     public static AtenaClient Instance { get; private set; }
