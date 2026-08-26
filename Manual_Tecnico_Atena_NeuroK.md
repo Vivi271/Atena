@@ -19,9 +19,10 @@
 6. [Modelo de IA — Gemini API (Google AI Studio)](#6-modelo-de-ia--gemini-api-google-ai-studio)
 7. [API REST — Endpoints y Funcionamiento](#7-api-rest--endpoints-y-funcionamiento)
 8. [Script para Unity — AtenaClient.cs](#8-script-para-unity--atenaclientcs)
-9. [Cómo Administrar el Sistema](#9-cómo-administrar-el-sistema)
-10. [Cómo Actualizar el Sistema en el Futuro](#10-cómo-actualizar-el-sistema-en-el-futuro)
-11. [Ficha Técnica Final de Entrega](#11-ficha-técnica-final-de-entrega)
+9. [Cómo Agregar y Vectorizar Nueva Literatura Científica](#9-cómo-agregar-y-vectorizar-nueva-literatura-científica)
+10. [Cómo Administrar el Sistema](#10-cómo-administrar-el-sistema)
+11. [Cómo Actualizar el Código y el Despliegue](#11-cómo-actualizar-el-código-y-el-despliegue)
+12. [Ficha Técnica Final de Entrega](#12-ficha-técnica-final-de-entrega)
 
 ---
 
@@ -111,21 +112,9 @@ Atena/
     └── MODELO NEUROANATÓMICO 3D.docx
 ```
 
-### ¿Qué es el Dockerfile?
-El `Dockerfile` es un **archivo de texto plano de configuración** que le indica a la nube de forma automatizada:
-1. Usar la imagen base oficial de Python 3.11
-2. Instalar las dependencias científicas requeridas
-3. Cargar el código fuente y los documentos de neuroanatomía
-4. Iniciar el servicio web con FastAPI y Uvicorn
-
-No contiene datos personales ni credenciales privadas; es un estándar abierto para despliegues reproducibles.
-
 ---
 
 ## 4. Backend en la Nube — Render.com
-
-### ¿Qué es Render?
-Render es la plataforma en la nube donde está alojado el servidor backend de Atena. Procesa las consultas en lenguaje natural, ejecuta la búsqueda semántica en la literatura indexada y devuelve las respuestas de IA en tiempo real.
 
 ### Proceso de Despliegue Institucional Paso a Paso
 
@@ -157,7 +146,6 @@ El despliegue se realizó directamente con la **cuenta institucional del proyect
 
 **Paso 5 — Lanzamiento y Estado:**
 - Se ejecutó **"Deploy Web Service"**
-- El contenedor construyó las dependencias y cargó el corpus de neuroanatomía
 - Estado: **✅ Live (Desplegado y en producción)**
 
 ### URL Oficial de Producción
@@ -169,9 +157,6 @@ https://atena-vugz.onrender.com
 
 ## 5. Base de Datos NoSQL — Firebase Firestore
 
-### ¿Qué es Firebase?
-Firebase es la plataforma de Google Cloud para almacenamiento NoSQL en tiempo real. Permite registrar las evaluaciones, sesiones y métricas de los estudiantes desde la app de Realidad Aumentada.
-
 ### Proceso de Configuración Institucional
 
 **Paso 1 — Creación del Proyecto:**
@@ -180,26 +165,14 @@ Firebase es la plataforma de Google Cloud para almacenamiento NoSQL en tiempo re
 
 **Paso 2 — Habilitación de Cloud Firestore:**
 - En el menú lateral se seleccionó **Bases de datos y almacenamiento** → **Cloud Firestore**
-- Se hizo clic en **"Crear base de datos"**
 - **Edición:** Standard
 - **Ubicación de Servidores:** `nam5 (United States)`
-- **Reglas de Seguridad:** Modo de prueba (listo para lectura y escritura desde Unity)
+- **Reglas de Seguridad:** Modo de prueba (lectura y escritura desde Unity)
 - Se habilitó la base de datos con éxito
-
-### Estructura de Datos en Firestore
-
-| Colección | Contenido |
-|-----------|-----------|
-| `evaluaciones` | Registros de resultados de quizzes de selección múltiple (pregunta, respuesta elegida, retroalimentación y puntaje obtenido). |
-| `consultas` | Historial de preguntas planteadas al asistente inteligente. |
-| `metricas` | Frecuencia de consulta por estructura cerebral y alternancia de nivel (básico vs. avanzado). |
-| `sesiones` | Trazabilidad de accesos por perfil de usuario (estudiante, docente, público general). |
 
 ---
 
 ## 6. Modelo de IA — Gemini API (Google AI Studio)
-
-El sistema utiliza modelos de lenguaje y embeddings de última generación de Google DeepMind:
 
 | Función | Modelo |
 |---------|--------|
@@ -226,7 +199,6 @@ Interfaz gráfica para interactuar con la API directamente desde el navegador we
 #### 2. `GET /salud` — Health Check
 Verifica que el servicio esté activo y que el almacén vectorial esté cargado.
 - **Enlace:** https://atena-vugz.onrender.com/salud
-- **Respuesta:** `{"estado": "ok", "servicio": "Atena API", "version": "1.0.0", "vector_store_listo": true}`
 
 #### 3. `GET /info` — Ficha Técnica del Servicio
 Muestra metadatos y modelos configurados en el pipeline.
@@ -234,30 +206,6 @@ Muestra metadatos y modelos configurados en el pipeline.
 
 #### 4. `POST /consultar` — Inferencia RAG (Consumo desde Unity)
 Endpoint que procesa las preguntas neuroanatómicas.
-
-**Petición (JSON):**
-```json
-{
-  "pregunta": "¿Cuáles son las funciones del lóbulo frontal?",
-  "nivel": "basico",
-  "k": 6
-}
-```
-
-**Respuesta (JSON):**
-```json
-{
-  "respuesta": "El lóbulo frontal se encarga de las funciones ejecutivas, control motor voluntario...",
-  "fuentes": [
-    {
-      "fuente": "Neuroanatomia clinica  26va Edición - Lange.pdf",
-      "pagina": 214,
-      "fragmento": "El lóbulo frontal ocupa la porción anterior del hemisferio..."
-    }
-  ],
-  "nivel": "basico"
-}
-```
 
 ---
 
@@ -267,23 +215,69 @@ Script oficial en C# para la aplicación móvil NeuroK AR (Unity / Android):
 - **Archivo:** [`AtenaClient.cs`](AtenaClient.cs)
 - **URL Base integrada:** `https://atena-vugz.onrender.com`
 
-### Integración en Unity:
-```csharp
-AtenaClient.Instance.ConsultarAsistente(
-    "¿Qué es la sustancia negra?",
-    "avanzado",
-    (respuesta) => {
-        chatUI.MostrarMensajeIA(respuesta.respuesta);
-    },
-    (error) => {
-        chatUI.MostrarError(error);
-    }
-);
+---
+
+## 9. Cómo Agregar y Vectorizar Nueva Literatura Científica
+
+El sistema está diseñado para ser **extensible y modular**. Si los docentes o investigadores del Laboratorio de NeuroK desean incorporar nuevos libros, guías clínicas o artículos científicos en el futuro, el proceso de vectorización es automático.
+
+### ¿Cómo funciona el Pipeline de Vectorización?
+Cuando se agrega un documento, el motor RAG (`rag_pipeline.py`) ejecuta automáticamente las siguientes etapas:
+
+```
+┌─────────────────┐     ┌─────────────────────┐     ┌───────────────────────┐
+│  Nuevo Archivo  │ ──► │  Limpieza & OCR     │ ──► │  Chunking Recursivo   │
+│  (PDF o DOCX)   │     │  Normalización      │     │  (1000 caracteres     │
+│                 │     │  de acentos         │     │   solape 200)         │
+└─────────────────┘     └─────────────────────┘     └───────────┬───────────┘
+                                                                │
+                                                                ▼
+┌─────────────────┐     ┌─────────────────────┐     ┌───────────────────────┐
+│  ChromaDB       │ ◄── │  Vectorización      │ ◄── │  Generación de        │
+│  (Vector Store  │     │  Almacén vectorial  │     │  Embeddings           │
+│   persistente)  │     │  con Metadata       │     │  (gemini-embedding)   │
+└─────────────────┘     └─────────────────────┘     └───────────────────────┘
 ```
 
 ---
 
-## 9. Cómo Administrar el Sistema
+### Método 1: Actualización Automática en la Nube (Vía GitHub — Recomendado)
+
+Es el método más sencillo y no requiere instalar nada en la computadora:
+
+1. **Subir el nuevo archivo:**
+   - Entrar al repositorio: https://github.com/Vivi271/Atena/tree/main/Docs
+   - Hacer clic en el botón superior **"Add file"** ➡️ **"Upload files"**.
+   - Arrastrar el nuevo archivo PDF o DOCX dentro de la carpeta `Docs/`.
+   - Escribir un mensaje de commit (ej. `docs: agregar Guia_Neuroanatomia_2026.pdf`) y hacer clic en **"Commit changes"**.
+
+2. **Re-vectorización Automática:**
+   - Render detecta el nuevo commit en GitHub de forma automática (*Auto-Deploy*).
+   - El contenedor lee la carpeta `Docs/`, procesa el nuevo archivo, genera los embeddings vectoriales con Gemini y actualiza la base de datos ChromaDB en la nube.
+   - En ~2 minutos, las nuevas consultas en Unity ya tendrán en cuenta la nueva literatura.
+
+---
+
+### Método 2: Indexación Local desde el Panel Web (Streamlit UI)
+
+Si se desea probar la vectorización de forma interactiva en la computadora antes de subirla a la nube:
+
+1. Iniciar la aplicación web local:
+   ```bash
+   streamlit run app.py
+   ```
+2. En la barra lateral izquierda, ingresar al **"Panel de Administración"** con el PIN de acceso:
+   ```text
+   PIN: 1234
+   ```
+3. En la sección **"Gestión de Documentos"**:
+   - Arrastrar el nuevo archivo PDF o DOCX en el cargador de archivos.
+   - Hacer clic en **"Indexar Nuevos Documentos"** (indexación incremental) o **"Reconstruir VectorDB"** (re-indexación completa desde cero).
+4. El sistema mostrará una barra de progreso indicando cuántos fragmentos (*chunks*) fueron creados y vectorizados exitosamente.
+
+---
+
+## 10. Cómo Administrar el Sistema
 
 La administración está completamente centralizada en la cuenta institucional:
 
@@ -296,12 +290,7 @@ La administración está completamente centralizada en la cuenta institucional:
 
 ---
 
-## 10. Cómo Actualizar el Sistema en el Futuro
-
-### Incorporar Nueva Literatura Científica
-1. Añadir el nuevo documento (PDF o DOCX) en la carpeta `Docs/` del repositorio.
-2. Hacer commit y push a la rama `main` en GitHub.
-3. Render detectará el cambio y reconstruirá el contenedor automáticamente.
+## 11. Cómo Actualizar el Código y el Despliegue
 
 ### Despertar el Servidor en Demostraciones
 La capa gratuita de Render entra en modo de reposo tras 15 minutos sin peticiones. Para una sustentación o demostración en vivo:
@@ -309,7 +298,7 @@ La capa gratuita de Render entra en modo de reposo tras 15 minutos sin peticione
 
 ---
 
-## 11. Ficha Técnica Final de Entrega
+## 12. Ficha Técnica Final de Entrega
 
 | Parámetro | Detalle Institucional |
 |---|---|
