@@ -72,8 +72,8 @@ COLLECTION_NAME = "neuroanatomia_cientifica"
 # ─────────────────────────────────────────────
 # 2. MODELOS — Google Gemini API
 # ─────────────────────────────────────────────
-GEMINI_EMBED_MODEL = "gemini-embedding-001"
-GEMINI_LLM_MODEL   = "gemini-2.5-flash"
+GEMINI_EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001")
+GEMINI_LLM_MODEL   = os.getenv("GEMINI_LLM_MODEL", "gemini-3.6-flash")
 
 embeddings_model = GoogleGenerativeAIEmbeddings(
     model=GEMINI_EMBED_MODEL,
@@ -597,6 +597,25 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
 # ─────────────────────────────────────────────
 # 5b. CONSULTA RAG — Google Gemini API
 # ─────────────────────────────────────────────
+def _extraer_texto_contenido(content) -> str:
+    """Extrae texto limpio de la respuesta de LangChain / Gemini (str, list de dicts o blocks)."""
+    if isinstance(content, str):
+        return content
+    elif isinstance(content, list):
+        partes = []
+        for part in content:
+            if isinstance(part, dict) and "text" in part:
+                partes.append(part["text"])
+            elif isinstance(part, str):
+                partes.append(part)
+            elif hasattr(part, "text"):
+                partes.append(getattr(part, "text"))
+            else:
+                partes.append(str(part))
+        return "".join(partes)
+    return str(content) if content is not None else ""
+
+
 def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "avanzado") -> dict:
     """
     PASOS 5-7 del pipeline RAG:
@@ -629,7 +648,7 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
         HumanMessage(content=PROMPT_TEMPLATE.format(context=context, question=pregunta)),
     ]
     response = llm.invoke(messages)
-    texto = response.content
+    texto = _extraer_texto_contenido(response.content)
 
     return {
         "pregunta": pregunta,
@@ -681,7 +700,7 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
     def _token_generator():
         for chunk in llm.stream(messages):
             if chunk.content:
-                yield chunk.content
+                yield _extraer_texto_contenido(chunk.content)
 
     return _token_generator(), docs_contexto[:k], len(context) // 4
 

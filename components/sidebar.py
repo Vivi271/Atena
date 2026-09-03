@@ -131,15 +131,16 @@ def render_sidebar(vs, disabled=False):
 
     # ── Parámetros del motor (solo para admin) ──
     if is_admin:
+        from rag_pipeline import GEMINI_LLM_MODEL, GEMINI_EMBED_MODEL
         with st.container():
             st.markdown("### Parámetros del Motor")
             k_chunks = st.slider("Fragmentos a recuperar (k)", min_value=3, max_value=8, value=5, key="admin_slider_k", disabled=disabled)
             
-            st.markdown("""
+            st.markdown(f"""
             <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 0.82rem; color: #94a3b8; margin-top: 10px;">
-                <b>LLM:</b> gemini-2.5-flash (Gemini API)
+                <b>LLM:</b> {GEMINI_LLM_MODEL} (Gemini API)
                 <span title="Modelo de lenguaje en la nube de Google. Rápido y sin carga local." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
-                <b>Embeddings:</b> gemini-embedding-001 (Google)
+                <b>Embeddings:</b> {GEMINI_EMBED_MODEL} (Google)
                 <span title="Modelo de vectorización de Google." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
                 <b>Temp:</b> 0.0
                 <span title="Respuestas académicas deterministas." style="cursor:help; color:#5dade2;"> ℹ️</span>

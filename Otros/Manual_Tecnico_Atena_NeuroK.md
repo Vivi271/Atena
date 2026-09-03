@@ -160,7 +160,7 @@ Cloud Firestore organiza la información en **Colecciones** y **Documentos JSON*
 
 | Función | Modelo |
 |---------|--------|
-| **Generación de Respuestas RAG** | `gemini-2.5-flash` |
+| **Generación de Respuestas RAG** | `gemini-3.6-flash` |
 | **Vectorización Semántica** | `gemini-embedding-001` |
 
 ---
@@ -245,7 +245,7 @@ La capa gratuita de Render entra en reposo tras 15 minutos de inactividad. Abrir
 | | |
 | **Cuenta Institucional Delegada** | `atena.unikonrad@gmail.com` |
 | **Base de Datos NoSQL** | Firebase Cloud Firestore (`atena-2d765`) |
-| **Motor de IA** | Google Gemini 2.5 Flash + Gemini Embedding 001 |
+| **Motor de IA** | Google Gemini 3.6 Flash + Gemini Embedding 001 |
 | **Infraestructura Cloud** | Render.com (Docker Container) |
 | **Costo Operativo Mensual** | $0 USD |
 

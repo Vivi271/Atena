@@ -6,7 +6,7 @@ Sistema de Inteligencia Artificial que actúa como **consultor científico espec
 
 ## 📌 Descripción General
 
-**Atena** procesa textos académicos y libros de texto especializados en neuroanatomía (formato PDF y DOCX), los fragmenta e indexa vectorialmente en una base de datos (**ChromaDB**). Ante las consultas de estudiantes, docentes e investigadores, el sistema recupera la evidencia más relevante y la inyecta como contexto a un Modelo de Lenguaje de última generación (**Google Gemini 2.5 Flash**), garantizando respuestas precisas y citando explícitamente los documentos y páginas fuente.
+**Atena** procesa textos académicos y libros de texto especializados en neuroanatomía (formato PDF y DOCX), los fragmenta e indexa vectorialmente en una base de datos (**ChromaDB**). Ante las consultas de estudiantes, docentes e investigadores, el sistema recupera la evidencia más relevante y la inyecta como contexto a un Modelo de Lenguaje de última generación (**Google Gemini 3.6 Flash**), garantizando respuestas precisas y citando explícitamente los documentos y páginas fuente.
 
 ### Características Principales
 - **Cero Alucinaciones:** Respuestas fundamentadas únicamente en el corpus científico indexado.
@@ -39,7 +39,7 @@ flowchart TD
     end
 
     subgraph AI_Cloud ["🤖 Inteligencia Artificial (Google Cloud)"]
-        LLM["Google Gemini 2.5 Flash (Generación de Respuestas)"]
+        LLM["Google Gemini 3.6 Flash (Generación de Respuestas)"]
         EMB["Google Gemini Embedding 001 (Vectorización Semántica)"]
     end
 

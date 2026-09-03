@@ -85,10 +85,11 @@ async def salud():
 @app.get("/info", tags=["Sistema"])
 async def info():
     """Información general del servicio."""
+    from rag_pipeline import GEMINI_LLM_MODEL, GEMINI_EMBED_MODEL
     return {
         "nombre": "Atena — Consultor RAG de Neuroanatomía",
-        "modelo_llm": "gemini-2.5-flash",
-        "modelo_embeddings": "gemini-embedding-001",
+        "modelo_llm": GEMINI_LLM_MODEL,
+        "modelo_embeddings": GEMINI_EMBED_MODEL,
         "endpoints": {
             "POST /consultar": "Enviar pregunta y recibir respuesta con fuentes",
             "GET  /salud":     "Health check",
