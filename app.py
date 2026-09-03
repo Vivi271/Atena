@@ -43,17 +43,28 @@ except ImportError as e:
     st.stop()
 
 # Carga del vector store (cacheado globalmente)
+# NOTA: No usar el objeto `vs` cacheado para operaciones de escritura (indexar/eliminar).
+# Las funciones add_documents_incremental y remove_documents_from_store crean siempre
+# un cliente ChromaDB fresco para evitar el error 'default_tenant does not exist'
+# causado por referencias obsoletas en el caché.
 @st.cache_resource
 def get_vector_store():
     try:
         return build_vector_store(force_rebuild=False)
+    except FileNotFoundError:
+        # Base vectorial no creada todavía — es normal en primera ejecución
+        return None
     except Exception as e:
         err = str(e).lower()
-        if "default_tenant" in err and "does not exist" in err:
+        # Si el SQLite está corrupto o el tenant no existe, borramos y empezamos limpio
+        if "default_tenant" in err or "does not exist" in err or "sqlite" in err:
             import shutil as _sh
             db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_neuro_db")
             if os.path.exists(db_path):
-                _sh.rmtree(db_path)
+                try:
+                    _sh.rmtree(db_path)
+                except Exception:
+                    pass
         return None
 
 vs = get_vector_store()

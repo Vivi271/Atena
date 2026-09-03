@@ -178,13 +178,14 @@ def render_sidebar(vs, disabled=False):
                 _vectores_huerfanos = set()
 
             if not _sin_indexar and _sidebar_count > 0:
-                st.success(f"Lista base — {_sidebar_count} vectores indexados")
+                st.success(f"Base de conocimiento lista — {_sidebar_count} fragmentos indexados")
             elif _sin_indexar:
                 if st.session_state.get("_iniciar_indexado"):
-                    st.info("Indexando archivos pendientes...")
+                    st.info("Indexando documentos nuevos, por favor espera...")
                 else:
-                    st.warning(f"{_sidebar_count} vectores — {len(_sin_indexar)} pendientes")
-                    if st.button(f"Indexar pendientes ({len(_sin_indexar)})", use_container_width=True, key="btn_sync", disabled=disabled):
+                    n_p = len(_sin_indexar)
+                    st.warning(f"{n_p} documento{'s' if n_p > 1 else ''} sin indexar ({_sidebar_count} fragmentos ya listos)")
+                    if st.button(f"Indexar {n_p} documento{'s' if n_p > 1 else ''} nuevo{'s' if n_p > 1 else ''}", use_container_width=True, key="btn_sync", disabled=disabled):
                         st.session_state["_iniciar_indexado"] = sorted(list(_sin_indexar))
                         st.rerun()
 
@@ -192,64 +193,54 @@ def render_sidebar(vs, disabled=False):
             if st.session_state.get("_iniciar_indexado"):
                 pendientes = st.session_state.pop("_iniciar_indexado")
                 total = len(pendientes)
-                progreso = st.progress(0, text=f"Indexando pendientes...")
+                progreso = st.progress(0, text="Iniciando indexación...")
                 try:
                     for i, archivo in enumerate(pendientes):
-                        progreso.progress(i / total, text=f"Indexando: {archivo}...")
+                        pct = int((i / total) * 100)
+                        progreso.progress(i / total, text=f"Procesando '{archivo}'... ({pct}%)")
                         ruta = os.path.join(docs_dir, archivo)
                         vs = add_documents_incremental([ruta], vs_existente=vs)
-                    progreso.progress(1.0, text="Indexación completa.")
-                    time.sleep(1)
+                    progreso.progress(1.0, text=f"Indexación completada — {total} documento{'s' if total > 1 else ''} agregado{'s' if total > 1 else ''}.")
+                    time.sleep(2)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error al indexar: {e}")
 
             if _vectores_huerfanos:
-                st.caption(f"ℹ️ {len(_vectores_huerfanos)} huérfanos detectados — usa Reparar DB")
+                st.caption(f"{len(_vectores_huerfanos)} documento(s) eliminado(s) — usa 'Reparar DB' para limpiar")
 
             # Botón de rebuild completo
             with st.expander("🛠️ Reparar / Reconstruir DB completa", expanded=False):
                 if st.button("Reconstruir VectorDB", use_container_width=True, key="rebuild_db_btn", disabled=disabled):
-                    progress_bar = st.progress(0, text="Preparando reconstrucción...")
+                    progress_bar = st.progress(0, text="⏳ Preparando reconstrucción...")
+                    status_txt = st.empty()
                     try:
-                        # PASO 1: Cerrar la conexión activa a ChromaDB (libera el lock de SQLite)
-                        progress_bar.progress(10, text="Cerrando conexión a la base actual...")
-                        try:
-                            if vs is not None:
-                                vs._client._system.stop()
-                        except Exception:
-                            pass
-
-                        # PASO 2: Limpiar caché de Streamlit (evita import circular)
-                        progress_bar.progress(20, text="Limpiando caché...")
+                        # PASO 1: Limpiar caché de Streamlit
+                        progress_bar.progress(1, text="🧹 Limpiando caché de Streamlit...")
                         st.cache_resource.clear()
 
-                        # PASO 3: Eliminar DB vieja (puede tener vectores incompatibles de Ollama)
-                        progress_bar.progress(30, text="Eliminando base de datos anterior...")
-                        import shutil as _shutil
-                        _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                        for _dir in ["chroma_neuro_db", "chroma_neuro_db_backup", "chroma_neuro_db_temp"]:
-                            _path = os.path.join(_base, _dir)
-                            if os.path.exists(_path):
-                                _shutil.rmtree(_path)
+                        # Callback de progreso: actualiza la barra en tiempo real
+                        def _on_progress(pct: float, msg: str):
+                            pct_int = max(1, min(99, int(pct * 100)))
+                            progress_bar.progress(pct_int, text=f"{msg}  ({pct_int}%)")
 
-                        # PASO 4: Reconstruir con Gemini embeddings
-                        progress_bar.progress(40, text="Iniciando vectorización con Gemini API...")
+                        # PASO 2: Reconstruir con Gemini embeddings (progreso real lote a lote)
                         from rag_pipeline import build_vector_store
-                        nuevo_vs = build_vector_store(force_rebuild=True)
+                        nuevo_vs = build_vector_store(force_rebuild=True, on_progress=_on_progress)
 
-                        progress_bar.progress(100, text=f"✅ Reconstrucción exitosa: {nuevo_vs._collection.count()} vectores.")
+                        total_v = nuevo_vs._collection.count()
+                        progress_bar.progress(100, text=f"Reconstrucción completada — {total_v} fragmentos indexados.")
+                        st.success(f"Reconstrucción terminada. La base de conocimiento tiene {total_v} fragmentos listos para consultar.")
                         time.sleep(2)
                         vs = nuevo_vs
-                        st.success(f"¡Base reconstruida! {nuevo_vs._collection.count()} vectores indexados con Gemini.")
-                        time.sleep(1)
+                        st.rerun()
                     except Exception as e:
                         progress_bar.empty()
-                        st.error(f"❌ Error durante la reconstrucción:\n\n{str(e)}")
+                        st.error(f"Ocurrió un error durante la reconstrucción. Intenta de nuevo o revisa el detalle abajo.")
+                        st.caption(str(e))
                         import traceback
-                        st.code(traceback.format_exc(), language="python")
-                        time.sleep(3)
-                    st.rerun()
+                        with st.expander("Ver detalle del error"):
+                            st.code(traceback.format_exc(), language="python")
 
     # Historial reciente
     if st.session_state.historial:

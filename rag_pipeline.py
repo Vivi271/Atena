@@ -128,17 +128,49 @@ def _restaurar_backup(temp_dir: str, backup_dir: str, persist_dir: str) -> None:
         print("[RESTORE] ⚠️ No se encontró backup para restaurar.")
 
 
+import chromadb
+
+
+def _get_or_create_vector_store(persist_dir: str = PERSIST_DIR) -> Chroma:
+    """
+    Crea siempre un ChromaDB PersistentClient NUEVO para evitar usar clientes
+    obsoletos del caché de Streamlit que pueden apuntar a un SQLite ya borrado
+    o cuyo singleton interno fue detenido.
+    """
+    os.makedirs(persist_dir, exist_ok=True)
+    # Forzar la creación de un cliente completamente nuevo en cada llamada
+    client = chromadb.PersistentClient(path=persist_dir)
+    return Chroma(
+        client=client,
+        collection_name=COLLECTION_NAME,
+        embedding_function=embeddings_model,
+        collection_metadata={"hnsw:space": "cosine"},
+    )
+
+
 # ─────────────────────────────────────────────
 # 4. CONSTRUCCIÓN DE LA BASE VECTORIAL
 # ─────────────────────────────────────────────
-def build_vector_store(force_rebuild: bool = False) -> Chroma:
+def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
     """
     PASO 1-4 del pipeline RAG:
     Carga PDFs → Chunking → Vectorización (Gemini Embeddings) → ChromaDB
 
     Backup permanente en ~/.neuro_db_permanent/ — se restaura automáticamente
     si la DB local desaparece.
+
+    Args:
+        force_rebuild: Si True, borra y reconstruye la base completa.
+        on_progress: Callback opcional (pct: float 0-1, msg: str) que se llama
+                     después de cada lote para reportar progreso al frontend.
     """
+    def _progress(pct: float, msg: str):
+        if on_progress:
+            try:
+                on_progress(pct, msg)
+            except Exception:
+                pass
+
     PERMANENT_BACKUP = os.path.join(os.path.expanduser("~"), ".neuro_db_permanent")
 
     if not force_rebuild:
@@ -153,39 +185,47 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
                     "Usa el botón 'Reconstruir VectorDB' para crearla."
                 )
         print(f"[OK] Cargando base vectorial existente desde: {PERSIST_DIR}")
-        return Chroma(
-            persist_directory=PERSIST_DIR,
-            embedding_function=embeddings_model,
-            collection_name=COLLECTION_NAME,
-        )
+        return _get_or_create_vector_store(PERSIST_DIR)
 
-    # ── Construir en carpeta TEMPORAL + Backup de seguridad ──
-    TEMP_DIR   = PERSIST_DIR + "_temp"
-    BACKUP_DIR = PERSIST_DIR + "_backup"
+    # ── Limpiar singleton interno de chromadb antes de borrar el directorio ──
+    try:
+        import gc
+        gc.collect()
+    except Exception:
+        pass
 
-    if os.path.exists(TEMP_DIR):
-        shutil.rmtree(TEMP_DIR)
-
-    if os.path.exists(PERSIST_DIR):
-        if os.path.exists(BACKUP_DIR):
-            shutil.rmtree(BACKUP_DIR)
-        shutil.copytree(PERSIST_DIR, BACKUP_DIR)
-        print(f"[BACKUP] DB respaldada en {os.path.basename(BACKUP_DIR)}/")
+    # ── Limpieza nativa de ChromaDB ──
+    # NUNCA usar shutil.rmtree(PERSIST_DIR) mientras el proceso esté activo,
+    # ya que SQLite detecta que el archivo fue eliminado/movido de su descriptor
+    # y bloquea las escrituras con: (code: 1032) SQLITE_READONLY_DBMOVED.
+    # En su lugar, se vacía y recrea la colección a nivel de ChromaDB:
+    os.makedirs(PERSIST_DIR, exist_ok=True)
+    try:
+        _client_rebuild = chromadb.PersistentClient(path=PERSIST_DIR)
+        _client_rebuild.delete_collection(COLLECTION_NAME)
+        print(f"[REBUILD] Colección '{COLLECTION_NAME}' limpiada exitosamente.")
+    except Exception:
+        pass
 
     # PASO 1 — Carga de documentos (PDF y DOCX)
     docs_files = _get_docs_files()
-    print(f"\n[PASO 1] Cargando documentos de neuroanatomía... ({len(docs_files)} archivos en Docs/)")
+    total_archivos = len(docs_files)
+    print(f"\n[PASO 1] Cargando documentos de neuroanatomía... ({total_archivos} archivos en Docs/)")
+    _progress(0.02, f"📂 Leyendo {total_archivos} documento(s)...")
     documents = []
-    for file_path in docs_files:
+    for idx, file_path in enumerate(docs_files):
+        nombre = os.path.basename(file_path)
         if not os.path.exists(file_path):
-            print(f"  [!] Archivo no encontrado: {os.path.basename(file_path)}")
+            print(f"  [!] Archivo no encontrado: {nombre}")
             continue
+        _progress(0.02 + 0.08 * (idx / total_archivos), f"📄 Leyendo: {nombre}")
         pages = _load_any_document(file_path)
         documents.extend(pages)
-        print(f"  ✔ {os.path.basename(file_path)}: {len(pages)} páginas/secciones cargadas")
+        print(f"  ✔ {nombre}: {len(pages)} páginas/secciones cargadas")
     print(f"  Total de páginas/secciones cargadas: {len(documents)}")
 
     # PASO 2 — Chunking
+    _progress(0.12, f"✂️ Dividiendo en fragmentos ({len(documents)} páginas)...")
     print("\n[PASO 2] Dividiendo en fragmentos (chunk_size=1800, overlap=250)...")
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1800,
@@ -196,67 +236,55 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
     print(f"  Fragmentos generados: {len(chunks)}")
 
     # PASO 3 & 4 — Embeddings con Gemini + ChromaDB
-    # Gemini text-embedding-004 tiene límite de 100 solicitudes/min en el plan gratuito
-    # Por eso usamos lotes de 50 con pausa opcional
+    BATCH_SIZE = 15
+    total_lotes = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
     print(f"\n[PASO 3 & 4] Vectorizando con Gemini ({GEMINI_EMBED_MODEL})...")
-    print("  (lotes de 50 fragmentos)")
+    print(f"  (lotes de {BATCH_SIZE} fragmentos, total {total_lotes} lotes)")
 
-    BATCH_SIZE = 50
-    vector_store = None
+    _progress(0.15, f"🧠 Vectorizando {len(chunks)} fragmentos en {total_lotes} lotes con Gemini...")
+    vector_store = _get_or_create_vector_store(PERSIST_DIR)
 
+    import time
     for i in range(0, len(chunks), BATCH_SIZE):
         lote = chunks[i:i + BATCH_SIZE]
         numero_lote = i // BATCH_SIZE + 1
-        total_lotes = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
+        pct_vectorizacion = 0.15 + 0.80 * (numero_lote / total_lotes)
+        msg = (
+            f"🧠 Lote {numero_lote}/{total_lotes} — "
+            f"fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))} de {len(chunks)} "
+            f"({int(pct_vectorizacion * 100)}%)"
+        )
+        _progress(pct_vectorizacion, msg)
         print(f"  Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
 
-        try:
-            if vector_store is None:
-                vector_store = Chroma.from_documents(
-                    documents=lote,
-                    embedding=embeddings_model,
-                    persist_directory=TEMP_DIR,
-                    collection_name=COLLECTION_NAME,
-                    collection_metadata={"hnsw:space": "cosine"},
-                )
-            else:
+        # Reintentos automáticos si la API de Gemini devuelve 429 (límite de cuota por minuto)
+        max_reintentos = 6
+        exito = False
+        ultimo_error = None
+
+        for intento in range(1, max_reintentos + 1):
+            try:
                 vector_store.add_documents(lote)
-        except Exception as e:
-            _restaurar_backup(TEMP_DIR, BACKUP_DIR, PERSIST_DIR)
-            raise RuntimeError(f"Error vectorizando lote {numero_lote}: {e}") from e
+                exito = True
+                break
+            except Exception as e:
+                ultimo_error = e
+                err_str = str(e).lower()
+                if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
+                    # Google pide expresamente esperar ~10-12s para resetear la cuota por minuto
+                    espera = 12 + (intento * 3)
+                    _progress(pct_vectorizacion, f"⏳ Cuota por minuto de Google alcanzada. Esperando {espera}s para continuar (intento {intento}/{max_reintentos})...")
+                    time.sleep(espera)
+                else:
+                    time.sleep(3)
 
-    # ── Swap seguro ──
-    total = vector_store._collection.count()
-    print(f"  ✔ {total} vectores listos. Cerrando conexión temporal...")
+        if not exito:
+            raise RuntimeError(f"Error vectorizando lote {numero_lote}/{total_lotes}: {ultimo_error}") from ultimo_error
 
-    try:
-        vector_store._client._system.stop()
-    except Exception:
-        pass
-    del vector_store
+        # Pausa preventiva entre lotes para mantenerse dentro del límite de peticiones por minuto de Google
+        time.sleep(1.2)
 
-    # Checkpoint WAL de SQLite
-    import sqlite3 as _sqlite3
-    sqlite_file = os.path.join(TEMP_DIR, "chroma.sqlite3")
-    if os.path.exists(sqlite_file):
-        try:
-            _conn = _sqlite3.connect(sqlite_file)
-            _conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            _conn.close()
-            print("  ✔ SQLite WAL checkpoint completado")
-        except Exception as _e:
-            print(f"  [WARN] No se pudo hacer checkpoint: {_e}")
-
-    # Swap: temporal → real
-    if os.path.exists(PERSIST_DIR):
-        shutil.rmtree(PERSIST_DIR)
-    shutil.copytree(TEMP_DIR, PERSIST_DIR)
-    shutil.rmtree(TEMP_DIR)
-
-    if os.path.exists(BACKUP_DIR):
-        shutil.rmtree(BACKUP_DIR)
-        print(f"  ✔ Backup eliminado — DB nueva confirmada ({total} vectores)")
-
+    total = vector_store._collection.count() if vector_store is not None else 0
     print(f"  ✔ DB actualizada en {os.path.basename(PERSIST_DIR)}/ — {total} vectores indexados")
 
     # Backup permanente en home
@@ -269,11 +297,7 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
     except Exception as _e:
         print(f"  [WARN] No se pudo guardar backup permanente: {_e}")
 
-    return Chroma(
-        persist_directory=PERSIST_DIR,
-        embedding_function=embeddings_model,
-        collection_name=COLLECTION_NAME,
-    )
+    return vector_store
 
 
 # ─────────────────────────────────────────────
@@ -282,16 +306,13 @@ def build_vector_store(force_rebuild: bool = False) -> Chroma:
 def remove_documents_from_store(pdf_filename: str, vs_existente=None):
     """
     Elimina de ChromaDB todos los vectores que provienen del PDF indicado.
+    Siempre crea un cliente fresco para evitar usar referencias obsoletas del caché.
     """
-    vs = vs_existente
-    if vs is None:
-        if not os.path.exists(PERSIST_DIR):
-            return None, 0
-        vs = Chroma(
-            persist_directory=PERSIST_DIR,
-            embedding_function=embeddings_model,
-            collection_name=COLLECTION_NAME,
-        )
+    # SIEMPRE usar un cliente fresco, ignorar vs_existente para evitar el error
+    # 'default_tenant does not exist' causado por clientes obsoletos del caché de Streamlit
+    if not os.path.exists(PERSIST_DIR):
+        return None, 0
+    vs = _get_or_create_vector_store(PERSIST_DIR)
 
     todos = vs._collection.get(include=["metadatas"])
     ids_a_borrar = [
@@ -317,6 +338,9 @@ def remove_documents_from_store(pdf_filename: str, vs_existente=None):
 def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
     """
     Agrega solo los archivos nuevos a la base vectorial existente.
+    IMPORTANTE: Siempre crea un cliente ChromaDB fresco para evitar el error
+    'default_tenant does not exist' causado por clientes obsoletos en el caché
+    de Streamlit (@st.cache_resource) que pueden apuntar a un SQLite inválido.
     """
     BATCH_SIZE = 50
 
@@ -340,42 +364,37 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
     chunks = splitter.split_documents(documents)
     print(f"  Fragmentos nuevos: {len(chunks)}")
 
-    vs = vs_existente
-    if vs is None:
-        sqlite_file = os.path.join(PERSIST_DIR, "chroma.sqlite3")
-        if os.path.exists(PERSIST_DIR) and os.path.exists(sqlite_file):
-            # DB válida → abrir
-            vs = Chroma(
-                persist_directory=PERSIST_DIR,
-                embedding_function=embeddings_model,
-                collection_name=COLLECTION_NAME,
-                collection_metadata={"hnsw:space": "cosine"},
-            )
-        elif os.path.exists(PERSIST_DIR):
-            # Directorio existe pero está vacío/corrupto → limpiar para empezar limpio
-            print(f"  [WARN] {PERSIST_DIR} existe pero está corrupto. Limpiando...")
-            shutil.rmtree(PERSIST_DIR)
-        # Si vs sigue None, se crea en el primer lote del loop de abajo
+    # SIEMPRE crear un cliente fresco — ignorar vs_existente para evitar referencias
+    # obsoletas del caché de Streamlit que causan 'default_tenant does not exist'
+    vs = _get_or_create_vector_store(PERSIST_DIR)
 
+    import time
     for i in range(0, len(chunks), BATCH_SIZE):
         lote = chunks[i:i + BATCH_SIZE]
         numero_lote = i // BATCH_SIZE + 1
         total_lotes = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
         print(f"  Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
 
-        try:
-            if vs is None:
-                vs = Chroma.from_documents(
-                    documents=lote,
-                    embedding=embeddings_model,
-                    persist_directory=PERSIST_DIR,
-                    collection_name=COLLECTION_NAME,
-                    collection_metadata={"hnsw:space": "cosine"},
-                )
-            else:
+        max_reintentos = 6
+        exito = False
+        ultimo_error = None
+        for intento in range(1, max_reintentos + 1):
+            try:
                 vs.add_documents(lote)
-        except Exception as e:
-            raise RuntimeError(f"Error vectorizando: {e}") from e
+                exito = True
+                break
+            except Exception as e:
+                ultimo_error = e
+                err_str = str(e).lower()
+                if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
+                    time.sleep(12 + (intento * 3))
+                else:
+                    time.sleep(3)
+
+        if not exito:
+            raise RuntimeError(f"Error vectorizando lote {numero_lote}/{total_lotes}: {ultimo_error}") from ultimo_error
+
+        time.sleep(1.2)
 
     total = vs._collection.count()
     print(f"  ✔ DB ahora tiene {total} vectores totales")
