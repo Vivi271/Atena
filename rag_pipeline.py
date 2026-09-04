@@ -21,7 +21,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 # ─────────────────────────────────────────────
 # 1. CONFIGURACIÓN
 # ─────────────────────────────────────────────
-load_dotenv()
+load_dotenv(override=True)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
@@ -73,7 +73,10 @@ COLLECTION_NAME = "neuroanatomia_cientifica"
 # 2. MODELOS — Google Gemini API
 # ─────────────────────────────────────────────
 GEMINI_EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001")
-GEMINI_LLM_MODEL   = os.getenv("GEMINI_LLM_MODEL", "gemini-3.6-flash")
+_raw_model = os.getenv("GEMINI_LLM_MODEL", "gemini-3.6-flash")
+if _raw_model in ["gemini-2.0-flash", "gemini-2.5-flash"]:
+    _raw_model = "gemini-3.6-flash"
+GEMINI_LLM_MODEL = _raw_model
 
 embeddings_model = GoogleGenerativeAIEmbeddings(
     model=GEMINI_EMBED_MODEL,
@@ -655,8 +658,9 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
 
     system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
 
+    model_to_use = GEMINI_LLM_MODEL if GEMINI_LLM_MODEL not in ["gemini-2.0-flash", "gemini-2.5-flash"] else "gemini-3.6-flash"
     llm = ChatGoogleGenerativeAI(
-        model=GEMINI_LLM_MODEL,
+        model=model_to_use,
         google_api_key=GEMINI_API_KEY,
         temperature=0.0,
         max_output_tokens=2048,
@@ -704,8 +708,9 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
 
     system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
 
+    model_to_use = GEMINI_LLM_MODEL if GEMINI_LLM_MODEL not in ["gemini-2.0-flash", "gemini-2.5-flash"] else "gemini-3.6-flash"
     llm = ChatGoogleGenerativeAI(
-        model=GEMINI_LLM_MODEL,
+        model=model_to_use,
         google_api_key=GEMINI_API_KEY,
         temperature=0.0,
         max_output_tokens=2048,
