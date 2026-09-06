@@ -83,8 +83,43 @@ if _count == 0:
 # Cargar Componentes de Interfaz
 from components.sidebar import render_sidebar
 from components.admin_panel import render_admin_panel
-from config import EJEMPLOS_CONSULTA, SALUDOS, NO_INFO_PHRASES, nombre_legible
+from config import es_consulta_saludo, NO_INFO_PHRASES, nombre_legible
 import html as html_module
+import re
+
+def formatear_evidencia_limpia(texto: str) -> str:
+    """Limpia saltos de línea rotos, guiones, marcas de agua y fragmentación de palabras típica de PDFs."""
+    if not texto:
+        return ""
+    # Quitar marcas de agua comunes de libros escaneados
+    t = re.sub(r'www\.freelibros\.(com|org|me)', '', texto, flags=re.IGNORECASE)
+    # 1. Unir palabras partidas por guión al final de línea (ej: 'espi-\nnal' -> 'espinal')
+    t = re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', t)
+    t = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', t)
+    # 2. Corregir errores comunes de escaneo / OCR en PDFs
+    reemplazos = {
+        "ga nglios": "ganglios",
+        "hemisf erios": "hemisferios",
+        "a pariencia": "apariencia",
+        "co mplejo": "complejo",
+        "sist ema": "sistema",
+        "es encial": "esencial",
+        "cavi-dad": "cavidad",
+        "cavi dad": "cavidad",
+        "aluminio cinaciones": "alucinaciones",
+        "aluminio cinacion": "alucinación",
+    }
+    for roto, arreglado in reemplazos.items():
+        t = t.replace(roto, arreglado)
+    # 3. Fluir renglones rotos de columnas estrechas
+    parrafos = t.split("\n\n")
+    parrafos_procesados = []
+    for p in parrafos:
+        limpio = re.sub(r'\s*\n\s*', ' ', p.strip())
+        limpio = re.sub(r'[ \t]+', ' ', limpio)
+        if limpio:
+            parrafos_procesados.append(limpio)
+    return "<br><br>".join(parrafos_procesados)
 
 # --- DIALOG DE AUTOEVALUACIÓN ---
 @st.dialog("Autoevaluación de Neuroanatomía", width="large")
@@ -204,27 +239,26 @@ if "mensajes" not in st.session_state:
 # Capturar input del usuario ANTES de renderizar
 pregunta_usuario = st.chat_input("Escribe tu consulta sobre neuroanatomía...", key="chat_query", disabled=st.session_state.is_generating)
 
-# Revisar si se hizo clic en un ejemplo
-if st.session_state.get("pregunta_ejemplo"):
-    pregunta_usuario = st.session_state.pregunta_ejemplo
-    st.session_state.pregunta_ejemplo = None
-
 # Contenedor principal del chat — todo dentro de un solo container
 chat_container = st.container()
 
 with chat_container:
-    # Si el chat está vacío y no hay consultas en curso, mostrar los ejemplos en el centro
+    # Si el chat está vacío y no hay consultas en curso, mostrar mensaje de bienvenida limpio
     if len(st.session_state.mensajes) == 0 and not pregunta_usuario and not st.session_state.get("pregunta_activa"):
-        st.markdown("<h3 style='text-align:center; color:#64748b; font-weight:400; font-size: 1.2rem; margin-bottom: 2rem;'>¿En qué te puedo ayudar hoy?</h3>", unsafe_allow_html=True)
-        
-        st.markdown("<h4 style='text-align:center; color:#8CC63F; font-size: 0.9rem; font-weight: 600; margin-bottom: 1.5rem; letter-spacing: 0.8px;'>PREGUNTAS SUGERIDAS DE EJEMPLO</h4>", unsafe_allow_html=True)
-        
-        cols = st.columns(min(3, len(EJEMPLOS_CONSULTA)))
-        for i, (ej, tooltip) in enumerate(EJEMPLOS_CONSULTA):
-            with cols[i % 3]:
-                if st.button(ej, help=tooltip, use_container_width=True, key=f"ej_{i}"):
-                    st.session_state.pregunta_ejemplo = ej
-                    st.rerun()
+        st.markdown(
+            """
+            <div style="text-align: center; padding: 48px 24px; max-width: 680px; margin: 20px auto; background: rgba(255, 255, 255, 0.6); border-radius: 16px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);">
+                <div style="font-size: 3rem; margin-bottom: 16px;">🧠</div>
+                <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 700; margin-bottom: 10px;">
+                    Consultor Académico de Neuroanatomía
+                </h2>
+                <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">
+                    Formula libremente cualquier consulta conceptual, funcional o anatómica. Las respuestas son sintetizadas en tiempo real a partir de la literatura científica indexada en la base de conocimiento.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     # Mostrar el historial de mensajes del chat
     for msg in st.session_state.mensajes:
@@ -318,7 +352,7 @@ with chat_container:
                     latencia = time.time() - t_start
                     
                     es_respuesta_sin_info = any(p in respuesta_texto.lower() for p in NO_INFO_PHRASES)
-                    es_saludo = any(s in pregunta_a_procesar.strip().lower() for s in SALUDOS)
+                    es_saludo = es_consulta_saludo(pregunta_a_procesar)
                     
                     registrar_consulta(pregunta_a_procesar, respuesta_texto, nivel.lower(), latencia)
                     
@@ -342,10 +376,22 @@ with chat_container:
                             file_name = os.path.basename(doc.metadata.get("source", "desconocido"))
                             nombre_revista = nombre_legible(file_name)
                             pagina = doc.metadata.get("page", "?")
+                            texto_escapado = html_module.escape(doc.page_content)
+                            texto_limpio = formatear_evidencia_limpia(texto_escapado)
                             
-                            evidencias_lista.append(f"**Fragmento {i} — {nombre_revista} (Pág. {pagina})**\n<div style='background: #f8fafc; border: 1px solid rgba(74, 35, 90, 0.1); padding: 12px; border-radius: 8px; font-size: 0.9rem; color: #334155; margin-bottom: 12px; line-height: 1.5; white-space: pre-wrap;'>{html_module.escape(doc.page_content)}</div>")
+                            evidencias_lista.append(
+                                f"<div style='margin-bottom: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #8CC63F; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);'>"
+                                f"<div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>"
+                                f"<span style='font-weight: 600; font-size: 0.88rem; color: #1e293b;'>📖 [Fuente {i}] {nombre_revista}</span>"
+                                f"<span style='background: #f1f5f9; color: #475569; font-size: 0.76rem; padding: 2px 8px; border-radius: 10px; font-weight: 500;'>Pág. {pagina}</span>"
+                                f"</div>"
+                                f"<div style='font-size: 0.86rem; color: #334155; line-height: 1.6;'>"
+                                f"{texto_limpio}"
+                                f"</div>"
+                                f"</div>"
+                            )
                             
-                        evidencia_html = "\n\n".join(evidencias_lista)
+                        evidencia_html = f"<div style='max-height: 380px; overflow-y: auto; padding-right: 8px; margin-top: 6px;'>{''.join(evidencias_lista)}</div>"
                         
                         with st.expander("Ver Evidencia Documental (Citas y Referencias)"):
                             st.markdown(evidencia_html, unsafe_allow_html=True)
@@ -373,13 +419,11 @@ with chat_container:
                         "id": str(time.time())
                     })
                     st.session_state.pregunta_activa = None
-                    st.session_state.pregunta_ejemplo = None
                     st.session_state.is_generating = False
                     # Forzar re-render limpio para eliminar fantasmas
                     st.rerun()
             except Exception as e:
                 st.session_state.pregunta_activa = None
-                st.session_state.pregunta_ejemplo = None
                 st.session_state.is_generating = False
                 st.error(f"Error al generar respuesta: {str(e)}")
 

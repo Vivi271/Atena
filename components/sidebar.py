@@ -131,25 +131,25 @@ def render_sidebar(vs, disabled=False):
 
     # ── Parámetros del motor (solo para admin) ──
     if is_admin:
-        from rag_pipeline import GEMINI_LLM_MODEL, GEMINI_EMBED_MODEL
+        from rag_pipeline import GROQ_LLM_MODEL, EMBED_MODEL_NAME
         with st.container():
             st.markdown("### Parámetros del Motor")
             k_chunks = st.slider("Fragmentos a recuperar (k)", min_value=3, max_value=8, value=5, key="admin_slider_k", disabled=disabled)
             
             st.markdown(f"""
             <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 0.82rem; color: #94a3b8; margin-top: 10px;">
-                <b>LLM:</b> {GEMINI_LLM_MODEL} (Gemini API)
-                <span title="Modelo de lenguaje en la nube de Google. Rápido y sin carga local." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
-                <b>Embeddings:</b> {GEMINI_EMBED_MODEL} (Google)
-                <span title="Modelo de vectorización de Google." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
+                <b>LLM:</b> {GROQ_LLM_MODEL} (Groq Cloud API)
+                <span title="Modelo de lenguaje en la nube Groq. Inferencia ultrarrápida sin carga en el dispositivo." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
+                <b>Embeddings:</b> {EMBED_MODEL_NAME} (HuggingFace)
+                <span title="Modelo de vectorización semántica." style="cursor:help; color:#5dade2;"> ℹ️</span><br>
                 <b>Temp:</b> 0.0
                 <span title="Respuestas académicas deterministas." style="cursor:help; color:#5dade2;"> ℹ️</span>
                 | <b>Chunk:</b> 1800
-                | <b>🌐 Gemini Cloud</b>
+                | <b>🌐 Groq Cloud</b>
             </div>
             """, unsafe_allow_html=True)
     else:
-        k_chunks = 6
+        k_chunks = 5
         
     st.markdown("<br>", unsafe_allow_html=True)
 

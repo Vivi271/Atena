@@ -54,12 +54,23 @@ NO_INFO_PHRASES = [
     "pregunta específica", "no encontr",
 ]
 
-# Saludos y mensajes cortos (no requieren evidencia documental)
+# Saludos y mensajes de cortesía estrictos (no requieren evidencia documental)
 SALUDOS = {
-    "hola", "hello", "hi", "buenas", "buenos días", "buenas tardes",
-    "buenas noches", "gracias", "de nada", "ok", "okay", "sí", "no",
-    "perfecto", "genial", "bien", "mal", "cómo estás", "adios", "bye",
+    "hola", "hello", "hi", "buenas", "buenos", "dias", "días", "tardes",
+    "noches", "gracias", "muchas", "de", "nada", "ok", "okay", "si", "sí", "no",
+    "perfecto", "genial", "bien", "mal", "como", "cómo", "estas", "estás",
+    "adios", "adiós", "bye", "chao", "hasta luego",
 }
+
+def es_consulta_saludo(texto: str) -> bool:
+    """Detecta si la consulta del usuario es estrictamente un saludo o cortesía corta."""
+    if not texto:
+        return False
+    limpio = re.sub(r"[^\w\s]", "", texto.strip().lower())
+    palabras = limpio.split()
+    if not palabras:
+        return False
+    return len(palabras) <= 4 and all(p in SALUDOS for p in palabras)
 
 # Ejemplos de consulta para la interfaz
 EJEMPLOS_CONSULTA = [

@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import html as html_module
-from config import nombre_legible, NO_INFO_PHRASES, SALUDOS
+from config import nombre_legible, NO_INFO_PHRASES, es_consulta_saludo
 
 def render_resultados(resultado, col1):
     """
@@ -9,7 +9,7 @@ def render_resultados(resultado, col1):
     """
     preg_guard = st.session_state.get("_ultima_pregunta", "")
     es_respuesta_sin_info = any(p in resultado["respuesta"].lower() for p in NO_INFO_PHRASES)
-    es_saludo = any(s in preg_guard.strip().lower() for s in SALUDOS)
+    es_saludo = es_consulta_saludo(preg_guard)
     
     with col1:
         st.markdown("<div style='margin-top:24px; font-weight:600; font-size:1.15rem; color:#ffffff; font-family:\"Outfit\",sans-serif;'>Síntesis Científica</div>", unsafe_allow_html=True)
@@ -39,7 +39,7 @@ def render_resultados(resultado, col1):
                     file_name = os.path.basename(doc.metadata.get("source", "desconocido"))
                     nombre_revista = nombre_legible(file_name)
                     pagina = doc.metadata.get("page", "?")
-                    st.markdown(f"**Fragmento {i} — {nombre_revista} (Pág. {pagina})**")
+                    st.markdown(f"**📖 [Fuente {i}] {nombre_revista} (Pág. {pagina})**")
                     st.markdown(
                         f'<div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); '
                         f'padding: 12px; border-radius: 8px; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 12px; '

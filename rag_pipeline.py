@@ -1,19 +1,27 @@
 """
 rag_pipeline.py — Pipeline RAG para el Consultor Especialista en Neuroanatomía
-Versión 3.0: Google Gemini API
-- Embeddings: text-embedding-004 (via Google Generative AI)
-- LLM: gemini-2.0-flash (via Google Generative AI)
+Versión 4.0: HuggingFace Embeddings (en contenedor) + Groq LLM
+- Embeddings: all-MiniLM-L6-v2 (sentence-transformers, sin API, sin límites)
+- LLM: qwen/qwen3.6-27b (via Groq API, gratuito)
 - VectorDB: ChromaDB local (SQLite)
 """
 
 import os
+import re
 import shutil
 import unicodedata
+import difflib
 from dotenv import load_dotenv
+
+# Forzar uso de PyTorch solamente — evita conflictos con TensorFlow instalado en el sistema
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("USE_FLAX", "0")
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -23,11 +31,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 # ─────────────────────────────────────────────
 load_dotenv(override=True)
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
     raise EnvironmentError(
-        "No se encontró GEMINI_API_KEY en las variables de entorno. "
-        "Agrégala al archivo .env como: GEMINI_API_KEY=tu_clave_aqui"
+        "No se encontró GROQ_API_KEY en las variables de entorno. "
+        "Agrégala al archivo .env como: GROQ_API_KEY=gsk_tu_clave_aqui"
     )
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
@@ -70,46 +78,49 @@ PERSIST_DIR     = os.path.join(BASE_DIR, "chroma_neuro_db")
 COLLECTION_NAME = "neuroanatomia_cientifica"
 
 # ─────────────────────────────────────────────
-# 2. MODELOS — Google Gemini API
+# 2. MODELOS
 # ─────────────────────────────────────────────
-GEMINI_EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001")
-_raw_model = os.getenv("GEMINI_LLM_MODEL", "gemini-3.6-flash")
-if _raw_model in ["gemini-2.0-flash", "gemini-2.5-flash"]:
-    _raw_model = "gemini-3.6-flash"
-GEMINI_LLM_MODEL = _raw_model
-
-embeddings_model = GoogleGenerativeAIEmbeddings(
-    model=GEMINI_EMBED_MODEL,
-    google_api_key=GEMINI_API_KEY,
+# Embeddings: sentence-transformers corriendo dentro del contenedor Docker.
+# Sin llamadas a APIs externas — cero costo, cero límites de rate.
+EMBED_MODEL_NAME = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
+embeddings_model = HuggingFaceEmbeddings(
+    model_name=EMBED_MODEL_NAME,
+    model_kwargs={"device": "cpu"},
+    encode_kwargs={"normalize_embeddings": True},
 )
+
+# LLM: Groq API con OpenAI GPT OSS 120B (alta precisión, sin límite para estudiantes)
+GROQ_LLM_MODEL = os.getenv("GROQ_LLM_MODEL", "openai/gpt-oss-120b")
+GROQ_EMBED_MODEL = EMBED_MODEL_NAME  # referencia para compatibilidad con api.py
+GEMINI_LLM_MODEL = GROQ_LLM_MODEL   # compatibilidad hacia atrás con sidebar y UI
+GEMINI_EMBED_MODEL = EMBED_MODEL_NAME
+
+from config import nombre_legible
 
 # ─────────────────────────────────────────────
 # 3. SYSTEM PROMPT — Identidad del consultor
 # ─────────────────────────────────────────────
-SYSTEM_INSTRUCTION_BASICO = """Eres un sintetizador de información neuroanatómica estrictamente extractivo para la Fundación Universitaria Konrad Lorenz.
-Tu tarea es responder a la pregunta del usuario utilizando EXCLUSIVAMENTE los fragmentos de texto provistos.
+SYSTEM_INSTRUCTION_BASICO = """Eres un consultor experto en neuroanatomía de la Fundación Universitaria Konrad Lorenz.
+Tu función es responder de forma académica, clara, rigurosa y pedagógica a las consultas basándote EXCLUSIVAMENTE en la información de las fuentes documentales provistas.
 
-REGLAS ABSOLUTAS DE EXTRACCIÓN (Cero Conocimiento Externo):
-1. NUNCA agregues explicaciones, definiciones, funciones, propósitos o detalles que no estén escritos de forma explícita y literal en los fragmentos de texto provistos.
-2. Si un fragmento menciona una estructura (ej. "cerebelo" o "arterias") pero no describe su función o propósito, NO inventes ni agregues qué hace o para qué sirve. Limítate a nombrarla tal como aparece.
-3. Cualquier dato o aclaración que provenga de tu base de conocimiento interna (preentrenamiento) y no de los fragmentos de texto provistos es considerada una ALUCINACIÓN y es inaceptable.
-4. Si los fragmentos no contienen información que responda de forma directa a la pregunta, debes responder ÚNICAMENTE: "Lo siento, no cuento con esa información." y nada más.
-5. Escribe de forma directa y objetiva. Está TERMINANTEMENTE PROHIBIDO usar lenguaje meta-textual ("el fragmento menciona", "según el archivo", "los documentos indican").
-6. COMIENZA SIEMPRE con una definición o descripción conceptual breve del término preguntado, combinando de manera lógica la información literal de los fragmentos (por ejemplo, explicando qué es, dónde se ubica y a qué sistema pertenece basándote EXCLUSIVAMENTE en la información literal de los fragmentos, sin agregar conocimiento externo), en lugar de limitarte a listar sus componentes.
-7. Estructura la respuesta con listas y negritas, pero sé extremadamente conciso y limítate a los hechos literales."""
+REGLAS DE PRECISIÓN Y CITAS ACADÉMICAS:
+1. Redacta de forma fluida, estructurada y profesional.
+2. Fundamenta las afirmaciones anatómicas y funcionales citando de manera sobria la fuente documental correspondiente al final de los conceptos clave (por ejemplo: *(Clark, pág. 231)*, *(Lange, pág. 195)* o mediante la referencia *[Fuente 1]*).
+3. NUNCA inventes explicaciones, funciones ni agregues conocimiento que no esté explícitamente en los fragmentos provistos (cero conocimiento externo / cero alucinaciones).
+4. Si los fragmentos no contienen información que responda a la pregunta, responde: "Lo siento, no cuento con esa información en la literatura disponible."
+5. Explica con claridad conceptual, anatómica y funcional, utilizando párrafos bien cohesionados o listas organizadas cuando faciliten la comprensión del estudiante."""
 
 SYSTEM_INSTRUCTION_AVANZADO = SYSTEM_INSTRUCTION_BASICO
 
-PROMPT_TEMPLATE = """FRAGMENTOS DE TEXTO DE REFERENCIA (extraídos de libros de neuroanatomía):
+PROMPT_TEMPLATE = """FUENTES DOCUMENTALES DE REFERENCIA (extraídas de la literatura de neuroanatomía):
 {context}
 
 PREGUNTA: {question}
 
-Responde de forma académica, precisa y concisa usando SOLO los datos de los fragmentos anteriores.
-- Incluye definiciones, componentes y funciones relevantes.
-- Extrae SOLO la información pertinente a la pregunta de cada fragmento.
-- Si un fragmento parece ser una tabla o índice con texto desordenado, ignóralo si no puedes interpretar con certeza su contenido.
-- Si ningún fragmento responde la pregunta, di: "Lo siento, no cuento con esa información."
+Responde de forma rigurosa, clara y académica usando ÚNICAMENTE los datos de las fuentes documentales anteriores.
+- Explica conceptos, relaciones anatómicas y funciones relevantes.
+- Incluye citas académicas precisas indicando la fuente y página (ej. *(Clark, pág. 231)* o *[Fuente 1]*) en los puntos clave de la explicación.
+- Si ninguna fuente contiene información para responder, di: "Lo siento, no cuento con esa información en la literatura disponible."
 
 Respuesta:"""
 
@@ -177,18 +188,23 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
     PERMANENT_BACKUP = os.path.join(os.path.expanduser("~"), ".neuro_db_permanent")
 
     if not force_rebuild:
-        if not os.path.exists(PERSIST_DIR):
-            if os.path.exists(PERMANENT_BACKUP):
-                print("[RESTORE] DB no encontrada localmente. Restaurando desde backup permanente...")
-                shutil.copytree(PERMANENT_BACKUP, PERSIST_DIR)
-                print("[RESTORE] ✔ DB restaurada desde ~/.neuro_db_permanent/")
-            else:
-                raise FileNotFoundError(
-                    "Base vectorial no encontrada. "
-                    "Usa el botón 'Reconstruir VectorDB' para crearla."
-                )
-        print(f"[OK] Cargando base vectorial existente desde: {PERSIST_DIR}")
-        return _get_or_create_vector_store(PERSIST_DIR)
+        if os.path.exists(PERSIST_DIR):
+            try:
+                vs = _get_or_create_vector_store(PERSIST_DIR)
+                count = vs._collection.count()
+                if count > 0:
+                    print(f"[OK] Cargando base vectorial existente desde: {PERSIST_DIR} ({count} fragmentos)")
+                    return vs
+                print("[INFO] Base vectorial existe pero está vacía. Construyendo automáticamente desde Docs/...")
+            except Exception as e:
+                print(f"[WARN] Error al verificar base existente ({e}). Reconstruyendo...")
+        elif os.path.exists(PERMANENT_BACKUP):
+            print("[RESTORE] DB no encontrada localmente. Restaurando desde backup permanente...")
+            shutil.copytree(PERMANENT_BACKUP, PERSIST_DIR)
+            print("[RESTORE] ✔ DB restaurada desde ~/.neuro_db_permanent/")
+            return _get_or_create_vector_store(PERSIST_DIR)
+        else:
+            print("[INFO] Base vectorial no encontrada. Construyendo automáticamente desde Docs/...")
 
     # ── Limpiar singleton interno de chromadb antes de borrar el directorio ──
     try:
@@ -238,13 +254,13 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
     chunks = splitter.split_documents(documents)
     print(f"  Fragmentos generados: {len(chunks)}")
 
-    # PASO 3 & 4 — Embeddings con Gemini + ChromaDB
-    BATCH_SIZE = 15
+    # PASO 3 & 4 — Embeddings con Groq + ChromaDB
+    BATCH_SIZE = 96  # Groq soporta hasta 96 textos por petición
     total_lotes = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
-    print(f"\n[PASO 3 & 4] Vectorizando con Gemini ({GEMINI_EMBED_MODEL})...")
+    print(f"\n[PASO 3 & 4] Vectorizando con Groq ({GROQ_EMBED_MODEL})...")
     print(f"  (lotes de {BATCH_SIZE} fragmentos, total {total_lotes} lotes)")
 
-    _progress(0.15, f"🧠 Vectorizando {len(chunks)} fragmentos en {total_lotes} lotes con Gemini...")
+    _progress(0.15, f"🧠 Vectorizando {len(chunks)} fragmentos en {total_lotes} lotes con Groq...")
     vector_store = _get_or_create_vector_store(PERSIST_DIR)
 
     import time
@@ -260,8 +276,7 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
         _progress(pct_vectorizacion, msg)
         print(f"  Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
 
-        # Reintentos automáticos si la API de Gemini devuelve 429 (límite de cuota por minuto)
-        max_reintentos = 6
+        max_reintentos = 3
         exito = False
         ultimo_error = None
 
@@ -272,20 +287,10 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
                 break
             except Exception as e:
                 ultimo_error = e
-                err_str = str(e).lower()
-                if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
-                    # Google pide expresamente esperar ~10-12s para resetear la cuota por minuto
-                    espera = 12 + (intento * 3)
-                    _progress(pct_vectorizacion, f"⏳ Cuota por minuto de Google alcanzada. Esperando {espera}s para continuar (intento {intento}/{max_reintentos})...")
-                    time.sleep(espera)
-                else:
-                    time.sleep(3)
+                time.sleep(2 * intento)
 
         if not exito:
             raise RuntimeError(f"Error vectorizando lote {numero_lote}/{total_lotes}: {ultimo_error}") from ultimo_error
-
-        # Pausa preventiva entre lotes para mantenerse dentro del límite de peticiones por minuto de Google
-        time.sleep(1.2)
 
     total = vector_store._collection.count() if vector_store is not None else 0
     print(f"  ✔ DB actualizada en {os.path.basename(PERSIST_DIR)}/ — {total} vectores indexados")
@@ -378,7 +383,7 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
         total_lotes = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
         print(f"  Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
 
-        max_reintentos = 6
+        max_reintentos = 3
         exito = False
         ultimo_error = None
         for intento in range(1, max_reintentos + 1):
@@ -388,16 +393,10 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
                 break
             except Exception as e:
                 ultimo_error = e
-                err_str = str(e).lower()
-                if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
-                    time.sleep(12 + (intento * 3))
-                else:
-                    time.sleep(3)
+                time.sleep(2 * intento)
 
         if not exito:
             raise RuntimeError(f"Error vectorizando lote {numero_lote}/{total_lotes}: {ultimo_error}") from ultimo_error
-
-        time.sleep(1.2)
 
     total = vs._collection.count()
     print(f"  ✔ DB ahora tiene {total} vectores totales")
@@ -439,15 +438,15 @@ def _normalizar_acentos(texto: str) -> str:
     )
 
 _SINONIMOS_NEURO = {
-    "cerebro": ["cerebrum", "encéfalo", "hemisferios cerebrales", "telencéfalo", "corteza cerebral"],
-    "cerebelo": ["cerebellum", "corteza cerebelosa", "núcleos cerebelosos"],
-    "tronco encefálico": ["tallo cerebral", "brainstem", "bulbo raquídeo", "protuberancia", "mesencéfalo"],
+    "cerebro": ["cerebrum", "encéfalo", "hemisferios cerebrales", "telencéfalo", "corteza cerebral", "prosencéfalo"],
+    "cerebelo": ["cerebellum", "corteza cerebelosa", "núcleos cerebelosos", "vermis"],
+    "tronco encefálico": ["tallo cerebral", "brainstem", "bulbo raquídeo", "protuberancia", "mesencéfalo", "puente"],
     "médula espinal": ["medula espinal", "spinal cord", "cordón espinal"],
     "hipotálamo": ["hypothalamus", "región hipotalámica"],
     "tálamo": ["thalamus", "núcleos talámicos"],
-    "hipocampo": ["hippocampus", "formación hipocampal"],
+    "hipocampo": ["hippocampus", "formación hipocampal", "circunvolución dentada", "subículo"],
     "amígdala": ["amygdala", "complejo amigdalino", "núcleo amigdalino"],
-    "ganglios basales": ["núcleos basales", "cuerpo estriado", "basal ganglia"],
+    "ganglios basales": ["núcleos basales", "cuerpo estriado", "basal ganglia", "putamen", "globo pálido"],
     "meninges": ["duramadre", "aracnoides", "piamadre", "membranas meníngeas"],
     "ventrículos": ["ventrículo lateral", "tercer ventrículo", "cuarto ventrículo", "sistema ventricular"],
     "nervios craneales": ["pares craneales", "cranial nerves"],
@@ -456,13 +455,16 @@ _SINONIMOS_NEURO = {
     "lóbulo parietal": ["corteza parietal", "corteza somatosensorial"],
     "lóbulo occipital": ["corteza occipital", "corteza visual"],
     "sistema límbico": ["limbic system", "circuito de Papez"],
-    "sustancia blanca": ["materia blanca", "white matter"],
-    "sustancia gris": ["materia gris", "grey matter", "gray matter"],
-    "neurona": ["neuronas", "célula nerviosa", "células nerviosas"],
-    "sinapsis": ["synapse", "unión sináptica", "transmisión sináptica"],
-    "neurotransmisor": ["neurotransmisores", "neurotransmitter"],
+    "sustancia blanca": ["materia blanca", "white matter", "fibras mielinizadas"],
+    "sustancia gris": ["materia gris", "grey matter", "gray matter", "somas"],
+    "neurona": ["neuronas", "célula nerviosa", "células nerviosas", "axón", "dendrita"],
+    "sinapsis": ["synapse", "unión sináptica", "transmisión sináptica", "hendidura sináptica"],
+    "neurotransmisor": ["neurotransmisores", "neurotransmitter", "dopamina", "serotonina", "acetilcolina", "GABA"],
     "líquido cefalorraquídeo": ["LCR", "CSF", "cerebrospinal fluid"],
     "diencéfalo": ["diencephalon", "tálamo", "hipotálamo", "epitálamo"],
+    "cuerpo calloso": ["corpus callosum", "comisura interhemisférica"],
+    "sustancia negra": ["substantia nigra", "complejo nigral", "vía dopaminérgica"],
+    "glía": ["neuroglía", "astrocitos", "microglía", "oligodendrocitos"],
 }
 
 _STOPWORDS_ES = {
@@ -472,35 +474,60 @@ _STOPWORDS_ES = {
 }
 
 
+def _detectar_terminos_clave(pregunta: str) -> list:
+    """Detecta términos neuroanatómicos en la pregunta, tolerando acentos y errores ortográficos comunes."""
+    preg_norm = _normalizar_acentos(pregunta.lower())
+    words = [w.strip("?,.¡!¿:;()\"'") for w in preg_norm.split() if w.strip("?,.¡!¿:;()\"'")]
+
+    vocabulario_norm = {_normalizar_acentos(k.lower()): (k, v) for k, v in _SINONIMOS_NEURO.items()}
+    terminos_detectados = []
+
+    # 1. Búsqueda exacta de términos simples o compuestos
+    for term_norm, (term_orig, sinonimos) in vocabulario_norm.items():
+        if term_norm in preg_norm:
+            terminos_detectados.append((term_orig, sinonimos))
+
+    # 2. Tolerancia a errores ortográficos / tipográficos comunes (fuzzy matching con difflib)
+    for w in words:
+        if len(w) >= 4 and w not in _STOPWORDS_ES:
+            matches = difflib.get_close_matches(w, list(vocabulario_norm.keys()), n=1, cutoff=0.72)
+            if matches:
+                matched_key = matches[0]
+                term_orig, sinonimos = vocabulario_norm[matched_key]
+                if (term_orig, sinonimos) not in terminos_detectados:
+                    terminos_detectados.append((term_orig, sinonimos))
+
+    return terminos_detectados
+
+
 def _expandir_query(pregunta: str) -> str:
     """
-    Expande la pregunta del usuario agregando sinónimos técnicos
-    neuroanatómicos para mejorar la recuperación vectorial.
+    Expande la pregunta del usuario agregando términos corregidos y sinónimos
+    técnicos neuroanatómicos para asegurar una recuperación vectorial óptima.
     """
-    preg_norm = _normalizar_acentos(pregunta.lower())
+    terminos = _detectar_terminos_clave(pregunta)
     terminos_extra = []
-    for termino, sinonimos in _SINONIMOS_NEURO.items():
-        term_norm = _normalizar_acentos(termino.lower())
-        if term_norm in preg_norm:
-            terminos_extra.extend(sinonimos)
+    for term_orig, sinonimos in terminos:
+        terminos_extra.append(term_orig)
+        terminos_extra.extend(sinonimos)
     if terminos_extra:
         return pregunta + " " + " ".join(terminos_extra)
     return pregunta
 
 
 def _get_query_keywords(pregunta: str) -> tuple:
-    """Extrae palabras clave de la pregunta (normalizadas sin acentos) + sus sinónimos."""
+    """Extrae palabras clave de la pregunta + términos corregidos y sinónimos."""
     preg_limpia = _normalizar_acentos(pregunta.lower())
     words = [w.strip("?,.¡!¿") for w in preg_limpia.split()
              if w.strip("?,.¡!¿") not in _STOPWORDS_ES and len(w.strip("?,.¡!¿")) > 1]
 
     expanded = list(words)
-    for w in words:
-        for termino, sinonimos in _SINONIMOS_NEURO.items():
-            term_norm = _normalizar_acentos(termino.lower())
-            if w == term_norm:
-                for s in sinonimos:
-                    expanded.append(_normalizar_acentos(s.lower()))
+    terminos = _detectar_terminos_clave(pregunta)
+    for term_orig, sinonimos in terminos:
+        expanded.append(_normalizar_acentos(term_orig.lower()))
+        for s in sinonimos:
+            expanded.append(_normalizar_acentos(s.lower()))
+
     return words, list(set(expanded))
 
 
@@ -511,6 +538,9 @@ def _reranking_por_relevancia(pregunta: str, docs_con_score: list, top_n: int = 
     pero cuyo contenido principal es sobre otro tema.
     """
     pregunta_lower = _normalizar_acentos(pregunta.lower())
+    terminos_detectados = _detectar_terminos_clave(pregunta)
+    nombres_detectados = [_normalizar_acentos(t[0].lower()) for t in terminos_detectados]
+
     tema_principal = None
     temas_excluir = []
     confusiones = [
@@ -518,12 +548,16 @@ def _reranking_por_relevancia(pregunta: str, docs_con_score: list, top_n: int = 
         ("cerebelo", []),
         ("hipotalamo", ["hipofisis"]),
         ("talamo", ["hipotalamo"]),
+        ("hipocampo", []),
     ]
     for tema, excluidos in confusiones:
-        if tema in pregunta_lower and not any(e in pregunta_lower for e in excluidos):
+        if (tema in pregunta_lower or tema in nombres_detectados) and not any(e in pregunta_lower for e in excluidos):
             tema_principal = tema
             temas_excluir = excluidos
             break
+
+    if not tema_principal and nombres_detectados:
+        tema_principal = nombres_detectados[0]
 
     if not tema_principal:
         return [doc for doc, _score in docs_con_score[:top_n]]
@@ -619,10 +653,10 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
 # ─────────────────────────────────────────────
 # 5b. CONSULTA RAG — Google Gemini API
 # ─────────────────────────────────────────────
-def _extraer_texto_contenido(content) -> str:
-    """Extrae texto limpio de la respuesta de LangChain / Gemini (str, list de dicts o blocks)."""
+def _extraer_texto_contenido(content, strip: bool = False) -> str:
+    """Extrae texto limpio de la respuesta del LLM, eliminando bloques <think> si existen."""
     if isinstance(content, str):
-        return content
+        texto = content
     elif isinstance(content, list):
         partes = []
         for part in content:
@@ -634,36 +668,46 @@ def _extraer_texto_contenido(content) -> str:
                 partes.append(getattr(part, "text"))
             else:
                 partes.append(str(part))
-        return "".join(partes)
-    return str(content) if content is not None else ""
+        texto = "".join(partes)
+    else:
+        texto = str(content) if content is not None else ""
+
+    # Limpiar bloques de pensamiento <think>...</think> emitidos por modelos de razonamiento
+    if "<think>" in texto and "</think>" in texto:
+        texto = re.sub(r"<think>.*?</think>", "", texto, flags=re.DOTALL)
+
+    if strip:
+        texto = texto.strip()
+    return texto
+
 
 
 def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "avanzado") -> dict:
     """
     PASOS 5-7 del pipeline RAG:
-    Búsqueda híbrida → Re-ranking → Prompt aumentado → Generación con Gemini
+    Búsqueda híbrida → Re-ranking → Prompt aumentado → Generación con Groq
     """
-    k_recuperacion = max(k, 6)
-    docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k_recuperacion)
+    docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k)
 
     context_parts = []
     for i, doc in enumerate(docs_contexto):
         fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
+        nombre = nombre_legible(fuente)
         pagina = doc.metadata.get("page", "?")
         contenido_limpio = _limpiar_texto_ocr(doc.page_content)
         context_parts.append(
-            f"[Fragmento {i+1}] Archivo: {fuente} | Página: {pagina}\n{contenido_limpio}"
+            f"[Fuente {i+1}] {nombre} | Página: {pagina}\n{contenido_limpio}"
         )
     context = "\n\n---\n\n".join(context_parts)
 
     system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
 
-    model_to_use = GEMINI_LLM_MODEL if GEMINI_LLM_MODEL not in ["gemini-2.0-flash", "gemini-2.5-flash"] else "gemini-3.6-flash"
-    llm = ChatGoogleGenerativeAI(
-        model=model_to_use,
-        google_api_key=GEMINI_API_KEY,
+    llm = ChatGroq(
+        model=GROQ_LLM_MODEL,
+        api_key=GROQ_API_KEY,
         temperature=0.0,
-        max_output_tokens=2048,
+        max_tokens=800,
+        reasoning_effort="low",
     )
 
     messages = [
@@ -671,12 +715,22 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
         HumanMessage(content=PROMPT_TEMPLATE.format(context=context, question=pregunta)),
     ]
     response = llm.invoke(messages)
-    texto = _extraer_texto_contenido(response.content)
+    texto = _extraer_texto_contenido(response.content, strip=True)
+
+    fuentes = [
+        {
+            "fuente": os.path.basename(doc.metadata.get("source", "desconocido")),
+            "pagina": doc.metadata.get("page"),
+            "fragmento": doc.page_content[:300],
+        }
+        for doc in docs_contexto[:k]
+    ]
 
     return {
         "pregunta": pregunta,
         "respuesta": texto,
         "fragmentos": docs_contexto[:k],
+        "fuentes": fuentes,
         "tokens_contexto_aprox": len(context) // 4,
     }
 
@@ -693,27 +747,27 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
             yield "⚠️ **Base de conocimientos vacía.** Por favor, inicia sesión como administrador y usa el botón **'Reconstruir VectorDB'** en la barra lateral para indexar los documentos."
         return _sin_db(), [], 0
 
-    k_recuperacion = max(k, 6)
-    docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k_recuperacion)
+    docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k)
 
     context_parts = []
     for i, doc in enumerate(docs_contexto):
         fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
+        nombre = nombre_legible(fuente)
         pagina = doc.metadata.get("page", "?")
         contenido_limpio = _limpiar_texto_ocr(doc.page_content)
         context_parts.append(
-            f"[Fragmento {i+1}] Archivo: {fuente} | Página: {pagina}\n{contenido_limpio}"
+            f"[Fuente {i+1}] {nombre} | Página: {pagina}\n{contenido_limpio}"
         )
     context = "\n\n---\n\n".join(context_parts)
 
     system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
 
-    model_to_use = GEMINI_LLM_MODEL if GEMINI_LLM_MODEL not in ["gemini-2.0-flash", "gemini-2.5-flash"] else "gemini-3.6-flash"
-    llm = ChatGoogleGenerativeAI(
-        model=model_to_use,
-        google_api_key=GEMINI_API_KEY,
+    llm = ChatGroq(
+        model=GROQ_LLM_MODEL,
+        api_key=GROQ_API_KEY,
         temperature=0.0,
-        max_output_tokens=2048,
+        max_tokens=800,
+        reasoning_effort="low",
     )
 
     messages = [
@@ -734,7 +788,7 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
     print("=" * 65)
-    print("🧠 CONSULTOR RAG — NEUROANATOMÍA (Google Gemini API)")
+    print("🧠 CONSULTOR RAG — NEUROANATOMÍA (Groq API)")
     print("=" * 65)
 
     vs = build_vector_store(force_rebuild=False)

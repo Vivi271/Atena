@@ -37,7 +37,7 @@ app = FastAPI(
     title="Atena — API de Neuroanatomía",
     description=(
         "API REST del Consultor Especialista en Neuroanatomía (RAG). "
-        "Expone el pipeline RAG con Gemini para ser consumido desde Unity u otros clientes."
+        "Expone el pipeline RAG con Groq para ser consumido desde Unity u otros clientes."
     ),
     version="1.0.0",
     lifespan=lifespan,
@@ -85,11 +85,11 @@ async def salud():
 @app.get("/info", tags=["Sistema"])
 async def info():
     """Información general del servicio."""
-    from rag_pipeline import GEMINI_LLM_MODEL, GEMINI_EMBED_MODEL
+    from rag_pipeline import GROQ_LLM_MODEL, GROQ_EMBED_MODEL
     return {
         "nombre": "Atena — Consultor RAG de Neuroanatomía",
-        "modelo_llm": GEMINI_LLM_MODEL,
-        "modelo_embeddings": GEMINI_EMBED_MODEL,
+        "modelo_llm": GROQ_LLM_MODEL,
+        "modelo_embeddings": GROQ_EMBED_MODEL,
         "endpoints": {
             "POST /consultar": "Enviar pregunta y recibir respuesta con fuentes",
             "GET  /salud":     "Health check",
@@ -127,10 +127,19 @@ async def consultar_endpoint(body: ConsultaRequest):
         raise HTTPException(status_code=500, detail=f"Error en el pipeline RAG: {str(e)}")
 
     fuentes = []
+    from config import nombre_legible
     for f in resultado.get("fuentes", []):
+        raw_pag = f.get("pagina")
+        pag_int = None
+        try:
+            if raw_pag is not None and str(raw_pag).isdigit():
+                pag_int = int(raw_pag)
+        except Exception:
+            pag_int = None
+
         fuentes.append(FuenteResponse(
-            fuente=f.get("fuente", "Desconocida"),
-            pagina=f.get("pagina"),
+            fuente=nombre_legible(f.get("fuente", "Desconocida")),
+            pagina=pag_int,
             fragmento=f.get("fragmento", ""),
         ))
 
