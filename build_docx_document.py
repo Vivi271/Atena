@@ -694,7 +694,7 @@ def create_document():
     )
     add_body_p(
         doc,
-        "El proceso no interrumpe el servicio en producción. El investigador simplemente añade el nuevo archivo PDF a la carpeta Docs/ en su equipo local, ejecuta el script de vectorización (o utiliza la interfaz gráfica administrativa de Streamlit con PIN de seguridad '1234'), y realiza un git push a la rama main. Render detecta el cambio automáticamente, compila la nueva imagen con los vectores actualizados y realiza un despliegue sin tiempo de inactividad (Zero Downtime Deployment)."
+        "El proceso fue diseñado para que los docentes e investigadores del Laboratorio NeuroK no requieran conocimientos de programación ni uso de terminales de comandos: simplemente ingresan al panel web administrativo de Atena con su PIN de seguridad ('1234'), arrastran el nuevo archivo PDF o Word en la sección de Base de Conocimientos (donde el motor lo fragmenta y vectoriza automáticamente de forma inmediata), y presionan el botón '🚀 Publicar Cambios a la Nube'. El sistema ejecuta la sincronización de manera transparente y desatendida, provocando que Render actualice la imagen y el servicio en aproximadamente 2 minutos. Así, la aplicación móvil de Unity de todos los estudiantes queda sincronizada con la nueva literatura sin costo, sin caídas y sin que el personal del laboratorio deba escribir una sola línea de código."
     )
 
     add_heading_2(doc, "8.5 Búsqueda Híbrida, Tolerancia a Errores Léxicos (Fuzzy Matching) y Trazabilidad")

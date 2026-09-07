@@ -107,12 +107,30 @@ def render_sidebar(vs, disabled=False):
                                     time.sleep(2)
                             st.session_state["_pending_delete"] = None
                             st.rerun()
-                    with col_no:
-                        if st.button("Cancelar", key="cancelar_delete", use_container_width=True, disabled=disabled):
-                            st.session_state["_pending_delete"] = None
-                            st.rerun()
+            # ── Sincronización Automática con la Nube / Unity (Sin tocar código) ──
+            st.markdown("---")
+            st.markdown("<div style='font-size:0.85rem; font-weight:600; color:#cbd5e1; margin-bottom:4px;'>☁️ Publicar a la App Móvil (Unity)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:0.75rem; color:#94a3b8; margin-bottom:8px;'>Actualiza los libros en el servidor en la nube sin abrir terminal ni escribir comandos.</div>", unsafe_allow_html=True)
+            if st.button("🚀 Publicar Cambios a la Nube", key="sync_cloud_btn", use_container_width=True, disabled=disabled):
+                with st.spinner("Sincronizando con el servidor en la nube..."):
+                    try:
+                        import subprocess
+                        subprocess.run(["git", "add", "Docs/", "chroma_neuro_db/"], check=True)
+                        res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+                        if "Docs" in res.stdout or "chroma_neuro_db" in res.stdout:
+                            subprocess.run(["git", "commit", "-m", "docs: actualización de literatura desde Panel de Administración"], check=True)
+                            push_res = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=30)
+                            if push_res.returncode == 0:
+                                st.success("✅ ¡Publicado con éxito! Render actualizará la app de Unity automáticamente en ~2 minutos.")
+                            else:
+                                st.warning(f"Guardado localmente. Detalle de red: {push_res.stderr[:200]}")
+                        else:
+                            st.info("ℹ️ Todo está al día. La nube ya cuenta con la versión más reciente.")
+                    except Exception as err:
+                        st.error(f"Error al sincronizar: {err}")
             else:
-                st.info("No hay documentos subidos.")
+                pass
+            st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### Perfil de Usuario (Nivel)")

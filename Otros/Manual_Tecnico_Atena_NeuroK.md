@@ -259,21 +259,31 @@ Por tal motivo, la base vectorial `chroma_neuro_db` (~32 MB) está pre-indexada 
 └─────────────────┘     └─────────────────────┘     └───────────────────────┘
 ```
 
-### Paso a Paso para Incorporar Nuevos Textos:
-1. Copiar el nuevo archivo PDF o DOCX en la carpeta `Docs/`.
-2. Ejecutar la indexación localmente:
+### Flujo de Subida para el Personal de Laboratorio (100% Visual — Cero Código)
+
+Para garantizar que los docentes e investigadores de NeuroK no requieran conocimientos de programación ni uso de terminales de comandos, el sistema incluye un **asistente de sincronización en 1 solo clic** desde el panel web de Atena:
+
+#### Método 1: Panel Web Administrativo (Recomendado para Laboratorio)
+1. **Acceder como Administrador:** En la barra lateral de Atena, desplegar el panel de acceso e ingresar el PIN institucional: `1234`.
+2. **Arrastrar el Documento:** En la sección **«📂 Base de Conocimientos»**, arrastrar los nuevos archivos PDF o DOCX en el recuadro de carga. El motor los procesa, fragmenta y vectoriza inmediatamente en segundo plano.
+3. **Publicar a Unity en 1 Clic:** Debajo de la lista de documentos, presionar el botón:  
+   👉 **`🚀 Publicar Cambios a la Nube`**  
+   El sistema empaqueta automáticamente los vectores y los envía a la nube de Render sin que el docente deba abrir una consola ni escribir instrucciones de Git.
+4. **Despliegue Automático:** En 2 minutos, la app móvil de Unity de todos los estudiantes queda sincronizada con la nueva literatura científica.
+
+---
+
+#### Método 2: Por Consola / Terminal (Para Desarrolladores)
+Si un ingeniero de sistemas desea realizar la indexación de forma manual:
+1. Copiar el archivo PDF/DOCX en la carpeta `Docs/`.
+2. Ejecutar:
    ```bash
    python indexar_documentos.py
-   ```
-   *(O bien, abrir `streamlit run app.py`, ingresar al Panel Admin con PIN `1234` y usar el cargador web).*
-3. Confirmar que la carpeta `chroma_neuro_db/` se haya actualizado.
-4. Enviar los cambios al repositorio institucional:
-   ```bash
    git add Docs/ chroma_neuro_db/
-   git commit -m "docs: indexar nuevo texto académico de neuroanatomía"
+   git commit -m "docs: indexar nuevo texto de neuroanatomía"
    git push origin main
    ```
-5. Render detectará el push y reconstruirá el servicio en aproximadamente 2 minutos, poniendo a disposición el nuevo conocimiento sin costo adicional.
+3. Render compilará el contenedor automáticamente.
 
 ---
 
