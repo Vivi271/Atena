@@ -8,8 +8,7 @@ __pycache__/
 # Archivos de configuración sensible
 .env
 
-# Base vectorial — se genera automáticamente al correr la app
-chroma_neuro_db/
+# Bases vectoriales temporales y backups
 chroma_neuro_db_temp/
 chroma_neuro_db_backup/
 chroma_neuro_db_test/

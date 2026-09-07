@@ -26,13 +26,11 @@ COPY requirements_docker.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copiar código fuente y documentos
+# Copiar código fuente, documentos y base vectorial ya indexada
 COPY api.py rag_pipeline.py config.py database.py ./
 COPY components/ ./components/
 COPY Docs/ ./Docs/
-
-# Crear carpeta para ChromaDB
-RUN mkdir -p chroma_neuro_db
+COPY chroma_neuro_db/ ./chroma_neuro_db/
 
 # Exponer puerto por defecto
 EXPOSE 8080

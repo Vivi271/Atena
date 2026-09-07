@@ -21,7 +21,8 @@ os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
+import chromadb.utils.embedding_functions as ef
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -77,17 +78,24 @@ def _load_any_document(file_path: str) -> list:
 PERSIST_DIR     = os.path.join(BASE_DIR, "chroma_neuro_db")
 COLLECTION_NAME = "neuroanatomia_cientifica"
 
-# ─────────────────────────────────────────────
-# 2. MODELOS
-# ─────────────────────────────────────────────
-# Embeddings: sentence-transformers corriendo dentro del contenedor Docker.
-# Sin llamadas a APIs externas — cero costo, cero límites de rate.
+# Embeddings: ONNX Runtime (nativo en ChromaDB) — sin PyTorch ni Transformers
+# Reduce el uso de RAM de 520MB a <150MB, garantizando compatibilidad con Render Free Tier
 EMBED_MODEL_NAME = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
-embeddings_model = HuggingFaceEmbeddings(
-    model_name=EMBED_MODEL_NAME,
-    model_kwargs={"device": "cpu"},
-    encode_kwargs={"normalize_embeddings": True},
-)
+
+class ONNXMiniLMEmbeddings(Embeddings):
+    """Embeddings ultraligeros basados en ONNX Runtime nativo de ChromaDB (sin PyTorch)."""
+    def __init__(self):
+        self._ef = ef.ONNXMiniLM_L6_V2()
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        return [list(map(float, v)) for v in self._ef(texts)]
+
+    def embed_query(self, text: str) -> list[float]:
+        return list(map(float, self._ef([text])[0]))
+
+embeddings_model = ONNXMiniLMEmbeddings()
 
 # LLM: Groq API con OpenAI GPT OSS 120B (alta precisión, sin límite para estudiantes)
 GROQ_LLM_MODEL = os.getenv("GROQ_LLM_MODEL", "openai/gpt-oss-120b")

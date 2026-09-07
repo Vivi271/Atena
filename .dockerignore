@@ -5,8 +5,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# Base vectorial local
-chroma_neuro_db/
+# Base vectorial local (temporales y backups)
 chroma_neuro_db_backup/
 chroma_neuro_db_temp/
 
