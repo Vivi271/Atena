@@ -153,7 +153,10 @@ def create_document():
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_sub.paragraph_format.space_after = Pt(50)
-    r_sub = p_sub.add_run("Análisis Comparativo de Desempeño: Migración de Modelos Locales (Ollama / Llama 3.2) hacia Servicios Cloud API (Google Gemini) para el Consultor de Neuroanatomía 3D")
+    r_sub = p_sub.add_run(
+        "Análisis Comparativo Multicriterio de Tres Generaciones de Arquitectura AI:\n"
+        "Inferencia Local (Ollama / Llama 3.2) vs. Cloud Piloto (Google Gemini API) vs. Arquitectura Definitiva de Alto Rendimiento (Groq Cloud LPU + ChromaDB ONNX Runtime) para el Consultor de Neuroanatomía 3D en Unity"
+    )
     r_sub.font.name = 'Arial'
     r_sub.font.size = Pt(12)
     r_sub.font.italic = True
@@ -164,10 +167,10 @@ def create_document():
     p_meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_meta.paragraph_format.space_after = Pt(80)
     r_meta = p_meta.add_run(
-        "Proyecto: Consultor Especialista en Neuroanatomía 3D\n"
+        "Proyecto: Consultor Especialista en Neuroanatomía 3D (Atena — NeuroK AR)\n"
         "Autores: Equipo de Investigación & Desarrollo - Konrad Lorenz\n"
-        "Fecha de Evaluación: Agosto de 2026\n"
-        "Versión del Documento: 2.0 (Final RAG Architecture)"
+        "Fecha de Evaluación y Cierre Técnico: Septiembre de 2026\n"
+        "Versión del Documento: 3.0 (Evaluación Tripartita y Arquitectura Definitiva en Producción)"
     )
     r_meta.font.name = 'Calibri'
     r_meta.font.size = Pt(11)
@@ -182,25 +185,32 @@ def create_document():
     
     add_body_p(
         doc,
-        "El presente documento expone una evaluación técnica detallada sobre la infraestructura de Inteligencia Artificial seleccionada para el proyecto 'Consultor Especialista en Neuroanatomía', un sistema RAG (Retrieval-Augmented Generation) integrado con una interfaz inmersiva e interactiva desarrollada en Unity 3D para estudiantes e investigadores de la Fundación Universitaria Konrad Lorenz."
+        "El presente informe técnico expone una rigurosa evaluación comparativa y la traza de evolución arquitectónica de la infraestructura de Inteligencia Artificial seleccionada para el proyecto 'Consultor Especialista en Neuroanatomía' (Atena — NeuroK AR). El sistema es una solución RAG (Retrieval-Augmented Generation) diseñada para operar en tiempo real integrada a una escena 3D interactiva en Unity para estudiantes, docentes e investigadores de la Fundación Universitaria Konrad Lorenz."
     )
     add_body_p(
         doc,
-        "Inicialmente, el sistema fue concebido para operar bajo un enfoque 100% local haciendo uso del motor Ollama y modelos de lenguaje de código abierto como Llama 3.2 (3B y 8B) acompañados del modelo de embeddings nomic-embed-text. No obstante, tras un exhaustivo ciclo de pruebas empíricas realizadas sobre la máquina de desarrollo de referencia (MacBook Pro 16\" con procesador Intel Core i7 de 6 núcleos, 16 GB de RAM y GPU AMD Radeon Pro 5300M con 4 GB de VRAM), se identificaron graves cuellos de botella operativos."
+        "Para alcanzar una experiencia pedagógica inmersiva y un despliegue viable en la nube a costo cero, el proyecto evaluó e implementó tres generaciones sucesivas de arquitectura tecnológica:"
     )
     add_body_p(
         doc,
-        "Entre los principales hallazgos destacan: (1) latencias de respuesta excesivamente altas (entre 22.5 y 54.2 segundos por consulta RAG), (2) alta degradación del rendimiento gráfico y bloqueo de la tasa de cuadros (FPS) en la aplicación Unity 3D debido al consumo extremo de CPU (88%) y VRAM (95%), (3) estrangulamiento térmico (Thermal Throttling) en el procesador local alcanzando temperaturas sostenidas superiores a los 86 °C, y (4) saturación de la memoria RAM del sistema (14.8 GB consumidos sobre 16 GB totales), provocando swapping en el disco SSD."
+        "1. Fase 1 — Enfoque 100% Local (Ollama + Llama 3.2 3B/8B + nomic-embed-text): Evaluado empíricamente sobre la máquina de referencia del laboratorio (MacBook Pro 16\", Intel Core i7 6-Core, 16 GB RAM, GPU AMD Radeon Pro 5300M de 4 GB VRAM). Reveló inviabilidad operativa: latencias de 22.5 a 54.2 segundos por respuesta, saturación de CPU (88-95%), estrangulamiento térmico a 92 °C, agotamiento de RAM (14.8 GB ocupados) y caída drástica de la tasa de refresco en Unity a menos de 12 FPS.",
+        bold_prefix="• "
     )
     add_body_p(
         doc,
-        "Como solución definitiva, se decidió migrar la capa de inferencia hacia la API de Google Gemini (Gemini 1.5 Flash / Pro). Los resultados tras la migración demuestran una reducción masiva en el tiempo de respuesta (pasando a 1.2 - 2.1 segundos), un consumo nulo de recursos gráficos/computacionales en la máquina del cliente, una tasa de generación de texto superior a los 95 tokens/segundo y la posibilidad de aprovechar cuotas gratuitas académicas (Google AI Studio) ideales para el despliegue en servicios de hosting en la nube como Firebase Hosting, Render o Railway."
+        "2. Fase 2 — Enfoque Cloud Piloto (Google Gemini 1.5/3.6 Flash API + PyTorch): Logró abatir la latencia a 1.2 - 2.1 segundos eliminando la carga local del cliente. No obstante, al someterse a pruebas de concurrencia y despliegue en servidor (Render.com), surgieron dos limitaciones críticas: (a) saturación constante de las cuotas del tier gratuito en Google AI Studio (errores HTTP 429 Too Many Requests / ResourceExhausted limitados a 15 RPM), y (b) desbordamiento de memoria RAM en el servidor gratuito de Render (límite estricto de 512 MiB), donde la pila de PyTorch y sentence-transformers consumía >520 MB de RAM provocando la muerte inmediata del contenedor ('Out of memory - 512Mi killed').",
+        bold_prefix="• "
+    )
+    add_body_p(
+        doc,
+        "3. Fase 3 — Arquitectura Definitiva en Producción (Groq Cloud LPU + ChromaDB ONNX Runtime): Integra la plataforma Groq Cloud sobre procesadores de lenguaje LPU (Language Processing Unit), ejecutando el modelo openai/gpt-oss-120b con inferencia determinista ultrarrápida (>350 tokens/segundo) y latencias sub-segundo (0.6 a 0.9s), sin caídas de cuota. Simultáneamente, sustituye PyTorch por ONNX Runtime (all-MiniLM-L6-v2), reduciendo la huella de memoria del servidor de 520 MB a menos de 140 MB (-73%), garantizando estabilidad permanente 24/7 en Render Free Tier, tolerancia a errores tipográficos con Fuzzy Matching y costo mensual de $0 USD.",
+        bold_prefix="• "
     )
 
     add_callout(
         doc,
-        "La evaluación cuantitativa determinó que el despliegue cloud mediante Gemini API incrementa la velocidad de respuesta en un 1800% y elimina totalmente el congelamiento de la interfaz gráfica en Unity 3D, garantizando una experiencia de usuario interactiva y fluida.",
-        title="DECISIÓN ARQUITECTÓNICA CLAVE"
+        "La evaluación multicriterio demuestra que la arquitectura definitiva (Groq LPU + ONNX Runtime) supera a la IA local en un 4500% de velocidad de respuesta, elimina los bloqueos por cuota de la fase intermedia de Gemini y resuelve la restricción de memoria de 512 MiB en Render, entregando una solución de alta fidelidad científica a costo cero permanente para la universidad.",
+        title="DECISIÓN ARQUITECTÓNICA DEFINITIVA (EVALUACIÓN DE 3 FASES)"
     )
 
     # ---------------------------------------------------------------------------
@@ -501,78 +511,99 @@ def create_document():
     )
 
     # ---------------------------------------------------------------------------
-    # SECCIÓN 5: JUSTIFICACIÓN DE LA SELECCIÓN Y ARQUITECTURA PROPUESTA
     # ---------------------------------------------------------------------------
-    add_heading_1(doc, "5. JUSTIFICACIÓN FINAL Y ARQUITECTURA DEL SISTEMA")
+    # SECCIÓN 5: JUSTIFICACIÓN DE LA FASE CLOUD INICIAL (PILOTO CON GEMINI API)
+    # ---------------------------------------------------------------------------
+    add_heading_1(doc, "5. JUSTIFICACIÓN DE LA FASE CLOUD INTERMEDIA (FASE 2: PILOTO CON GEMINI API)")
     
     add_body_p(
         doc,
-        "Tras finalizar la fase de experimentación empírica, la decisión del equipo de desarrollo fue unánime: la arquitectura debe adoptar la API de Gemini como motor principal de inferencia LLM y embeddings."
+        "Tras finalizar la fase de experimentación empírica con Ollama (Fase 1), el equipo de desarrollo determinó la necesidad de desacoplar el procesamiento de IA de la máquina cliente adoptando la API de Google Gemini como motor cloud piloto de inferencia LLM y embeddings."
     )
     add_body_p(
         doc,
-        "La arquitectura del sistema queda estructurada en tres capas bien definidas:"
+        "En esta etapa, la arquitectura del sistema quedó estructurada en tres capas desacopladas:"
     )
     add_body_p(doc, "1. Capa de Presentación (Front-End Unity 3D / Web): Interfaz gráfica inmersiva que renderiza los modelos 3D neuroanatómicos y gestiona el chat mediante peticiones asíncronas UnityWebRequest hacia el backend API REST.")
-    add_body_p(doc, "2. Capa de Servicios y Lógica RAG (Backend Cloud Servidor): Desplegado en un contenedor ligero en plataformas como Firebase Hosting / Cloud Functions, Vercel o Render. Recibe la consulta del usuario, recupera los vectores relevantes desde ChromaDB / Cloud DB y construye el prompt sintético.")
+    add_body_p(doc, "2. Capa de Servicios y Lógica RAG (Backend Cloud Servidor): Desplegado en un contenedor en Render.com. Recibe la consulta del usuario, recupera los vectores relevantes desde ChromaDB y construye el prompt sintético.")
     add_body_p(doc, "3. Capa de Inferencia AI (Google Gemini API): Procesa el contexto y la consulta académica en la nube de Google, devolviendo la respuesta estructurada en menos de 1.5 segundos.")
 
     add_callout(
         doc,
-        "Esta arquitectura desacoplada garantiza que la aplicación cliente en Unity sea liviana (menos de 50 MB de ejecutable), se pueda compilar para cualquier plataforma (Windows, macOS, WebGL o dispositivos móviles) y no exija tarjetas de video dedicadas a los estudiantes.",
-        title="BENEFICIO ARQUITECTÓNICO FINAL"
+        "El desacoplamiento en tres capas implementado en la Fase 2 demostró ser el camino arquitectónico correcto: la aplicación cliente en Unity se mantuvo liviana (<50 MB de ejecutable) y se eliminó la dependencia de GPUs dedicadas en los equipos de los estudiantes.",
+        title="APRENDIZAJE ARQUITECTÓNICO DE LA FASE 2"
     )
 
     # ---------------------------------------------------------------------------
-    # SECCIÓN 6: HOJA DE RUTA Y SIGUIENTES PASOS TÉCNICOS
+    # SECCIÓN 6: DE LA FASE PILOTO AL HALLAZGO DE NUEVOS CUELLOS DE BOTELLA
     # ---------------------------------------------------------------------------
-    add_heading_1(doc, "6. HOJA DE RUTA E INSTRUCCIONES PARA LOS SIGUIENTES PASOS")
+    add_heading_1(doc, "6. IMPLEMENTACIÓN DE LA FASE PILOTO Y TRANSICIÓN A PRODUCCIÓN")
     
     add_body_p(
         doc,
-        "Para culminar la implementación completa del proyecto conforme a los requerimientos planteados, se ejecutará el siguiente plan de trabajo estructurado en tres fases estratégicas:"
+        "La ejecución de la fase piloto con Gemini cumplió con éxito los hitos iniciales de integración:"
     )
 
     add_heading_2(doc, "Paso 1: Actualización del Pipeline RAG a Gemini API")
     add_body_p(
         doc,
-        "Se sustituirán las clases de OllamaEmbeddings y ChatOllama en `rag_pipeline.py` por `GoogleGenerativeAIEmbeddings` (modelo text-embedding-004) y `ChatGoogleGenerativeAI` (modelo gemini-1.5-flash) pertenecientes a la librería `langchain-google-genai`."
+        "Se sustituyeron las clases de Ollama en `rag_pipeline.py` por `GoogleGenerativeAIEmbeddings` (text-embedding-004) y `ChatGoogleGenerativeAI` (gemini-1.5-flash / gemini-3.6-flash)."
     )
 
-    add_heading_2(doc, "Paso 2: Configuración de Hosting Gratuito y Cuenta Estudiantil")
+    add_heading_2(doc, "Paso 2: Despliegue en la Nube y Configuración de Servicios")
     add_body_p(
         doc,
-        "Se registrará la cuenta institucional de la universidad en Google Cloud / Firebase Hosting o plataformas de microservicios gratuitas (Render / Vercel / Railway). Se configurarán las variables de entorno (`GEMINI_API_KEY`) de forma segura en la nube para exponer un endpoint HTTPS público."
+        "Se vinculó la cuenta institucional de la universidad (`atena.unikonrad@gmail.com`) a Render.com y Firebase Firestore, configurando las variables de entorno de forma segura para exponer el endpoint HTTPS público `https://atena-vugz.onrender.com`."
     )
 
-    add_heading_2(doc, "Paso 3: Construcción de la Interfaz Inicial en Unity 3D")
+    add_heading_2(doc, "Paso 3: Construcción del Cliente en Unity 3D (C#)")
     add_body_p(
         doc,
-        "Se creará la escena principal en Unity 3D compuesta por un Canvas de UI con ScrollView para el historial de mensajes, InputField para la entrada de preguntas, botones interactivos de envío y un gestor de red C# (`NeuroChatController.cs`) que realiza llamadas REST asíncronas hacia el backend en la nube."
+        "Se integró el controlador oficial `AtenaClient.cs` en Unity, permitiendo llamadas REST asíncronas desde la escena tridimensional hacia el backend cloud sin congelar la interfaz de usuario."
+    )
+
+    add_heading_2(doc, "6.1 Limitaciones Identificadas en Pruebas Reales de Producción")
+    add_body_p(
+        doc,
+        "Al someter el despliegue en Render.com a pruebas intensivas con estudiantes en el laboratorio, surgieron dos barreras infranqueables que obligaron a evolucionar el sistema hacia una tercera generación definitiva:"
+    )
+    add_body_p(
+        doc,
+        "1. Saturación de Cuotas de Gemini (HTTP 429 ResourceExhausted): El límite estricto de 15 solicitudes por minuto (RPM) en el tier gratuito de Google AI Studio provocaba bloqueos continuos cuando varios evaluadores realizaban preguntas consecutivas.",
+        bold_prefix="a) "
+    )
+    add_body_p(
+        doc,
+        "2. El Cuello de Botella de 512 MiB de RAM en Render: La biblioteca PyTorch y los sentence-transformers requeridos para vectorizar en el servidor consumían entre 520 y 650 MB de memoria en el arranque, provocando que Render matara el contenedor con el error 'Out of memory (used over 512Mi)'.",
+        bold_prefix="b) "
+    )
+    add_body_p(
+        doc,
+        "Estos dos factores motivaron la fase final de investigación e ingeniería descrita en la Sección 8, consolidando la arquitectura de producción con Groq LPU y ONNX Runtime."
     )
 
     # ---------------------------------------------------------------------------
-    # SECCIÓN 7: CONCLUSIONES DE LA FASE PILOTO (OLLAMA VS. GEMINI)
+    # SECCIÓN 7: CONCLUSIONES DE LAS FASES EXPERIMENTALES INICIALES (FASES 1 Y 2)
     # ---------------------------------------------------------------------------
-    add_heading_1(doc, "7. CONCLUSIONES DE LA FASE PILOTO (OLLAMA VS. GEMINI)")
+    add_heading_1(doc, "7. CONCLUSIONES DE LAS FASES EXPERIMENTALES INICIALES (FASES 1 Y 2)")
     
     add_body_p(
         doc,
-        "1. La inferencia local de IA mediante Ollama en equipos portátiles de especificaciones medias (como la MacBook Pro Intel i7 con 4 GB VRAM) resulta inviable para aplicaciones interactivas en tiempo real combinadas con motores gráficos como Unity 3D."
+        "1. La inferencia local de IA mediante Ollama (Fase 1) en equipos portátiles estándar resulta inviable para aplicaciones interactivas en tiempo real combinadas con motores gráficos como Unity 3D, debido al estrangulamiento térmico y saturación de VRAM/RAM."
     )
     add_body_p(
         doc,
-        "2. La adopción de la API de Google Gemini mejora la velocidad de respuesta de 38-54 segundos a tan solo 1.2-2.1 segundos, representando un incremento de eficiencia de 18x y permitiendo una experiencia de usuario totalmente fluida."
+        "2. La adopción de la API de Google Gemini (Fase 2) validó empíricamente las ventajas de la arquitectura desacoplada en la nube, reduciendo la latencia de 38-54 segundos a tan solo 1.2-2.1 segundos."
     )
     add_body_p(
         doc,
-        "3. El aprovechamiento de la cuota gratuita para desarrollo académico en Google AI Studio permite operar el backend sin generar costos financieros para la universidad durante la etapa lectiva y de pruebas de tesis."
+        "3. No obstante, las restricciones de cuota gratuita (15 RPM) y el excesivo peso de PyTorch en servidores cloud gratuitos demostraron la necesidad de una optimización más profunda en inferencia y consumo de memoria para garantizar estabilidad 24/7 sin costo para la institución."
     )
 
     # ---------------------------------------------------------------------------
-    # SECCIÓN 8: EVOLUCIÓN ARQUITECTÓNICA: DE GEMINI A GROQ LPU Y OPTIMIZACIÓN ONNX
+    # SECCIÓN 8: ARQUITECTURA DEFINITIVA Y COMPARATIVA TRIPARTITA (FASE 3: GROQ LPU + ONNX)
     # ---------------------------------------------------------------------------
-    add_heading_1(doc, "8. EVOLUCIÓN ARQUITECTÓNICA: DE GEMINI A GROQ LPU Y OPTIMIZACIÓN DE MEMORIA CON ONNX RUNTIME")
+    add_heading_1(doc, "8. ARQUITECTURA DEFINITIVA Y EVALUACIÓN TRIPARTITA (FASE 3: GROQ LPU + ONNX RUNTIME)")
     
     add_body_p(
         doc,
