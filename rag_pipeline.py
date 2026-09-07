@@ -221,18 +221,8 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
     except Exception:
         pass
 
-    # ── Limpieza nativa de ChromaDB ──
-    # NUNCA usar shutil.rmtree(PERSIST_DIR) mientras el proceso esté activo,
-    # ya que SQLite detecta que el archivo fue eliminado/movido de su descriptor
-    # y bloquea las escrituras con: (code: 1032) SQLITE_READONLY_DBMOVED.
-    # En su lugar, se vacía y recrea la colección a nivel de ChromaDB:
+    # ── Directorio de persistencia asegurado ──
     os.makedirs(PERSIST_DIR, exist_ok=True)
-    try:
-        _client_rebuild = chromadb.PersistentClient(path=PERSIST_DIR)
-        _client_rebuild.delete_collection(COLLECTION_NAME)
-        print(f"[REBUILD] Colección '{COLLECTION_NAME}' limpiada exitosamente.")
-    except Exception:
-        pass
 
     # PASO 1 — Carga de documentos (PDF y DOCX)
     docs_files = _get_docs_files()
@@ -268,7 +258,14 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
     print(f"\n[PASO 3 & 4] Vectorizando con Groq ({GROQ_EMBED_MODEL})...")
     print(f"  (lotes de {BATCH_SIZE} fragmentos, total {total_lotes} lotes)")
 
-    _progress(0.15, f"🧠 Vectorizando {len(chunks)} fragmentos en {total_lotes} lotes con Groq...")
+    _progress(0.15, f"🧠 Vectorizando {len(chunks)} fragmentos en {total_lotes} lotes con ONNX...")
+    if force_rebuild:
+        try:
+            _c = chromadb.PersistentClient(path=PERSIST_DIR)
+            _c.delete_collection(COLLECTION_NAME)
+            print(f"[REBUILD] Colección '{COLLECTION_NAME}' renovada para inserción atómica.")
+        except Exception:
+            pass
     vector_store = _get_or_create_vector_store(PERSIST_DIR)
 
     import time
