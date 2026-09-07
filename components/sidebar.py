@@ -228,13 +228,8 @@ def render_sidebar(vs, disabled=False):
 
     # ═════════════════════════════════════════════════════════════════════
     # SECCIÓN 3: ACCESO ADMINISTRADOR (LOGIN / LOGOUT)
-    # ═════════════════════════════════════════════════════════════════════
-    st.markdown("---")
-    if is_admin:
-        if st.button("🚪 Cerrar sesión admin", use_container_width=True, key="logout_admin", disabled=disabled):
-            st.session_state.is_admin = False
-            st.rerun()
-    else:
+    if not is_admin:
+        st.markdown("---")
         with st.expander("🔐 Acceso Administrador", expanded=False):
             if disabled:
                 st.caption("⏳ Espera a que termine la consulta...")
