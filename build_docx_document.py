@@ -417,11 +417,11 @@ def create_document():
     )
 
     # Tabla Matriz Comparativa Exhaustiva Tripartita (4 columnas)
-    table_comp = doc.add_table(rows=9, cols=4)
+    table_comp = doc.add_table(rows=10, cols=4)
     table_comp.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_comp.autofit = False
 
-    headers_c = ["Criterio de Evaluación", "Fase 1: IA Local (Ollama)", "Fase 2: Cloud Piloto (Gemini)", "Fase 3: Definitiva (Groq LPU + ONNX)"]
+    headers_c = ["Criterio", "Fase 1: Ollama (Local)", "Fase 2: Gemini API (Cloud Piloto)", "Fase 3: Groq LPU + ONNX (Actual / Definitiva)"]
     for i, h in enumerate(headers_c):
         cell = table_comp.rows[0].cells[i]
         cell.text = h
@@ -434,14 +434,15 @@ def create_document():
         set_cell_margins(cell, top=100, bottom=100, left=80, right=80)
 
     comp_matrix = [
-        ("Tiempo de Respuesta Promedio", "22.5 - 54.2 segundos (Deficiente)", "1.2 - 2.1 segundos (Aceptable)", "0.6 - 0.9 segundos (Excelente / Real-time)"),
-        ("Throughput (Tokens/segundo)", "4.1 - 6.2 tok/s", "62.0 - 95.0 tok/s", "350.0 - 500.0+ tok/s (Ultra-rápido)"),
-        ("Uso de Memoria RAM en Servidor", "14.8 GB (Satura RAM local)", "520 MB (Falla OOM en Render)", "< 140 MB (Operación holgada en 512 MB)"),
-        ("Tamaño de Imagen Docker", "No aplica / Entorno local", "2.8 GB (PyTorch + CUDA)", "~550 MB (ONNX Runtime ligero)"),
-        ("Estabilidad ante Cuotas", "Sin límites de red (inviable en velocidad)", "Restricción severa: 15 RPM (Error 429)", "Excelente concurrencia sin interrupciones"),
-        ("Compatibilidad con Unity 3D", "Causa congelamiento (< 12 FPS)", "Totalmente fluido via REST API", "Totalmente fluido e interactivo (60 FPS)"),
-        ("Tolerancia Tipográfica Móvil", "Nula (falla ante cualquier typo)", "Baja (depende de similitud vectorial)", "Alta (Fuzzy Matching con difflib)"),
-        ("Costo Operativo Mensual", "Requiere hardware de > $2,500 USD", "$0 USD (con límites de cuota)", "$0 USD (Producción 24/7 permanente)")
+        ("¿Dónde corre?", "En la laptop local (Docker)", "Nube Google AI Studio + Render", "Nube Groq Cloud (LPU) + Render"),
+        ("Tiempo de Respuesta", "25 a 55 segundos (Hiper lento)", "1.5 a 3.5 segundos (Inestable en horas pico)", "0.6 a 0.9 segundos (Casi instantáneo)"),
+        ("Velocidad (Tokens/s)", "4 - 6 tokens/segundo", "60 - 95 tokens/segundo", "> 380 tokens/segundo"),
+        ("Memoria RAM Servidor", "Satura la laptop (14.8 GB)", "520 MB (Tumbaba el servidor de Render)", "< 140 MB (Súper liviano y estable)"),
+        ("Límite de Peticiones", "Ilimitado pero congelaba la PC", "Máximo 15 preguntas/minuto (Error 429)", "Sin bloqueos ni caídas de cuota"),
+        ("Integración con Unity", "Congelaba la escena (< 12 FPS)", "Fluido, pero a veces fallaba el JSON", "60 FPS estables y JSON perfecto"),
+        ("Citas y Fuentes", "Genéricas / Sin página", "Mencionaba el libro sin página exacta", "Exactas: [Fuente X, pág. Y]"),
+        ("Tolerancia Tipográfica", "Nula (falla ante cualquier typo)", "Baja (depende de similitud vectorial)", "Alta (Fuzzy Matching con difflib)"),
+        ("Costo Mensual", "$0 (pero exigía PC de $2,500 USD)", "$0 (con cuota muy restringida)", "$0 USD permanente")
     ]
 
     for row_idx, row_data in enumerate(comp_matrix, start=1):
