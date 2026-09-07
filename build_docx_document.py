@@ -382,7 +382,7 @@ def create_document():
         p_cap1 = doc.add_paragraph()
         p_cap1.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_cap1.paragraph_format.space_after = Pt(14)
-        r_cap1 = p_cap1.add_run("Figura 1. Comparativa empírica de latencia total de respuesta por tipo de consulta RAG.")
+        r_cap1 = p_cap1.add_run("Figura 1. Comparativa empírica de latencia total de respuesta por tipo de consulta RAG entre las tres arquitecturas evaluadas.")
         r_cap1.font.name = 'Arial'
         r_cap1.font.size = Pt(9)
         r_cap1.font.italic = True
@@ -400,28 +400,28 @@ def create_document():
         p_cap2 = doc.add_paragraph()
         p_cap2.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_cap2.paragraph_format.space_after = Pt(14)
-        r_cap2 = p_cap2.add_run("Figura 2. Consumo de Memoria RAM y sobrecarga de CPU/GPU en la máquina local de pruebas.")
+        r_cap2 = p_cap2.add_run("Figura 2. Huella de memoria RAM en servidor/máquina y sobrecarga de CPU/GPU en las tres fases del proyecto.")
         r_cap2.font.name = 'Arial'
         r_cap2.font.size = Pt(9)
         r_cap2.font.italic = True
         r_cap2.font.color.rgb = RGBColor(113, 128, 150)
 
     # ---------------------------------------------------------------------------
-    # SECCIÓN 4: COMPARATIVA DETALLADA: IA LOCAL VS GEMINI API CLOUD
+    # SECCIÓN 4: COMPARATIVA DETALLADA MULTICRITERIO: LAS TRES FASES DEL PROYECTO
     # ---------------------------------------------------------------------------
-    add_heading_1(doc, "4. COMPARATIVA DETALLADA: IA LOCAL (OLLAMA) VS. GEMINI API (CLOUD)")
+    add_heading_1(doc, "4. COMPARATIVA DETALLADA MULTICRITERIO: LAS TRES GENERACIONES DE ARQUITECTURA")
     
     add_body_p(
         doc,
-        "A continuación se sintetizan los hallazgos comparativos entre ambas arquitecturas bajo un marco multicriterio enfocado en la aplicación interactiva de neuroanatomía:"
+        "A continuación se sintetizan los hallazgos comparativos entre las tres soluciones tecnológicas evaluadas a lo largo de la investigación para el consultor interactivo de neuroanatomía en Unity 3D:"
     )
 
-    # Tabla Matriz Comparativa Exhaustiva
-    table_comp = doc.add_table(rows=8, cols=3)
+    # Tabla Matriz Comparativa Exhaustiva Tripartita (4 columnas)
+    table_comp = doc.add_table(rows=9, cols=4)
     table_comp.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_comp.autofit = False
 
-    headers_c = ["Criterio de Evaluación", "IA Local (Ollama / Llama 3.2)", "Google Gemini API (Cloud Services)"]
+    headers_c = ["Criterio de Evaluación", "Fase 1: IA Local (Ollama)", "Fase 2: Cloud Piloto (Gemini)", "Fase 3: Definitiva (Groq LPU + ONNX)"]
     for i, h in enumerate(headers_c):
         cell = table_comp.rows[0].cells[i]
         cell.text = h
@@ -430,17 +430,18 @@ def create_document():
         p.runs[0].font.bold = True
         p.runs[0].font.color.rgb = RGBColor(255, 255, 255)
         p.runs[0].font.name = 'Arial'
-        p.runs[0].font.size = Pt(9.5)
-        set_cell_margins(cell, top=100, bottom=100, left=100, right=100)
+        p.runs[0].font.size = Pt(9)
+        set_cell_margins(cell, top=100, bottom=100, left=80, right=80)
 
     comp_matrix = [
-        ("Tiempo de Respuesta Promedio", "22.5 - 54.2 segundos (Deficiente)", "1.2 - 2.1 segundos (Excelente / Real-time)"),
-        ("Throughput (Tokens/segundo)", "4.1 - 6.2 tok/s", "62.0 - 95.0 tok/s"),
-        ("Uso de Recursos Locales (RAM/GPU)", "Satura RAM (14.8 GB) y GPU (95%)", "Casi nulo (< 100 MB RAM para peticiones HTTP)"),
-        ("Ventana de Contexto RAG", "8,192 tokens (Restringido para libros)", "1,000,000+ tokens (Permite ingresar textos enteros)"),
-        ("Compatibilidad con Unity 3D", "Causa congelamiento y caídas de FPS", "Totalmente fluido via UnityWebRequest REST API"),
-        ("Escalabilidad Multi-usuario", "Imposible (1 solo usuario atora el equipo)", "Alta (Maneja miles de peticiones en paralelo)"),
-        ("Costo de Infraestructura", "Requiere hardware de > $2,500 USD", "Plan gratuito para estudiantes (Google AI Studio)")
+        ("Tiempo de Respuesta Promedio", "22.5 - 54.2 segundos (Deficiente)", "1.2 - 2.1 segundos (Aceptable)", "0.6 - 0.9 segundos (Excelente / Real-time)"),
+        ("Throughput (Tokens/segundo)", "4.1 - 6.2 tok/s", "62.0 - 95.0 tok/s", "350.0 - 500.0+ tok/s (Ultra-rápido)"),
+        ("Uso de Memoria RAM en Servidor", "14.8 GB (Satura RAM local)", "520 MB (Falla OOM en Render)", "< 140 MB (Operación holgada en 512 MB)"),
+        ("Tamaño de Imagen Docker", "No aplica / Entorno local", "2.8 GB (PyTorch + CUDA)", "~550 MB (ONNX Runtime ligero)"),
+        ("Estabilidad ante Cuotas", "Sin límites de red (inviable en velocidad)", "Restricción severa: 15 RPM (Error 429)", "Excelente concurrencia sin interrupciones"),
+        ("Compatibilidad con Unity 3D", "Causa congelamiento (< 12 FPS)", "Totalmente fluido via REST API", "Totalmente fluido e interactivo (60 FPS)"),
+        ("Tolerancia Tipográfica Móvil", "Nula (falla ante cualquier typo)", "Baja (depende de similitud vectorial)", "Alta (Fuzzy Matching con difflib)"),
+        ("Costo Operativo Mensual", "Requiere hardware de > $2,500 USD", "$0 USD (con límites de cuota)", "$0 USD (Producción 24/7 permanente)")
     ]
 
     for row_idx, row_data in enumerate(comp_matrix, start=1):
@@ -449,13 +450,16 @@ def create_document():
         for col_idx, text in enumerate(row_data):
             row_cells[col_idx].text = text
             set_cell_background(row_cells[col_idx], bg_color)
-            set_cell_margins(row_cells[col_idx], top=80, bottom=80, left=100, right=100)
+            set_cell_margins(row_cells[col_idx], top=70, bottom=70, left=80, right=80)
             p = row_cells[col_idx].paragraphs[0]
             p.runs[0].font.name = 'Calibri'
-            p.runs[0].font.size = Pt(9)
+            p.runs[0].font.size = Pt(8.5)
             p.runs[0].font.color.rgb = RGBColor(45, 55, 72)
             if col_idx == 0:
                 p.runs[0].font.bold = True
+            elif col_idx == 3:
+                p.runs[0].font.bold = True
+                p.runs[0].font.color.rgb = RGBColor(26, 54, 93)
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
@@ -472,7 +476,7 @@ def create_document():
         p_cap3 = doc.add_paragraph()
         p_cap3.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_cap3.paragraph_format.space_after = Pt(14)
-        r_cap3 = p_cap3.add_run("Figura 3. Tasa de generación de tokens por segundo (Throughput) entre modelos locales y Cloud API.")
+        r_cap3 = p_cap3.add_run("Figura 3. Tasa de generación de tokens por segundo (Throughput) comparando las tres generaciones.")
         r_cap3.font.name = 'Arial'
         r_cap3.font.size = Pt(9)
         r_cap3.font.italic = True
@@ -490,24 +494,28 @@ def create_document():
         p_cap4 = doc.add_paragraph()
         p_cap4.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_cap4.paragraph_format.space_after = Pt(14)
-        r_cap4 = p_cap4.add_run("Figura 4. Evaluación multicriterio en escala de 1 a 10 entre Ollama (Local) y Gemini API (Cloud).")
+        r_cap4 = p_cap4.add_run("Figura 4. Evaluación multicriterio en escala de 1 a 10 entre Fase 1 (Ollama), Fase 2 (Gemini) y Fase 3 (Groq LPU + ONNX).")
         r_cap4.font.name = 'Arial'
         r_cap4.font.size = Pt(9)
         r_cap4.font.italic = True
         r_cap4.font.color.rgb = RGBColor(113, 128, 150)
 
-    add_heading_2(doc, "4.1 Ventajas y Desventajas de la IA Local")
+    add_heading_2(doc, "4.1 Evaluación de la Fase 1 (IA Local con Ollama)")
     add_body_p(doc, "• Ventajas: Privacidad absoluta de datos y funcionamiento sin conexión a internet.")
-    add_body_p(doc, "• Desventajas: Requiere hardware extremadamente costoso (GPUs clase RTX 4080 o Apple Silicon M2/M3 Max con memoria unificada de > 32 GB), respuesta hiper-lenta en laptops estándar, agotamiento acelerado de batería y nula capacidad de servir peticiones a múltiples usuarios simultáneos.")
+    add_body_p(doc, "• Desventajas: Requiere hardware de cómputo inalcanzable para estudiantes promedio (> $2,500 USD), latencias de 22 a 54 segundos, estrangulamiento térmico de CPU (92 °C), consumo extremo de RAM (14.8 GB) y colapso de la tasa de cuadros en Unity (< 12 FPS).")
 
-    add_heading_2(doc, "4.2 Ventajas y Desventajas de Gemini API")
-    add_body_p(doc, "• Ventajas: Respuestas ultra-rápidas en tiempo real (< 2 segundos), cero carga en el dispositivo del estudiante, capacidad de razonar sobre documentos extensos con una ventana de contexto de 1 a 2 millones de tokens, e integración limpia mediante llamadas HTTP REST.")
-    add_body_p(doc, "• Desventajas: Requiere conexión a internet activa para consultar el modelo cloud.")
+    add_heading_2(doc, "4.2 Evaluación de la Fase 2 (Cloud Piloto con Gemini API)")
+    add_body_p(doc, "• Ventajas: Respuestas rápidas (1.2 a 2.1 s), cero consumo en el dispositivo del estudiante y ventana de contexto amplia.")
+    add_body_p(doc, "• Desventajas: Cuotas gratuitas severamente restringidas (límite de 15 RPM con error HTTP 429 Too Many Requests) y sobrecarga de memoria en el servidor Render por la presencia de PyTorch (> 520 MB de RAM), lo que causaba caídas del servicio.")
 
-    add_heading_2(doc, "4.3 Opciones para Estudiantes y Despliegue Gratuito")
+    add_heading_2(doc, "4.3 Evaluación de la Fase 3 (Arquitectura Definitiva con Groq LPU y ONNX Runtime)")
+    add_body_p(doc, "• Ventajas: Inferencia ultra-rápida (> 350 tok/s, latencia < 0.9 s) mediante procesadores LPU, reducción radical del consumo de RAM a < 140 MB (-73%) gracias a ONNX Runtime, tolerancia a fallas de escritura en Unity con Fuzzy Matching, persistencia pre-compilada de libros en Docker y costo operativo permanente de $0 USD.")
+    add_body_p(doc, "• Desventajas y Mitigaciones: Tiempo de arranque en frío (Cold Start) de 30 a 45 s tras 15 minutos sin tráfico en Render Free Tier (mitigable mediante ping previo a /salud o monitoreo tipo UptimeRobot), e inmutabilidad de la base en caliente (los nuevos textos se integran limpiamente mediante git push).")
+
+    add_heading_2(doc, "4.4 Viabilidad Financiera y Despliegue Permanente a Costo Cero ($0 USD)")
     add_body_p(
         doc,
-        "Google proporciona a estudiantes e investigadores el programa Google AI Studio, el cual incluye acceso gratuito al modelo Gemini 1.5 Flash con un límite generoso de hasta 15 peticiones por minuto (RPM) y 1,500 peticiones por día sin costo alguno. Esta cuota es perfectamente suficiente para sostener la etapa de pruebas, evaluación y despliegue del proyecto académico de la Konrad Lorenz."
+        "La integración definitiva de Groq Cloud LPU y Render.com bajo la cuenta institucional atena.unikonrad@gmail.com garantiza que la universidad no incurra en ningún gasto financiero por licenciamiento o servidores durante la fase de evaluación académica, entrega de tesis y uso continuo en el Laboratorio de Neurociencias Aplicadas (NeuroK)."
     )
 
     # ---------------------------------------------------------------------------
