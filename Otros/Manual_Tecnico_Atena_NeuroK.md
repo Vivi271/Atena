@@ -245,19 +245,24 @@ Los contenedores gratuitos de Render tienen un sistema de archivos efímero: no 
 Por tal motivo, la base vectorial `chroma_neuro_db` (~32 MB) está pre-indexada y empaquetada dentro del repositorio.
 
 ```
-┌─────────────────┐     ┌─────────────────────┐     ┌───────────────────────┐
-│  Nuevo Libro    │ ──► │  Entorno Local o    │ ──► │  ChromaDB ONNX        │
-│  (PDF en Docs/) │     │  Panel Admin Web    │     │  Vectorización ligera │
-│                 │     │  (PIN: 1234)        │     │  (all-MiniLM-L6-v2)   │
-└─────────────────┘     └─────────────────────┘     └───────────┬───────────┘
-                                                                │
-                                                                ▼
-┌─────────────────┐     ┌─────────────────────┐     ┌───────────────────────┐
-│  Render Cloud   │ ◄── │  Despliegue         │ ◄── │  Git Commit & Push    │
-│  Servicio listo │     │  Automático (2 min) │     │  Actualiza            │
-│  en producción  │     │  Cero tiempo caído  │     │  chroma_neuro_db/     │
-└─────────────────┘     └─────────────────────┘     └───────────────────────┘
+[1. Laboratorista presiona el botón]
+                 │
+                 ▼
+[2. Se actualiza en GITHUB]
+  • Sube el PDF a la carpeta Docs/
+  • Sube los nuevos vectores a chroma_neuro_db/
+  • Queda guardado y respaldado para siempre en la nube de GitHub
+                 │
+                 ▼ (Notificación automática por Webhook)
+[3. Se actualiza en RENDER]
+  • Render detecta el cambio en GitHub
+  • Reconstruye el contenedor en ~2 minutos
+  • Pone los nuevos libros al servicio de Unity y los estudiantes
 ```
+
+#### ¿Por qué se actualiza en ambos (GitHub y Render)?
+1. **Persistencia y Respaldo Permanente (GitHub):** Los contenedores gratuitos de Render tienen un sistema de archivos efímero (cualquier cambio local se descarta cuando el servidor entra en reposo o se reinicia tras 15 minutos de inactividad). Al almacenarse en **GitHub**, el repositorio actúa como la bóveda de respaldo definitiva bajo la cuenta institucional de la Konrad Lorenz.
+2. **Despliegue Continuo Automático (Render):** Render está enlazado a GitHub mediante *Webhooks*. En cuanto GitHub recibe la actualización, notifica a Render para reconstruir el contenedor Docker en ~2 minutos, garantizando que la app móvil de Unity siempre consuma la versión más reciente sin intervención manual.
 
 ### Flujo de Subida para el Personal de Laboratorio (100% Visual — Cero Código)
 

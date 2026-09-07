@@ -697,6 +697,27 @@ def create_document():
         "El proceso fue diseñado para que los docentes e investigadores del Laboratorio NeuroK no requieran conocimientos de programación ni uso de terminales de comandos: simplemente ingresan al panel web administrativo de Atena con su PIN de seguridad ('1234'), arrastran el nuevo archivo PDF o Word en la sección de Base de Conocimientos (donde el motor lo fragmenta y vectoriza automáticamente de forma inmediata), y presionan el botón '🚀 Publicar Cambios a la Nube'. El sistema ejecuta la sincronización de manera transparente y desatendida, provocando que Render actualice la imagen y el servicio en aproximadamente 2 minutos. Así, la aplicación móvil de Unity de todos los estudiantes queda sincronizada con la nueva literatura sin costo, sin caídas y sin que el personal del laboratorio deba escribir una sola línea de código."
     )
 
+    add_callout(
+        doc,
+        "[1. Laboratorista presiona el botón en Streamlit]\n"
+        "                 │\n"
+        "                 ▼\n"
+        "[2. Se actualiza en GITHUB]\n"
+        "  • Sube el PDF a la carpeta Docs/\n"
+        "  • Sube los nuevos vectores a chroma_neuro_db/\n"
+        "  • Queda guardado y respaldado para siempre en la nube de GitHub\n"
+        "                 │\n"
+        "                 ▼ (Notificación automática por Webhook)\n"
+        "[3. Se actualiza en RENDER]\n"
+        "  • Render detecta el cambio en GitHub\n"
+        "  • Reconstruye el contenedor en ~2 minutos\n"
+        "  • Pone los nuevos libros al servicio de Unity y los estudiantes\n\n"
+        "¿Por qué se actualiza en ambos (GitHub y Render)?\n"
+        "1. Persistencia y Respaldo Permanente (GitHub): Los servidores en capa gratuita de Render tienen disco efímero (se borran tras 15 min de inactividad al dormir). Al guardarse en GitHub, el repositorio actúa como bóveda de respaldo permanente bajo soberanía institucional.\n"
+        "2. Despliegue Continuo Automático (Render): Render está enlazado a GitHub mediante Webhooks. Al recibir los nuevos libros, notifica a Render para compilar la nueva imagen Docker y disponibilizar el conocimiento a Unity sin tiempo de inactividad.",
+        title="ARQUITECTURA DE SINCRONIZACIÓN EN CADENA (GITHUB + RENDER)"
+    )
+
     add_heading_2(doc, "8.5 Búsqueda Híbrida, Tolerancia a Errores Léxicos (Fuzzy Matching) y Trazabilidad")
     add_body_p(
         doc,
