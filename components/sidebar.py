@@ -40,155 +40,159 @@ def render_sidebar(vs, disabled=False):
     pdfs_disponibles = sorted([f for f in os.listdir(docs_dir) if f.lower().endswith((".pdf", ".docx"))])
 
     # ═════════════════════════════════════════════════════════════════════
-    # SECCIÓN 1: PANEL DE ADMINISTRACIÓN Y GESTIÓN DE LITERATURA
+    # SECCIÓN 1: PANEL DE ADMINISTRACIÓN COMPACTO (PESTAÑAS)
     # ═════════════════════════════════════════════════════════════════════
     if is_admin:
-        st.markdown("<div style='background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; text-align: center;'><span style='color:#22c55e; font-weight:600; font-size:0.85rem;'>🔓 Modo Administrador Activo</span></div>", unsafe_allow_html=True)
-        
-        with st.expander(f"📚 Gestión de Literatura RAG ({len(pdfs_disponibles)} libros)", expanded=True):
-            st.markdown("<div style='font-size:0.8rem; color:#94a3b8; margin-bottom:10px;'>Flujo ordenado para incorporar nuevo conocimiento al consultor y a Unity:</div>", unsafe_allow_html=True)
-            
-            # ── PASO 1: Subir archivos ──
-            st.markdown("#### **Paso 1: Subir nuevo documento**")
-            nuevos_archivos = st.file_uploader(
-                "Arrastra aquí tus archivos (PDF / DOCX):",
-                type=["pdf", "docx"],
-                accept_multiple_files=True,
-                disabled=disabled,
-                help="Sube uno o varios archivos de neuroanatomía para la base de conocimientos."
-            )
-            if nuevos_archivos:
-                ya_guardados = st.session_state.get("_uploads_guardados", set())
-                nuevos = [uf for uf in nuevos_archivos if uf.name not in ya_guardados]
-                if nuevos:
-                    for uf in nuevos:
-                        destino = os.path.join(docs_dir, uf.name)
-                        with open(destino, "wb") as f:
-                            f.write(uf.getbuffer())
-                        ya_guardados.add(uf.name)
-                    st.session_state["_uploads_guardados"] = ya_guardados
-                    st.success(f"✅ {len(nuevos)} archivo(s) guardado(s) en Docs/.")
-                    time.sleep(1)
-                    st.rerun()
+        col_adm1, col_adm2 = st.columns([3, 2])
+        with col_adm1:
+            st.markdown("<div style='font-size:0.82rem; font-weight:600; color:#22c55e; padding:6px 0;'>🔓 Admin Activo</div>", unsafe_allow_html=True)
+        with col_adm2:
+            if st.button("Salir", key="logout_admin", disabled=disabled, use_container_width=True):
+                st.session_state.is_admin = False
+                st.rerun()
 
-            # Lista actual de documentos
-            pdfs_actuales = sorted([f for f in os.listdir(docs_dir) if f.lower().endswith((".pdf", ".docx"))])
-            if pdfs_actuales:
-                st.markdown("<div style='font-size:0.75rem; color:#64748b; margin-top:6px;'>Archivos disponibles en Docs/:</div>", unsafe_allow_html=True)
-                for pdf in pdfs_actuales:
-                    nombre = nombre_legible(pdf)
-                    col_n, col_d = st.columns([5, 1])
-                    with col_n:
-                        st.markdown(f"<div class='doc-item' title='{pdf}' style='font-size:0.78rem;'>{nombre}</div>", unsafe_allow_html=True)
-                    with col_d:
-                        if st.button("🗑️", key=f"del_{pdf}", help=f"Eliminar {pdf}", disabled=disabled):
-                            st.session_state["_pending_delete"] = pdf
+        with st.expander(f"🛠️ Herramientas Admin ({len(pdfs_disponibles)} docs)", expanded=False):
+            tab_libros, tab_motor, tab_seguridad = st.tabs(["📚 Libros", "⚙️ Motor", "🔑 PIN"])
 
-                # Confirmación de eliminación
-                pending = st.session_state.get("_pending_delete", None)
-                if pending and pending in pdfs_actuales:
-                    nombre_pending = nombre_legible(pending)
-                    st.warning(f"¿Eliminar **{nombre_pending}**?")
-                    col_si, col_no = st.columns(2)
-                    with col_si:
-                        if st.button("Sí, eliminar", key="confirmar_delete", use_container_width=True, disabled=disabled):
-                            os.remove(os.path.join(docs_dir, pending))
-                            with st.spinner(f"Eliminando vectores..."):
-                                try:
-                                    vs, n_borrados = remove_documents_from_store(pending, vs_existente=vs)
-                                    st.success(f"Eliminado — {n_borrados} vectores removidos.")
-                                    time.sleep(1)
-                                except Exception as e:
-                                    st.error(f"Error al eliminar: {str(e)[:200]}")
-                                    time.sleep(2)
-                            st.session_state["_pending_delete"] = None
-                            st.rerun()
-                    with col_no:
-                        if st.button("Cancelar", key="cancelar_delete", use_container_width=True, disabled=disabled):
-                            st.session_state["_pending_delete"] = None
-                            st.rerun()
+            # ── TAB 1: GESTIÓN DE LITERATURA ──
+            with tab_libros:
+                st.markdown("<div style='font-size:0.75rem; font-weight:600; color:#cbd5e1; margin-bottom:2px;'>1. Subir documento:</div>", unsafe_allow_html=True)
+                nuevos_archivos = st.file_uploader(
+                    "Subir PDF/DOCX:",
+                    type=["pdf", "docx"],
+                    accept_multiple_files=True,
+                    disabled=disabled,
+                    label_visibility="collapsed"
+                )
+                if nuevos_archivos:
+                    ya_guardados = st.session_state.get("_uploads_guardados", set())
+                    nuevos = [uf for uf in nuevos_archivos if uf.name not in ya_guardados]
+                    if nuevos:
+                        for uf in nuevos:
+                            destino = os.path.join(docs_dir, uf.name)
+                            with open(destino, "wb") as f:
+                                f.write(uf.getbuffer())
+                            ya_guardados.add(uf.name)
+                        st.session_state["_uploads_guardados"] = ya_guardados
+                        st.success(f"Guardado ({len(nuevos)}).")
+                        time.sleep(1)
+                        st.rerun()
 
-            st.markdown("---")
+                # Lista resumida de documentos
+                pdfs_actuales = sorted([f for f in os.listdir(docs_dir) if f.lower().endswith((".pdf", ".docx"))])
+                if pdfs_actuales:
+                    st.markdown("<div style='font-size:0.75rem; font-weight:600; color:#cbd5e1; margin-top:8px;'>Documentos activos:</div>", unsafe_allow_html=True)
+                    for pdf in pdfs_actuales:
+                        col_n, col_d = st.columns([5, 1])
+                        with col_n:
+                            st.markdown(f"<div class='doc-item' title='{pdf}' style='font-size:0.75rem; padding:4px 6px;'>{nombre_legible(pdf)}</div>", unsafe_allow_html=True)
+                        with col_d:
+                            if st.button("🗑️", key=f"del_{pdf}", help=f"Eliminar {pdf}", disabled=disabled):
+                                st.session_state["_pending_delete"] = pdf
 
-            # ── PASO 2: Indexar / Reconstruir Vectores ──
-            st.markdown("#### **Paso 2: Indexar y Vectorizar (Local ONNX)**")
-            try:
-                _sidebar_count = vs._collection.count() if vs is not None else 0
-            except Exception:
-                _sidebar_count = 0
+                    pending = st.session_state.get("_pending_delete", None)
+                    if pending and pending in pdfs_actuales:
+                        st.warning(f"¿Eliminar {nombre_legible(pending)}?")
+                        c_si, c_no = st.columns(2)
+                        with c_si:
+                            if st.button("Sí", key="c_del", use_container_width=True):
+                                os.remove(os.path.join(docs_dir, pending))
+                                vs, _ = remove_documents_from_store(pending, vs_existente=vs)
+                                st.session_state["_pending_delete"] = None
+                                st.rerun()
+                        with c_no:
+                            if st.button("No", key="c_can", use_container_width=True):
+                                st.session_state["_pending_delete"] = None
+                                st.rerun()
 
-            # Detectar si hay archivos sin indexar
-            _docs_files = set(f for f in os.listdir(docs_dir) if f.lower().endswith(('.pdf', '.docx')))
-            if vs is not None and _sidebar_count > 0:
+                st.markdown("---")
+                # Paso 2: Reconstruir VectorDB
                 try:
-                    _all_meta = vs._collection.get(include=["metadatas"])
-                    _indexados = set(os.path.basename(m.get('source','')) for m in _all_meta["metadatas"])
-                    _sin_indexar = _docs_files - _indexados
+                    _sidebar_count = vs._collection.count() if vs is not None else 0
                 except Exception:
-                    _sin_indexar = set()
-            else:
-                _sin_indexar = _docs_files
+                    _sidebar_count = 0
 
-            if _sin_indexar:
-                st.warning(f"⚠️ Hay {len(_sin_indexar)} documento(s) nuevo(s) sin indexar.")
-            else:
-                st.info(f"📊 Base vectorial lista: {_sidebar_count} fragmentos indexados.")
-
-            st.caption("Procesa los documentos en tu máquina usando ONNX Runtime ($0 costo, sin gasto de tokens).")
-            if st.button("🔄 Reconstruir / Actualizar VectorDB", key="rebuild_db_btn", use_container_width=True, disabled=disabled):
-                progress_bar = st.progress(0, text="⏳ Preparando vectorización...")
-                try:
-                    st.cache_resource.clear()
-                    def _on_progress(pct: float, msg: str):
-                        pct_int = max(1, min(99, int(pct * 100)))
-                        progress_bar.progress(pct_int, text=f"{msg} ({pct_int}%)")
-
-                    nuevo_vs = build_vector_store(force_rebuild=True, on_progress=_on_progress)
-                    total_v = nuevo_vs._collection.count()
-                    progress_bar.progress(100, text=f"¡Completado! {total_v} fragmentos vectorizados.")
-                    st.success(f"✅ Base de datos actualizada con éxito ({total_v} fragmentos).")
-                    time.sleep(1.5)
-                    vs = nuevo_vs
-                    st.rerun()
-                except Exception as e:
-                    progress_bar.empty()
-                    st.error(f"Error durante la indexación: {e}")
-
-            st.markdown("---")
-
-            # ── PASO 3: Publicar a la Nube (Unity) ──
-            st.markdown("#### **Paso 3: Publicar a la Nube (Unity)**")
-            st.caption("Guarda los nuevos libros en GitHub y notifica a Render para actualizar la app móvil de los estudiantes.")
-            if st.button("🚀 Publicar Cambios a la Nube", key="sync_cloud_btn", use_container_width=True, disabled=disabled):
-                with st.spinner("Sincronizando con GitHub y Render..."):
+                st.markdown(f"<div style='font-size:0.75rem; color:#94a3b8;'>2. Base de datos: <b>{_sidebar_count} vectores</b></div>", unsafe_allow_html=True)
+                if st.button("🔄 Reindexar Vectores", key="rebuild_db_btn", use_container_width=True, disabled=disabled):
+                    p_bar = st.progress(0, text="Indexando...")
                     try:
-                        import subprocess
-                        subprocess.run(["git", "add", "Docs/", "chroma_neuro_db/"], check=True)
-                        res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-                        if "Docs" in res.stdout or "chroma_neuro_db" in res.stdout:
-                            subprocess.run(["git", "commit", "-m", "docs: actualizar literatura medica desde panel admin"], check=True)
-                            push_res = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=40)
-                            if push_res.returncode == 0:
-                                st.success("✅ ¡Publicación exitosa! En ~2 minutos Render actualizará la app de Unity.")
-                            else:
-                                st.warning(f"Guardado localmente. Detalle: {push_res.stderr[:200]}")
-                        else:
-                            st.info("ℹ️ Todo está al día. La nube ya tiene la versión más reciente.")
-                    except Exception as err:
-                        st.error(f"Error al sincronizar: {err}")
+                        st.cache_resource.clear()
+                        def _p(pct: float, msg: str):
+                            p_bar.progress(max(1, min(99, int(pct * 100))), text=f"{msg}")
+                        nuevo_vs = build_vector_store(force_rebuild=True, on_progress=_p)
+                        p_bar.progress(100, text="Completado.")
+                        st.success("✅ Base vectorial actualizada.")
+                        time.sleep(1)
+                        vs = nuevo_vs
+                        st.rerun()
+                    except Exception as e:
+                        p_bar.empty()
+                        st.error(f"Error: {e}")
 
-        # ── Parámetros del motor (solo admin) ──
-        with st.expander("⚙️ Parámetros del Motor de IA", expanded=False):
-            k_chunks = st.slider("Fragmentos a recuperar (k)", min_value=3, max_value=8, value=5, key="admin_slider_k", disabled=disabled)
-            st.markdown(f"""
-            <div style="background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; font-size: 0.8rem; color: #94a3b8;">
-                <b>LLM:</b> {GROQ_LLM_MODEL}<br>
-                <b>Embeddings:</b> {EMBED_MODEL_NAME} (ONNX CPU)<br>
-                <b>Temperatura:</b> 0.0 (Determinista)<br>
-                <b>Chunk Size:</b> 1800 carácteres<br>
-                <b>Plataforma:</b> Groq Cloud LPU
-            </div>
-            """, unsafe_allow_html=True)
+                st.markdown("---")
+                # Paso 3: Publicar a la Nube
+                st.markdown("<div style='font-size:0.75rem; color:#94a3b8;'>3. Publicar a la App Móvil:</div>", unsafe_allow_html=True)
+                if st.button("🚀 Publicar a Unity (Nube)", key="sync_cloud_btn", use_container_width=True, disabled=disabled):
+                    with st.spinner("Sincronizando..."):
+                        try:
+                            import subprocess
+                            subprocess.run(["git", "add", "Docs/", "chroma_neuro_db/"], check=True)
+                            res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+                            if "Docs" in res.stdout or "chroma_neuro_db" in res.stdout:
+                                subprocess.run(["git", "commit", "-m", "docs: actualizar literatura medica"], check=True)
+                                push_res = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=40)
+                                if push_res.returncode == 0:
+                                    st.success("✅ ¡Publicado a Unity! Render actualiza en ~2 min.")
+                                else:
+                                    st.warning(f"Guardado local. Detalle: {push_res.stderr[:100]}")
+                            else:
+                                st.info("Todo está sincronizado.")
+                        except Exception as err:
+                            st.error(f"Error: {err}")
+
+            # ── TAB 2: PARÁMETROS DEL MOTOR ──
+            with tab_motor:
+                k_chunks = st.slider("Fragmentos a recuperar (k)", min_value=3, max_value=8, value=5, key="admin_slider_k", disabled=disabled)
+                st.markdown(f"""
+                <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; font-size: 0.75rem; color: #94a3b8;">
+                    <b>LLM:</b> {GROQ_LLM_MODEL}<br>
+                    <b>Embeddings:</b> {EMBED_MODEL_NAME} (ONNX)<br>
+                    <b>Temp:</b> 0.0 | <b>Chunk:</b> 1800
+                </div>
+                """, unsafe_allow_html=True)
+
+            # ── TAB 3: CAMBIAR PIN ──
+            with tab_seguridad:
+                with st.form("change_pin_form", clear_on_submit=True):
+                    nuevo_pin = st.text_input("Nuevo PIN:", type="password", max_chars=8)
+                    confirmar_pin = st.text_input("Confirmar PIN:", type="password", max_chars=8)
+                    if st.form_submit_button("Guardar PIN", use_container_width=True):
+                        if len(nuevo_pin) < 4:
+                            st.warning("Mínimo 4 caracteres.")
+                        elif nuevo_pin != confirmar_pin:
+                            st.error("No coinciden.")
+                        else:
+                            env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+                            lines = []
+                            if os.path.exists(env_path):
+                                with open(env_path, "r", encoding="utf-8") as f:
+                                    lines = f.readlines()
+                            updated = False
+                            new_lines = []
+                            for l in lines:
+                                if l.strip().startswith("ADMIN_PIN="):
+                                    new_lines.append(f"ADMIN_PIN={nuevo_pin}\n")
+                                    updated = True
+                                else:
+                                    new_lines.append(l)
+                            if not updated:
+                                new_lines.append(f"ADMIN_PIN={nuevo_pin}\n")
+                            with open(env_path, "w", encoding="utf-8") as f:
+                                f.writelines(new_lines)
+                            os.environ["ADMIN_PIN"] = nuevo_pin
+                            st.success(f"✅ PIN cambiado.")
+                            time.sleep(1)
+                            st.rerun()
     else:
         k_chunks = 5
 
@@ -234,12 +238,23 @@ def render_sidebar(vs, disabled=False):
         with st.expander("🔐 Acceso Administrador", expanded=False):
             if disabled:
                 st.caption("⏳ Espera a que termine la consulta...")
-            pin_input = st.text_input("PIN de acceso:", type="password", max_chars=4, key="admin_pin_input", disabled=disabled)
-            if st.button("Ingresar como Admin", use_container_width=True, key="login_admin", disabled=disabled):
-                if pin_input == ADMIN_PIN:
-                    st.session_state.is_admin = True
-                    st.rerun()
-                else:
-                    st.error("PIN incorrecto")
+            with st.form("admin_login_form", clear_on_submit=False):
+                pin_input = st.text_input(
+                    "PIN de acceso:", 
+                    type="password", 
+                    max_chars=8, 
+                    key="admin_pin_input", 
+                    disabled=disabled,
+                    help="Ingresa el PIN (por defecto: 1234)"
+                )
+                submit_login = st.form_submit_button("Ingresar como Admin", use_container_width=True, disabled=disabled)
+                if submit_login:
+                    from config import ADMIN_PIN as CURRENT_PIN
+                    pin_valido = os.getenv("ADMIN_PIN", CURRENT_PIN)
+                    if pin_input == pin_valido:
+                        st.session_state.is_admin = True
+                        st.rerun()
+                    else:
+                        st.error("PIN incorrecto")
 
     return nivel, k_chunks, is_admin, lanzar_evaluacion, vs

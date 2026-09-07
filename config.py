@@ -1,10 +1,13 @@
 """
 config.py — Constantes y configuración del Consultor de Neuroanatomía
 """
+import os
 import re
+from dotenv import load_dotenv
+load_dotenv()
 
-# PIN de acceso administrador
-ADMIN_PIN = "1234"
+# PIN de acceso administrador (se puede cambiar aquí o en el archivo .env)
+ADMIN_PIN = os.getenv("ADMIN_PIN", "1234")
 
 # Mapeo MANUAL de nombres conocidos → títulos legibles
 # Si un archivo NO está aquí, el sistema genera un nombre bonito automáticamente
