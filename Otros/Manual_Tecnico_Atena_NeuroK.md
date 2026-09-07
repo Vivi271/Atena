@@ -79,17 +79,17 @@ El sistema atravesó un riguroso proceso de maduración de ingeniería en tres e
 
 ### Comparativa Técnica Integral de las Tres Fases
 
-| Criterio | Fase 1: Docker Local + Ollama | Fase 2: Cloud Gemini API | Fase 3: Definitiva (Groq LPU + ONNX en Render) |
+| Criterio | Fase 1: Ollama (Local) | Fase 2: Gemini API (Cloud Piloto) | Fase 3: Groq LPU + ONNX (Actual / Definitiva) |
 |---|---|---|---|
-| **Disponibilidad** | Frágil (requería laptop encendida y túnel Cloudflare). | Nube 24/7 en Render. | **Alta Disponibilidad 24/7 en Render con SSL.** |
-| **Tiempo de Respuesta (Latencia)** | 25 a 55 segundos por consulta. | 1.5 a 3.5 segundos (fluctuante). | **0.6 a 0.9 segundos (Ultra-rápido).** |
-| **Throughput (Tokens/s)** | 4 a 6 tokens/segundo. | 60 a 90 tokens/segundo. | **350 a 500+ tokens/segundo.** |
-| **Consumo RAM en Servidor** | 14.8 GB (Saturaba la máquina local). | ~520 MB (Provocaba OOM 512Mi en Render). | **< 140 MB (Operación holgada en Free Tier).** |
-| **Tamaño Contenedor Docker** | No aplica / Local. | 2.8 GB (con PyTorch y librerías CUDA). | **~550 MB (Despliegue rápido en 2 minutos).** |
-| **Estabilidad ante Cuotas** | Sin límites pero inviable en velocidad. | Frecuente error HTTP 429 (límite 15 RPM). | **Alta estabilidad y concurrencia sin interrupciones.** |
-| **Tolerancia Tipográfica** | Nula (falla si el usuario escribe con error). | Baja (depende solo de similitud vectorial). | **Alta (Fuzzy Matching léxico con `difflib`).** |
-| **Citas Académicas** | Genéricas o inexistentes. | Aproximadas sin página precisa. | **Exactas: `[Fuente X, pág. Y]`.** |
-| **Costo Operativo Mensual** | Exigía hardware de >$2,500 USD. | $0 USD (con restricciones severas). | **$0 USD (100% Permanente para la Universidad).** |
+| **¿Dónde corre?** | En la laptop local (Docker) | Nube Google AI Studio + Render | **Nube Groq Cloud (LPU) + Render** |
+| **Tiempo de Respuesta** | 25 a 55 segundos (Hiper lento) | 1.5 a 3.5 segundos (Inestable en horas pico) | **0.6 a 0.9 segundos (Casi instantáneo)** |
+| **Velocidad (Tokens/s)** | 4 - 6 tokens/segundo | 60 - 95 tokens/segundo | **> 380 tokens/segundo** |
+| **Memoria RAM Servidor** | Satura la laptop (14.8 GB) | 520 MB (Tumbaba el servidor de Render) | **< 140 MB (Súper liviano y estable)** |
+| **Límite de Peticiones** | Ilimitado pero congelaba la PC | Máximo 15 preguntas/minuto (Error 429) | **Sin bloqueos ni caídas de cuota** |
+| **Integración con Unity** | Congelaba la escena (< 12 FPS) | Fluido, pero a veces fallaba el JSON | **60 FPS estables y JSON perfecto** |
+| **Citas y Fuentes** | Genéricas / Sin página | Mencionaba el libro sin página exacta | **Exactas: `[Fuente X, pág. Y]`** |
+| **Tolerancia Tipográfica** | Nula (falla si hay errores tipográficos) | Baja (dependencia exclusiva de similitud vectorial) | **Alta (Fuzzy Matching automático con `difflib`)** |
+| **Costo Mensual** | $0 (pero exigía PC de $2,500 USD) | $0 (con cuota muy restringida) | **$0 USD permanente** |
 
 ---
 
