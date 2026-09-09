@@ -3,7 +3,17 @@ app.py — Punto de entrada de Atena RAG
 """
 import streamlit as st
 import os
+import sys
 import time
+
+# Configuración de rutas — app.py está en la raíz del repo
+ROOT = os.path.dirname(os.path.abspath(__file__))   # raíz del repo
+_BACKEND_DIR = os.path.join(ROOT, "backend")
+_COMPONENTS_DIR = os.path.join(ROOT, "frontend", "web")
+
+for _p in [_BACKEND_DIR, _COMPONENTS_DIR, ROOT]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 # ── 1. Configuración de página (DEBE ser la primera instrucción de Streamlit) ──
 st.set_page_config(
@@ -13,8 +23,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── 2. Cargar y aplicar estilos CSS desde style.css ──
-CSS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "style.css")
+# ── 2. Cargar y aplicar estilos CSS ──
+CSS_PATH = os.path.join(ROOT, "frontend", "web", "style.css")
 if os.path.exists(CSS_PATH):
     with open(CSS_PATH, "r", encoding="utf-8") as f:
         css_content = f.read()
@@ -37,7 +47,8 @@ if "_uploader_key" not in st.session_state:
 
 try:
     from rag_pipeline import build_vector_store, consultar, stream_consultar
-    from database import registrar_consulta, registrar_evaluacion, obtener_preguntas_por_nivel
+    from db_metrics import registrar_consulta, registrar_evaluacion
+    from db_preguntas import obtener_preguntas_por_nivel
 except ImportError as e:
     st.error(f"Error al importar módulos del sistema: {e}")
     st.stop()

@@ -141,9 +141,12 @@ def obtener_enlace_cloudflare() -> str:
     log_path = "/app/shared_logs/tunnel.log"
     if not os.path.exists(log_path):
         # Fallback local fuera del contenedor
-        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shared_logs", "tunnel.log")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        log_path = os.path.join(base_dir, "shared_logs", "tunnel.log")
         if not os.path.exists(log_path):
-            return None
+            log_path = os.path.join(os.path.dirname(base_dir), "shared_logs", "tunnel.log")
+            if not os.path.exists(log_path):
+                return None
     try:
         with open(log_path, "r", encoding="utf-8") as f:
             content = f.read()

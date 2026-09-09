@@ -10,7 +10,7 @@ services:
       - "8502:8501"
     volumes:
       - ./Docs:/app/Docs
-      - ./chroma_neuro_db:/app/chroma_neuro_db
+      - ./backend/chroma_neuro_db:/app/backend/chroma_neuro_db
       - ./shared_logs:/app/shared_logs
     environment:
       - OLLAMA_HOST=http://host.docker.internal:11434
