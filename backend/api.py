@@ -202,7 +202,7 @@ def formatear_para_unity(texto: str) -> str:
 # ── Schemas ────────────────────────────────────────────────────────────────────
 class ConsultaRequest(BaseModel):
     pregunta: str
-    nivel: str = "avanzado"   # "basico" | "avanzado"
+    nivel: str = "Principiante"   # "Principiante" | "Avanzado" | "General"
     k: int = 6
     formato_unity: bool = True  # Convierte Markdown a Rich Text para Unity
 
@@ -371,7 +371,7 @@ async def obtener_preguntas_evaluacion(
     cada una con su nivel, tema y sus 4 respuestas agrupadas indicando cuál es la correcta.
 
     Parámetros:
-    - **nivel**: `basico`, `principiante`, `avanzado`, `general` o `todos` (opcional; si se omite, devuelve todas las preguntas)
+    - **nivel**: `Principiante`, `Avanzado` o `General` (exactamente como está en Supabase, opcional; si se omite devuelve todas las preguntas)
     - **cantidad**: número de preguntas a retornar (opcional; si se omite, devuelve todas las disponibles)
     - **aleatorio**: si es true, mezcla las preguntas aleatoriamente
     """
@@ -408,6 +408,35 @@ async def obtener_preguntas_evaluacion(
         cantidad=len(preguntas),
         preguntas=preguntas,
     )
+
+
+# ── Diagnóstico de base de datos (temporal, para depurar en Render) ───────────
+@app.get("/diagnostico/db", tags=["Sistema"])
+async def diagnostico_db():
+    """Verifica la conexión a Supabase y cuenta preguntas por nivel. Solo para depuración."""
+    resultado = {"db_url_configurada": False, "conexion": "error", "niveles": {}, "error": None}
+    try:
+        db_url = os.environ.get("SUPABASE_DB_URL", "")
+        resultado["db_url_configurada"] = bool(db_url)
+        resultado["db_url_preview"] = db_url[:30] + "..." if db_url else "(vacía)"
+
+        import psycopg2
+        # Limpia el URL igual que lo hace db_preguntas
+        url = db_url.replace('["', '').replace('"]', '').replace('[', '').replace(']', '').strip()
+        conn = psycopg2.connect(url)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT n.nombre, COUNT(p.id) FROM niveles n LEFT JOIN preguntas p ON p.nivel_id = n.id GROUP BY n.nombre ORDER BY n.nombre")
+        for nombre, total in cursor.fetchall():
+            resultado["niveles"][nombre] = total
+
+        cursor.close()
+        conn.close()
+        resultado["conexion"] = "ok"
+    except Exception as e:
+        resultado["error"] = str(e)
+
+    return resultado
 
 
 # ── Arranque local ─────────────────────────────────────────────────────────────

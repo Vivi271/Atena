@@ -210,7 +210,7 @@ def render_admin_panel():
         # ── PESTAÑA 2: GESTIÓN DE PREGUNTAS ──
         with tab_gestion_preguntas:
             st.markdown("### Banco de Preguntas Evaluativas (Supabase)")
-            nivel_gestion = st.radio("Nivel a gestionar:", options=["Básico", "Avanzado"], key="nivel_gestion_radio", horizontal=True)
+            nivel_gestion = st.radio("Nivel a gestionar:", options=["Principiante", "Avanzado", "General"], key="nivel_gestion_radio", horizontal=True)
             preguntas_actuales = obtener_preguntas_por_nivel(nivel_gestion)
             temas_disponibles = obtener_temas()
             if not temas_disponibles:
