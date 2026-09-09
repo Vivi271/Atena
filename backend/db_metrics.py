@@ -35,13 +35,20 @@ load_dotenv()
 DB_URL = os.environ.get("SUPABASE_DB_URL")
 
 
+def _clean_db_url(url: str) -> str:
+    if not url:
+        return ""
+    return url.replace('["', '').replace('"]', '').replace('[', '').replace(']', '').strip()
+
+
 def _get_conn():
-    if not DB_URL:
+    url = _clean_db_url(os.environ.get("SUPABASE_DB_URL") or DB_URL)
+    if not url:
         raise RuntimeError(
             "SUPABASE_DB_URL no está configurada en el .env. "
             "Cópiala desde Supabase → Settings → Database → URI."
         )
-    return psycopg2.connect(DB_URL)
+    return psycopg2.connect(url)
 
 
 # ── Registro de consultas RAG ─────────────────────────────────────────────────

@@ -15,10 +15,29 @@ load_dotenv()
 DB_URL = os.environ.get("SUPABASE_DB_URL")
 
 
+def _clean_db_url(url: str) -> str:
+    if not url:
+        return ""
+    return url.replace('["', '').replace('"]', '').replace('[', '').replace(']', '').strip()
+
+
 def get_connection():
-    if not DB_URL:
+    url = _clean_db_url(os.environ.get("SUPABASE_DB_URL") or DB_URL)
+    if not url:
         raise RuntimeError("La variable de entorno SUPABASE_DB_URL no está configurada.")
-    return psycopg2.connect(DB_URL)
+    return psycopg2.connect(url)
+
+
+def _normalizar_filtro_nivel(nivel: str) -> list:
+    """Mapea sinónimos y alias al nombre registrado en Supabase."""
+    n = (nivel or "").strip().lower()
+    if n in ("basico", "básico", "principiante", "basic"):
+        return ["principiante", "básico", "basico"]
+    elif n in ("avanzado", "advanced"):
+        return ["avanzado"]
+    elif n in ("general",):
+        return ["general"]
+    return [n] if n else ["principiante", "avanzado", "general"]
 
 
 def obtener_preguntas_por_nivel(nivel: str, cantidad: int = None, aleatorio: bool = False):
@@ -30,14 +49,17 @@ def obtener_preguntas_por_nivel(nivel: str, cantidad: int = None, aleatorio: boo
         conn = get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+        # Normalizar alias de nivel para soportar basico, principiante, avanzado, etc.
+        filtros_nivel = _normalizar_filtro_nivel(nivel)
+
         # Primero seleccionamos los IDs de preguntas del nivel (aleatorios o no, limitados)
         query_ids = """
             SELECT p.id
             FROM preguntas p
             JOIN niveles n ON p.nivel_id = n.id
-            WHERE LOWER(n.nombre) = LOWER(%s)
+            WHERE LOWER(n.nombre) = ANY(%s)
         """
-        params = [nivel]
+        params = [filtros_nivel]
 
         if aleatorio:
             query_ids += " ORDER BY RANDOM()"
