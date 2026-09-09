@@ -58,6 +58,8 @@ import re
 def formatear_para_unity(texto: str) -> str:
     """
     Convierte formato Markdown a Unity Rich Text (TextMeshPro / UI Text):
+    - Convierte tablas Markdown a viñetas legibles en móvil
+    - Elimina líneas divisorias '---'
     - **negrita** -> <b>negrita</b>
     - *cursiva* -> <i>cursiva</i>
     - viñetas con guión -> viñetas limpias '• '
@@ -69,7 +71,45 @@ def formatear_para_unity(texto: str) -> str:
 
     t = texto.replace("\r\n", "\n")
 
-    # 1. Estilizar citas documentales: [Fuente X, pág. Y], (*[Fuente X], pág. Y*), etc.
+    # 1. Convertir tablas Markdown a viñetas limpias para interfaces móviles
+    lineas = t.split("\n")
+    nuevas_lineas = []
+    en_tabla = False
+
+    for linea in lineas:
+        l_strip = linea.strip()
+        # Ignorar divisores de tabla |---|---|
+        if re.match(r"^\|?\s*:?-+:?\s*(\|?\s*:?-+:?\s*)+\|?$", l_strip):
+            continue
+
+        # Detectar fila de tabla con pipes | celda | celda |
+        if l_strip.startswith("|") and l_strip.endswith("|") and l_strip.count("|") >= 2:
+            celdas = [c.strip() for c in l_strip.strip("|").split("|")]
+            if not en_tabla:
+                # Cabecera de la tabla (la omitimos como fila para dar formato de lista)
+                en_tabla = True
+                continue
+            else:
+                # Fila de contenido
+                if len(celdas) >= 2:
+                    primer_campo = celdas[0]
+                    resto = [c for c in celdas[1:] if c]
+                    nuevas_lineas.append(f"  • <b>{primer_campo}:</b> " + " — ".join(resto))
+                elif celdas:
+                    nuevas_lineas.append(f"  • {celdas[0]}")
+                continue
+        else:
+            en_tabla = False
+
+        # Eliminar líneas divisorias tipo --- o ***
+        if re.match(r"^-{3,}$", l_strip) or re.match(r"^\*{3,}$", l_strip):
+            continue
+
+        nuevas_lineas.append(linea)
+
+    t = "\n".join(nuevas_lineas)
+
+    # 2. Estilizar citas documentales: [Fuente X, pág. Y], (Fuente X, pág. Y), (*[Fuente X]*)
     def _estilizar_cita_fuente(match):
         fuente = match.group(1)
         pag = match.group(2) if match.group(2) else None
@@ -78,9 +118,10 @@ def formatear_para_unity(texto: str) -> str:
         return f'<color=#E5C07B><i>[Fuente {fuente}]</i></color>'
 
     t = re.sub(
-        r'\(?\*?\[Fuente\s*(\d+)\](?:,?\s*pág\.?\s*(\d+))?\*?\)?',
+        r'[\(\[]\*?Fuente\s*(\d+)(?:,?\s*pág\.?\s*(\d+))?\*?[\)\]]',
         _estilizar_cita_fuente,
         t,
+        flags=re.IGNORECASE,
     )
 
     # Citas con nombre de autor: (*Clark, pág. 231*) -> <color=#E5C07B><i>(Clark, pág. 231)</i></color>
@@ -90,23 +131,23 @@ def formatear_para_unity(texto: str) -> str:
         t,
     )
 
-    # 2. Negrita y cursiva combinadas: ***texto*** -> <b><i>texto</i></b>
+    # 3. Negrita y cursiva combinadas: ***texto*** -> <b><i>texto</i></b>
     t = re.sub(r'\*\*\*([^\*\n]+)\*\*\*', r'<b><i>\1</i></b>', t)
 
-    # 3. Negrita: **texto** -> <b>texto</b>
+    # 4. Negrita: **texto** -> <b>texto</b>
     t = re.sub(r'\*\*([^\*\n]+)\*\*', r'<b>\1</b>', t)
 
-    # 4. Cursiva restante: *texto* -> <i>texto</i> (sin romper etiquetas ya generadas)
+    # 5. Cursiva restante: *texto* -> <i>texto</i> (sin romper etiquetas ya generadas)
     t = re.sub(r'(?<![<\w\*])\*([^\*\n]+)\*(?![>\w\*])', r'<i>\1</i>', t)
 
-    # 5. Encabezados markdown (# Titulo, ## Titulo) -> <b>Titulo</b>
+    # 6. Encabezados markdown (# Titulo, ## Titulo) -> <b>Titulo</b>
     t = re.sub(r'^#{1,4}\s+(.+)$', r'<b>\1</b>', t, flags=re.MULTILINE)
 
-    # 6. Viñetas de lista: reemplazar guiones o asteriscos al inicio de línea por '  • '
+    # 7. Viñetas de lista: reemplazar guiones o asteriscos al inicio de línea por '  • '
     t = re.sub(r'^[ \t]*[-*][ \t]+', '  • ', t, flags=re.MULTILINE)
 
-    # 7. Espaciado limpio entre secciones numeradas para que respire en pantallas móviles
-    t = re.sub(r'\n(?=\d+\.\s+<b>)', r'\n\n', t)
+    # 8. Espaciado limpio entre secciones numeradas para que respire en pantallas móviles
+    t = re.sub(r'\n(?=\d+\.\s+)', r'\n\n', t)
     t = re.sub(r'\n{3,}', '\n\n', t)
 
     return t.strip()
