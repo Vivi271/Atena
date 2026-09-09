@@ -5,7 +5,12 @@ para ser consumidos desde Unity u otras aplicaciones externas.
 """
 
 import os
+import sys
 from contextlib import asynccontextmanager
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -213,21 +218,22 @@ class ConsultaResponse(BaseModel):
 
 
 # ── Schemas de Evaluación ─────────────────────────────────────────────────────
-class PreguntaEvaluacion(BaseModel):
-    """Una única pregunta de autoevaluación con sus opciones y respuesta correcta."""
-    id: int
-    pregunta: str
-    opciones: List[str]             # Lista de 4 opciones (A, B, C, D)
-    respuesta_correcta: str         # La opción correcta textual
-    explicacion: str                # Justificación neuroanatómica breve
-
 class RespuestaEvaluacion(BaseModel):
-    """Evaluación de una respuesta enviada por el usuario."""
-    correcta: bool
-    explicacion: str
+    """Una opción de respuesta vinculada a una pregunta."""
+    id: int
+    texto: str
+    es_correcta: bool
+
+class PreguntaEvaluacion(BaseModel):
+    """Una pregunta de autoevaluación con su tema, enunciado y lista de respuestas."""
+    id: int
+    enunciado: str
+    tema: str
+    nivel: str
+    respuestas: List[RespuestaEvaluacion]
 
 class PreguntasEvaluacionResponse(BaseModel):
-    """Respuesta completa del endpoint de generación de preguntas."""
+    """Respuesta completa del endpoint de preguntas de evaluación."""
     nivel: str
     cantidad: int
     preguntas: List[PreguntaEvaluacion]
@@ -237,12 +243,20 @@ class PreguntasEvaluacionResponse(BaseModel):
 
 @app.get("/salud", tags=["Sistema"])
 async def salud():
-    """Health check — verifica que el servidor está vivo."""
+    """Health check — verifica que el servidor está vivo y expone la URL pública del servicio."""
+    # En Render, RENDER_EXTERNAL_URL contiene la URL pública automáticamente.
+    # En local, se puede setear API_BASE_URL en el .env.
+    url_publica = (
+        os.environ.get("RENDER_EXTERNAL_URL")
+        or os.environ.get("API_BASE_URL")
+        or "http://localhost:8080"
+    )
     return {
         "estado": "ok",
         "servicio": "Atena API",
         "version": "1.0.0",
         "vector_store_listo": vector_store is not None,
+        "url_base": url_publica,
     }
 
 
@@ -327,121 +341,44 @@ async def consultar_endpoint(body: ConsultaRequest):
 )
 async def obtener_preguntas_evaluacion(
     nivel: str = "avanzado",
-    cantidad: int = 5,
+    cantidad: Optional[int] = None,
+    aleatorio: bool = False,
 ):
     """
-    Genera preguntas de selección múltiple para autoevaluación neuroanatómica.
-
-    Usa el RAG para recuperar fragmentos de los documentos y el LLM para
-    formular preguntas con cuatro opciones (A-D), respuesta correcta y justificación.
+    Retorna el banco de preguntas de autoevaluación neuroanatómica desde PostgreSQL (Supabase),
+    cada una con su nivel, tema y sus 4 respuestas agrupadas indicando cuál es la correcta.
 
     Parámetros:
     - **nivel**: `basico` o `avanzado`
-    - **cantidad**: número de preguntas a generar (1–10, por defecto 5)
+    - **cantidad**: número de preguntas a retornar (opcional; si se omite, devuelve todas las del nivel, ej: 15)
+    - **aleatorio**: si es true, mezcla las preguntas aleatoriamente
     """
-    if vector_store is None:
-        raise HTTPException(
-            status_code=503,
-            detail="El vector store no está disponible. El servidor puede estar iniciando.",
-        )
-
-    cantidad = max(1, min(cantidad, 10))  # Limitar entre 1 y 10
-
     try:
-        import json
-        from rag_pipeline import (
-            _busqueda_hibrida, _limpiar_texto_ocr, nombre_legible,
-            GROQ_API_KEY, GROQ_LLM_MODEL,
-            SYSTEM_INSTRUCTION_BASICO, SYSTEM_INSTRUCTION_AVANZADO,
-        )
-        from langchain_groq import ChatGroq
-        from langchain_core.messages import SystemMessage, HumanMessage
-
-        # Recuperar fragmentos variados del corpus para basar las preguntas
-        consultas_semilla = [
-            "estructuras y funciones neuroanatómicas principales",
-            "vías neuronales y conectividad cerebral",
-            "lóbulos cerebrales y áreas funcionales",
-        ]
-        docs_vistos: set = set()
-        docs_contexto = []
-        for semilla in consultas_semilla:
-            for doc in _busqueda_hibrida(semilla, vector_store, k=4):
-                clave = doc.page_content[:80]
-                if clave not in docs_vistos:
-                    docs_vistos.add(clave)
-                    docs_contexto.append(doc)
-
-        context_parts = []
-        for i, doc in enumerate(docs_contexto[:12]):
-            fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
-            nombre = nombre_legible(fuente)
-            pagina = doc.metadata.get("page", "?")
-            contenido = _limpiar_texto_ocr(doc.page_content)
-            context_parts.append(f"[Fragmento {i+1}] {nombre} | Pág. {pagina}\n{contenido}")
-
-        context = "\n\n---\n\n".join(context_parts)
-
-        system_instruction = (
-            SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado"
-            else SYSTEM_INSTRUCTION_BASICO
-        )
-
-        prompt_evaluacion = f"""FRAGMENTOS DOCUMENTALES DE REFERENCIA:
-{context}
-
-TAREA: Genera exactamente {cantidad} preguntas de selección múltiple de neuroanatomía nivel {nivel},
-basadas EXCLUSIVAMENTE en los fragmentos anteriores.
-
-Devuelve un JSON válido con la siguiente estructura (sin texto adicional):
-{{
-  "preguntas": [
-    {{
-      "id": 1,
-      "pregunta": "Texto de la pregunta",
-      "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
-      "respuesta_correcta": "Opción A",
-      "explicacion": "Justificación breve basándose en los fragmentos [Fuente X, pág. Y]."
-    }}
-  ]
-}}
-
-JSON:"""
-
-        llm = ChatGroq(
-            model=GROQ_LLM_MODEL,
-            api_key=GROQ_API_KEY,
-            temperature=0.4,
-            max_tokens=1200,
-        )
-        messages = [
-            SystemMessage(content=system_instruction),
-            HumanMessage(content=prompt_evaluacion),
-        ]
-        response = llm.invoke(messages)
-        raw = response.content.strip()
-
-        # Extraer JSON aunque el modelo incluya texto extra antes o después
-        match = re.search(r'\{.*\}', raw, re.DOTALL)
-        if not match:
-            raise ValueError("El modelo no devolvió un JSON válido.")
-        data = json.loads(match.group(0))
+        from db_preguntas import obtener_preguntas_por_nivel
+        preguntas_db = obtener_preguntas_por_nivel(nivel=nivel, cantidad=cantidad, aleatorio=aleatorio)
 
         preguntas = [
             PreguntaEvaluacion(
-                id=p.get("id", i + 1),
-                pregunta=p["pregunta"],
-                opciones=p["opciones"],
-                respuesta_correcta=p["respuesta_correcta"],
-                explicacion=p.get("explicacion", ""),
+                id=p["id"],
+                enunciado=p["enunciado"],
+                tema=p["tema"],
+                nivel=p["nivel"],
+                respuestas=[
+                    RespuestaEvaluacion(
+                        id=r["id"],
+                        texto=r["texto"],
+                        es_correcta=r["es_correcta"],
+                    )
+                    for r in p.get("respuestas", [])
+                ],
             )
-            for i, p in enumerate(data.get("preguntas", []))
+            for p in preguntas_db
         ]
 
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error al generar preguntas de evaluación: {str(e)}",
+            detail=f"Error al obtener preguntas de evaluación desde la base de datos: {str(e)}",
         )
 
     return PreguntasEvaluacionResponse(
