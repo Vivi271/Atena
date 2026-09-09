@@ -234,7 +234,7 @@ class PreguntaEvaluacion(BaseModel):
 
 class PreguntasEvaluacionResponse(BaseModel):
     """Respuesta completa del endpoint de preguntas de evaluación."""
-    nivel: str
+    nivel: Optional[str] = "todos"
     cantidad: int
     preguntas: List[PreguntaEvaluacion]
 
@@ -358,7 +358,7 @@ async def consultar_endpoint(body: ConsultaRequest):
     tags=["Evaluación"],
 )
 async def obtener_preguntas_evaluacion(
-    nivel: str = "avanzado",
+    nivel: Optional[str] = None,
     cantidad: Optional[int] = None,
     aleatorio: bool = False,
 ):
@@ -367,8 +367,8 @@ async def obtener_preguntas_evaluacion(
     cada una con su nivel, tema y sus 4 respuestas agrupadas indicando cuál es la correcta.
 
     Parámetros:
-    - **nivel**: `basico` o `avanzado`
-    - **cantidad**: número de preguntas a retornar (opcional; si se omite, devuelve todas las del nivel, ej: 15)
+    - **nivel**: `basico`, `principiante`, `avanzado`, `general` o `todos` (opcional; si se omite, devuelve todas las preguntas)
+    - **cantidad**: número de preguntas a retornar (opcional; si se omite, devuelve todas las disponibles)
     - **aleatorio**: si es true, mezcla las preguntas aleatoriamente
     """
     try:
@@ -400,7 +400,7 @@ async def obtener_preguntas_evaluacion(
         )
 
     return PreguntasEvaluacionResponse(
-        nivel=nivel,
+        nivel=nivel or "todos",
         cantidad=len(preguntas),
         preguntas=preguntas,
     )

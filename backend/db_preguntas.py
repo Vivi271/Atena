@@ -29,15 +29,19 @@ def get_connection():
 
 
 def _normalizar_filtro_nivel(nivel: str) -> list:
-    """Mapea sinónimos y alias al nombre registrado en Supabase."""
-    n = (nivel or "").strip().lower()
-    if n in ("basico", "básico", "principiante", "basic"):
+    """Mapea sinónimos y alias al nombre registrado en Supabase. Si no se pasa nivel o es 'todos', incluye todos."""
+    if not nivel:
+        return ["principiante", "avanzado", "general", "básico", "basico"]
+    n = nivel.strip().lower()
+    if n in ("todos", "all", "cualquiera", "*"):
+        return ["principiante", "avanzado", "general", "básico", "basico"]
+    elif n in ("basico", "básico", "principiante", "basic"):
         return ["principiante", "básico", "basico"]
     elif n in ("avanzado", "advanced"):
         return ["avanzado"]
     elif n in ("general",):
         return ["general"]
-    return [n] if n else ["principiante", "avanzado", "general"]
+    return [n]
 
 
 def obtener_preguntas_por_nivel(nivel: str, cantidad: int = None, aleatorio: bool = False):
