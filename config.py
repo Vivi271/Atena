@@ -114,6 +114,25 @@ EJEMPLOS_CONSULTA = [
 ]
 
 
+# ── Directrices de Estructura de Respuesta del Agente ────────────────────────
+# Estas constantes definen el COMPORTAMIENTO de presentación del agente Atena.
+# Se mantienen separadas del dominio académico-científico (rag_pipeline.py)
+# para respetar el principio de separación de responsabilidades (SRP).
+RESPONSE_STRUCTURE_BASICO = (
+    "Organiza la respuesta con fluidez y claridad pedagógica: "
+    "inicia con una breve introducción que sitúe el concepto consultado, "
+    "desarrolla los componentes principales en apartados claramente delimitados, "
+    "y concluye con una síntesis sobre su relevancia funcional."
+)
+
+RESPONSE_STRUCTURE_AVANZADO = (
+    "Estructura la respuesta con cohesión expositiva de alto nivel: "
+    "inicia con una contextualización neuroanatómica formal del sistema o región, "
+    "desarrolla cada subdivisión, circuito o componente en bloques temáticos bien separados, "
+    "y finaliza con una síntesis integradora sobre el correlato funcional o clínico."
+)
+
+
 def obtener_enlace_cloudflare() -> str:
     """
     Lee el archivo de logs del túnel Cloudflare y extrae la URL generada.
