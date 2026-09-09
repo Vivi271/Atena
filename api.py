@@ -212,6 +212,27 @@ class ConsultaResponse(BaseModel):
     nivel: str
 
 
+# ── Schemas de Evaluación ─────────────────────────────────────────────────────
+class PreguntaEvaluacion(BaseModel):
+    """Una única pregunta de autoevaluación con sus opciones y respuesta correcta."""
+    id: int
+    pregunta: str
+    opciones: List[str]             # Lista de 4 opciones (A, B, C, D)
+    respuesta_correcta: str         # La opción correcta textual
+    explicacion: str                # Justificación neuroanatómica breve
+
+class RespuestaEvaluacion(BaseModel):
+    """Evaluación de una respuesta enviada por el usuario."""
+    correcta: bool
+    explicacion: str
+
+class PreguntasEvaluacionResponse(BaseModel):
+    """Respuesta completa del endpoint de generación de preguntas."""
+    nivel: str
+    cantidad: int
+    preguntas: List[PreguntaEvaluacion]
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @app.get("/salud", tags=["Sistema"])
@@ -234,9 +255,10 @@ async def info():
         "modelo_llm": GROQ_LLM_MODEL,
         "modelo_embeddings": GROQ_EMBED_MODEL,
         "endpoints": {
-            "POST /consultar": "Enviar pregunta y recibir respuesta con fuentes",
-            "GET  /salud":     "Health check",
-            "GET  /info":      "Información del servicio",
+            "POST /consultar":                 "Consultar el asistente RAG con una pregunta",
+            "GET  /api/evaluacion/preguntas":  "Generar preguntas de autoevaluación neuroanatómica",
+            "GET  /salud":                     "Health check del servidor",
+            "GET  /info":                      "Información del servicio y modelos activos",
         },
     }
 
@@ -294,6 +316,138 @@ async def consultar_endpoint(body: ConsultaRequest):
         respuesta=texto_respuesta,
         fuentes=fuentes,
         nivel=body.nivel,
+    )
+
+
+# ── Endpoint de Evaluación ────────────────────────────────────────────────────
+@app.get(
+    "/api/evaluacion/preguntas",
+    response_model=PreguntasEvaluacionResponse,
+    tags=["Evaluación"],
+)
+async def obtener_preguntas_evaluacion(
+    nivel: str = "avanzado",
+    cantidad: int = 5,
+):
+    """
+    Genera preguntas de selección múltiple para autoevaluación neuroanatómica.
+
+    Usa el RAG para recuperar fragmentos de los documentos y el LLM para
+    formular preguntas con cuatro opciones (A-D), respuesta correcta y justificación.
+
+    Parámetros:
+    - **nivel**: `basico` o `avanzado`
+    - **cantidad**: número de preguntas a generar (1–10, por defecto 5)
+    """
+    if vector_store is None:
+        raise HTTPException(
+            status_code=503,
+            detail="El vector store no está disponible. El servidor puede estar iniciando.",
+        )
+
+    cantidad = max(1, min(cantidad, 10))  # Limitar entre 1 y 10
+
+    try:
+        import json
+        from rag_pipeline import (
+            _busqueda_hibrida, _limpiar_texto_ocr, nombre_legible,
+            GROQ_API_KEY, GROQ_LLM_MODEL,
+            SYSTEM_INSTRUCTION_BASICO, SYSTEM_INSTRUCTION_AVANZADO,
+        )
+        from langchain_groq import ChatGroq
+        from langchain_core.messages import SystemMessage, HumanMessage
+
+        # Recuperar fragmentos variados del corpus para basar las preguntas
+        consultas_semilla = [
+            "estructuras y funciones neuroanatómicas principales",
+            "vías neuronales y conectividad cerebral",
+            "lóbulos cerebrales y áreas funcionales",
+        ]
+        docs_vistos: set = set()
+        docs_contexto = []
+        for semilla in consultas_semilla:
+            for doc in _busqueda_hibrida(semilla, vector_store, k=4):
+                clave = doc.page_content[:80]
+                if clave not in docs_vistos:
+                    docs_vistos.add(clave)
+                    docs_contexto.append(doc)
+
+        context_parts = []
+        for i, doc in enumerate(docs_contexto[:12]):
+            fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
+            nombre = nombre_legible(fuente)
+            pagina = doc.metadata.get("page", "?")
+            contenido = _limpiar_texto_ocr(doc.page_content)
+            context_parts.append(f"[Fragmento {i+1}] {nombre} | Pág. {pagina}\n{contenido}")
+
+        context = "\n\n---\n\n".join(context_parts)
+
+        system_instruction = (
+            SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado"
+            else SYSTEM_INSTRUCTION_BASICO
+        )
+
+        prompt_evaluacion = f"""FRAGMENTOS DOCUMENTALES DE REFERENCIA:
+{context}
+
+TAREA: Genera exactamente {cantidad} preguntas de selección múltiple de neuroanatomía nivel {nivel},
+basadas EXCLUSIVAMENTE en los fragmentos anteriores.
+
+Devuelve un JSON válido con la siguiente estructura (sin texto adicional):
+{{
+  "preguntas": [
+    {{
+      "id": 1,
+      "pregunta": "Texto de la pregunta",
+      "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "respuesta_correcta": "Opción A",
+      "explicacion": "Justificación breve basándose en los fragmentos [Fuente X, pág. Y]."
+    }}
+  ]
+}}
+
+JSON:"""
+
+        llm = ChatGroq(
+            model=GROQ_LLM_MODEL,
+            api_key=GROQ_API_KEY,
+            temperature=0.4,
+            max_tokens=1200,
+        )
+        messages = [
+            SystemMessage(content=system_instruction),
+            HumanMessage(content=prompt_evaluacion),
+        ]
+        response = llm.invoke(messages)
+        raw = response.content.strip()
+
+        # Extraer JSON aunque el modelo incluya texto extra antes o después
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if not match:
+            raise ValueError("El modelo no devolvió un JSON válido.")
+        data = json.loads(match.group(0))
+
+        preguntas = [
+            PreguntaEvaluacion(
+                id=p.get("id", i + 1),
+                pregunta=p["pregunta"],
+                opciones=p["opciones"],
+                respuesta_correcta=p["respuesta_correcta"],
+                explicacion=p.get("explicacion", ""),
+            )
+            for i, p in enumerate(data.get("preguntas", []))
+        ]
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar preguntas de evaluación: {str(e)}",
+        )
+
+    return PreguntasEvaluacionResponse(
+        nivel=nivel,
+        cantidad=len(preguntas),
+        preguntas=preguntas,
     )
 
 
