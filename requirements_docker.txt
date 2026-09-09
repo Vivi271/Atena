@@ -26,3 +26,6 @@ streamlit>=1.40.0
 # Visualization
 plotly>=5.18.0
 pandas>=2.0.0
+
+# Base de datos PostgreSQL / Supabase
+psycopg2-binary>=2.9.9

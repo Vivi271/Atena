@@ -7,12 +7,13 @@ def render_admin_panel():
     """
     Renderiza el panel de evaluación e historial, y el banco de preguntas evaluativas para administradores.
     """
-    from database import (
-        obtener_metricas,
+    from db_metrics import obtener_metricas
+    from db_preguntas import (
         obtener_preguntas_por_nivel,
         agregar_pregunta,
         actualizar_pregunta,
         eliminar_pregunta,
+        obtener_temas,
     )
 
     try:
@@ -208,14 +209,22 @@ def render_admin_panel():
             
         # ── PESTAÑA 2: GESTIÓN DE PREGUNTAS ──
         with tab_gestion_preguntas:
-            st.markdown("### Banco de Preguntas Evaluativas")
+            st.markdown("### Banco de Preguntas Evaluativas (Supabase)")
             nivel_gestion = st.radio("Nivel a gestionar:", options=["Básico", "Avanzado"], key="nivel_gestion_radio", horizontal=True)
             preguntas_actuales = obtener_preguntas_por_nivel(nivel_gestion)
-            
+            temas_disponibles = obtener_temas()
+            if not temas_disponibles:
+                temas_disponibles = ["General", "Neuroanatomía", "Vías Sensitivas", "Corteza Cerebral"]
+
             # --- AGREGAR PREGUNTA ---
             with st.expander("➕ Agregar Nueva Pregunta", expanded=False):
                 with st.form(key="add_question_form", clear_on_submit=True):
-                    nueva_p = st.text_area("Enunciado de la pregunta:", placeholder="Ej: ¿Qué estructura aloja la corteza auditiva primaria?")
+                    col_t1, col_t2 = st.columns([3, 1])
+                    with col_t1:
+                        nueva_p = st.text_area("Enunciado de la pregunta:", placeholder="Ej: ¿Qué estructura aloja la corteza auditiva primaria?")
+                    with col_t2:
+                        tema_sel = st.selectbox("Tema:", options=temas_disponibles)
+
                     col_op1, col_op2 = st.columns(2)
                     with col_op1:
                         op_a = st.text_input("Opción A:", placeholder="Giro temporal superior")
@@ -224,47 +233,62 @@ def render_admin_panel():
                         op_c = st.text_input("Opción C:", placeholder="Giro fusiforme")
                         op_d = st.text_input("Opción D:", placeholder="Ínsula")
                         
-                    col_c, col_e = st.columns([1, 3])
-                    with col_c:
-                        correcta_sel = st.selectbox("Opción correcta:", options=["A", "B", "C", "D"])
-                    with col_e:
-                        nueva_exp = st.text_input("Explicación de la respuesta:", placeholder="Área de Heschl...")
+                    correcta_sel = st.selectbox("Opción correcta:", options=["A", "B", "C", "D"])
                         
                     submit_add = st.form_submit_button("Crear Pregunta")
                     if submit_add:
-                        if not nueva_p or not op_a or not op_b or not op_c or not op_d or not nueva_exp:
-                            st.error("Todos los campos son obligatorios.")
+                        if not nueva_p or not op_a or not op_b or not op_c or not op_d:
+                            st.error("Todos los campos de la pregunta y las 4 opciones son obligatorios.")
                         else:
-                            success = agregar_pregunta(nivel_gestion, nueva_p, op_a, op_b, op_c, op_d, correcta_sel, nueva_exp)
+                            success = agregar_pregunta(nivel_gestion, tema_sel, nueva_p, op_a, op_b, op_c, op_d, correcta_sel)
                             if success:
-                                st.success("Pregunta agregada exitosamente.")
+                                st.success("Pregunta agregada exitosamente en Supabase.")
                                 st.rerun()
                             else:
-                                st.error("Error al guardar en la base de datos.")
+                                st.error("Error al guardar en la base de datos de Supabase.")
 
             # --- LISTAR Y EDITAR/ELIMINAR PREGUNTAS ---
             st.markdown(f"#### Preguntas actuales — Nivel {nivel_gestion} ({len(preguntas_actuales)})")
             if not preguntas_actuales:
-                st.info("No hay preguntas creadas para este nivel.")
+                st.info("No hay preguntas creadas para este nivel en la base de datos.")
             else:
+                letras = ["A", "B", "C", "D"]
                 for idx, q in enumerate(preguntas_actuales, 1):
-                    with st.expander(f"Pregunta {idx}: {q['pregunta'][:80]}...", expanded=False):
+                    # Extraer respuestas asociadas
+                    resps = q.get("respuestas", [])
+                    val_a = resps[0]["texto"] if len(resps) > 0 else ""
+                    val_b = resps[1]["texto"] if len(resps) > 1 else ""
+                    val_c = resps[2]["texto"] if len(resps) > 2 else ""
+                    val_d = resps[3]["texto"] if len(resps) > 3 else ""
+
+                    letra_correcta = "A"
+                    for i_r, r_item in enumerate(resps[:4]):
+                        if r_item.get("es_correcta"):
+                            letra_correcta = letras[i_r]
+                            break
+
+                    enunciado_corto = q.get("enunciado", "")[:75]
+                    tema_pregunta = q.get("tema", "General")
+
+                    with st.expander(f"Pregunta {idx} [{tema_pregunta}]: {enunciado_corto}...", expanded=False):
                         with st.form(key=f"edit_question_form_{q['id']}"):
-                            edit_p = st.text_area("Enunciado de la pregunta:", value=q['pregunta'], key=f"edit_p_{q['id']}")
+                            col_ep, col_et = st.columns([3, 1])
+                            with col_ep:
+                                edit_p = st.text_area("Enunciado:", value=q.get("enunciado", ""), key=f"edit_p_{q['id']}")
+                            with col_et:
+                                idx_t = temas_disponibles.index(tema_pregunta) if tema_pregunta in temas_disponibles else 0
+                                edit_tema = st.selectbox("Tema:", options=temas_disponibles, index=idx_t, key=f"edit_tema_{q['id']}")
+
                             col_e_op1, col_e_op2 = st.columns(2)
                             with col_e_op1:
-                                edit_a = st.text_input("Opción A:", value=q['opcion_a'], key=f"edit_a_{q['id']}")
-                                edit_b = st.text_input("Opción B:", value=q['opcion_b'], key=f"edit_b_{q['id']}")
+                                edit_a = st.text_input("Opción A:", value=val_a, key=f"edit_a_{q['id']}")
+                                edit_b = st.text_input("Opción B:", value=val_b, key=f"edit_b_{q['id']}")
                             with col_e_op2:
-                                edit_c = st.text_input("Opción C:", value=q['opcion_c'], key=f"edit_c_{q['id']}")
-                                edit_d = st.text_input("Opción D:", value=q['opcion_d'], key=f"edit_d_{q['id']}")
+                                edit_c = st.text_input("Opción C:", value=val_c, key=f"edit_c_{q['id']}")
+                                edit_d = st.text_input("Opción D:", value=val_d, key=f"edit_d_{q['id']}")
                                 
-                            col_e_c, col_e_e = st.columns([1, 3])
-                            idx_correcta = ["A", "B", "C", "D"].index(q['correcta'].upper()) if q['correcta'].upper() in ["A", "B", "C", "D"] else 0
-                            with col_e_c:
-                                edit_correcta = st.selectbox("Opción correcta:", options=["A", "B", "C", "D"], index=idx_correcta, key=f"edit_corr_{q['id']}")
-                            with col_e_e:
-                                edit_exp = st.text_input("Explicación:", value=q['explicacion'], key=f"edit_exp_{q['id']}")
+                            idx_corr = letras.index(letra_correcta) if letra_correcta in letras else 0
+                            edit_correcta = st.selectbox("Opción correcta:", options=["A", "B", "C", "D"], index=idx_corr, key=f"edit_corr_{q['id']}")
                                 
                             col_btns1, col_btns2 = st.columns([1, 1])
                             with col_btns1:
@@ -273,16 +297,20 @@ def render_admin_panel():
                                 submit_delete = st.form_submit_button("Eliminar Pregunta", type="primary")
                                 
                             if submit_edit:
-                                if not edit_p or not edit_a or not edit_b or not edit_c or not edit_d or not edit_exp:
+                                if not edit_p or not edit_a or not edit_b or not edit_c or not edit_d:
                                     st.error("Todos los campos son obligatorios.")
                                 else:
-                                    success = actualizar_pregunta(q['id'], nivel_gestion, edit_p, edit_a, edit_b, edit_c, edit_d, edit_correcta, edit_exp)
+                                    success = actualizar_pregunta(q['id'], nivel_gestion, edit_tema, edit_p, edit_a, edit_b, edit_c, edit_d, edit_correcta)
                                     if success:
-                                        st.success("Pregunta actualizada.")
+                                        st.success("Pregunta actualizada en Supabase.")
                                         st.rerun()
+                                    else:
+                                        st.error("Error al actualizar la pregunta.")
                             
                             if submit_delete:
                                 success = eliminar_pregunta(q['id'])
                                 if success:
-                                    st.success("Pregunta eliminada.")
+                                    st.success("Pregunta eliminada de Supabase.")
                                     st.rerun()
+                                else:
+                                    st.error("Error al eliminar la pregunta.")
