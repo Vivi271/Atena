@@ -57,12 +57,25 @@ NO_INFO_PHRASES = [
     "pregunta específica", "no encontr",
 ]
 
-# Saludos y mensajes de cortesía estrictos (no requieren evidencia documental)
+# Mensajes de cortesía predefinidos (respuestas instantáneas)
+MENSAJE_BIENVENIDA = (
+    "¡Hola! Soy **Atena**, tu asistente de neuroanatomía en la Konrad Lorenz.\n\n"
+    "Puedo resolver tus dudas sobre anatomía del sistema nervioso, circuitos neuronales "
+    "y funciones cerebrales. ¿En qué tema profundizamos hoy?"
+)
+
+MENSAJE_DESPEDIDA = (
+    "¡Con gusto! Aquí estaré cuando necesites repasar o consultar cualquier tema de neuroanatomía. "
+    "¡Muchos éxitos en tu estudio!"
+)
+
+# Saludos y mensajes de cortesía estrictos (no requieren búsqueda vectorial)
 SALUDOS = {
-    "hola", "hello", "hi", "buenas", "buenos", "dias", "días", "tardes",
+    "hola", "hello", "hi", "hey", "buenas", "buenos", "dias", "días", "tardes",
     "noches", "gracias", "muchas", "de", "nada", "ok", "okay", "si", "sí", "no",
-    "perfecto", "genial", "bien", "mal", "como", "cómo", "estas", "estás",
-    "adios", "adiós", "bye", "chao", "hasta luego",
+    "perfecto", "genial", "bien", "mal", "como", "cómo", "estas", "estás", "esta", "está",
+    "va", "tal", "que", "qué", "atena", "athena", "bot", "asistente",
+    "adios", "adiós", "bye", "chao", "hasta", "luego", "saludos",
 }
 
 def es_consulta_saludo(texto: str) -> bool:
@@ -73,7 +86,16 @@ def es_consulta_saludo(texto: str) -> bool:
     palabras = limpio.split()
     if not palabras:
         return False
-    return len(palabras) <= 4 and all(p in SALUDOS for p in palabras)
+    return len(palabras) <= 5 and all(p in SALUDOS for p in palabras)
+
+def obtener_respuesta_cortesia(texto: str):
+    """Retorna el mensaje de bienvenida o despedida si la entrada es un saludo/cortesía."""
+    if not es_consulta_saludo(texto):
+        return None
+    t_lower = texto.lower()
+    if any(w in t_lower for w in ["gracias", "adios", "adiós", "chao", "bye", "hasta luego"]):
+        return MENSAJE_DESPEDIDA
+    return MENSAJE_BIENVENIDA
 
 # Ejemplos de consulta para la interfaz
 EJEMPLOS_CONSULTA = [

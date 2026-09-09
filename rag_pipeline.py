@@ -710,6 +710,17 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
     PASOS 5-7 del pipeline RAG:
     Búsqueda híbrida → Re-ranking → Prompt aumentado → Generación con Groq
     """
+    from config import obtener_respuesta_cortesia
+    resp_cortesia = obtener_respuesta_cortesia(pregunta)
+    if resp_cortesia:
+        return {
+            "pregunta": pregunta,
+            "respuesta": resp_cortesia,
+            "fragmentos": [],
+            "fuentes": [],
+            "tokens_contexto_aprox": 0,
+        }
+
     docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k)
 
     context_parts = []
@@ -764,6 +775,13 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
     en tiempo real con st.write_stream() en Streamlit.
     Retorna: (generator, docs, context_tokens)
     """
+    from config import obtener_respuesta_cortesia
+    resp_cortesia = obtener_respuesta_cortesia(pregunta)
+    if resp_cortesia:
+        def _gen_cortesia():
+            yield resp_cortesia
+        return _gen_cortesia(), [], 0
+
     # Guard: VectorDB no inicializada
     if vector_store is None:
         def _sin_db():
