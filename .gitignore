@@ -12,6 +12,8 @@ __pycache__/
 chroma_neuro_db_temp/
 chroma_neuro_db_backup/
 chroma_neuro_db_test/
+/chroma_neuro_db/
+
 
 # Archivos duplicados / innecesarios
 FlujoRag.txt

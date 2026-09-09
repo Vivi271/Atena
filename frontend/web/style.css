@@ -1,11 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
-/* Hide Streamlit stale/ghost elements during reruns */
+/* Mantener visible la interfaz durante las consultas sin ocultar elementos */
 [data-stale="true"],
-.stale-element,
-.element-container[style*="opacity: 0.33"],
-.element-container[style*="opacity:0.33"] {
-    display: none !important;
+.stale-element {
+    transition: opacity 0.2s ease;
 }
 
 :root {

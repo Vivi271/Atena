@@ -41,6 +41,8 @@ if not GROQ_API_KEY:
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 DOCS_DIR  = os.path.join(BASE_DIR, "Docs")
+if not os.path.exists(DOCS_DIR):
+    DOCS_DIR = os.path.join(os.path.dirname(BASE_DIR), "Docs")
 
 
 def _get_docs_files():
@@ -76,6 +78,8 @@ def _load_any_document(file_path: str) -> list:
 
 
 PERSIST_DIR     = os.path.join(BASE_DIR, "chroma_neuro_db")
+if not os.path.exists(PERSIST_DIR):
+    PERSIST_DIR = os.path.join(os.path.dirname(BASE_DIR), "chroma_neuro_db")
 COLLECTION_NAME = "neuroanatomia_cientifica"
 
 # Embeddings: ONNX Runtime (nativo en ChromaDB) — sin PyTorch ni Transformers
@@ -209,16 +213,26 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
                 if count > 0:
                     print(f"[OK] Cargando base vectorial existente desde: {PERSIST_DIR} ({count} fragmentos)")
                     return vs
-                print("[INFO] Base vectorial existe pero está vacía. Construyendo automáticamente desde Docs/...")
+                print("[INFO] Base vectorial existe pero está vacía.")
             except Exception as e:
-                print(f"[WARN] Error al verificar base existente ({e}). Reconstruyendo...")
-        elif os.path.exists(PERMANENT_BACKUP):
-            print("[RESTORE] DB no encontrada localmente. Restaurando desde backup permanente...")
-            shutil.copytree(PERMANENT_BACKUP, PERSIST_DIR)
-            print("[RESTORE] ✔ DB restaurada desde ~/.neuro_db_permanent/")
-            return _get_or_create_vector_store(PERSIST_DIR)
-        else:
-            print("[INFO] Base vectorial no encontrada. Construyendo automáticamente desde Docs/...")
+                print(f"[WARN] Error al verificar base existente ({e}). Intentando restaurar backup...")
+
+        if os.path.exists(PERMANENT_BACKUP):
+            try:
+                print("[RESTORE] Restaurando DB desde backup permanente...")
+                if os.path.exists(PERSIST_DIR):
+                    shutil.rmtree(PERSIST_DIR, ignore_errors=True)
+                shutil.copytree(PERMANENT_BACKUP, PERSIST_DIR)
+                vs = _get_or_create_vector_store(PERSIST_DIR)
+                count = vs._collection.count()
+                if count > 0:
+                    print(f"[RESTORE] ✔ DB restaurada exitosamente ({count} fragmentos)")
+                    return vs
+            except Exception as err:
+                print(f"[WARN] Fallo al restaurar desde backup: {err}")
+
+        # Si no se forzó reconstrucción y no hay DB válida, lanzar FileNotFoundError para que la UI no se congele
+        raise FileNotFoundError("Base vectorial no encontrada o vacía.")
 
     # ── Limpiar singleton interno de chromadb antes de borrar el directorio ──
     try:
@@ -729,7 +743,7 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
         model=GROQ_LLM_MODEL,
         api_key=GROQ_API_KEY,
         temperature=0.0,
-        max_tokens=800,
+        max_tokens=1800,
         reasoning_effort="low",
     )
 
@@ -801,7 +815,7 @@ def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "ava
         model=GROQ_LLM_MODEL,
         api_key=GROQ_API_KEY,
         temperature=0.0,
-        max_tokens=800,
+        max_tokens=1800,
         reasoning_effort="low",
     )
 
