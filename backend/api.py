@@ -241,6 +241,24 @@ class PreguntasEvaluacionResponse(BaseModel):
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
+@app.get("/", tags=["Sistema"])
+async def root():
+    """Ruta raíz — mensaje de bienvenida, estado y acceso a la documentación."""
+    return {
+        "mensaje": "🧠 Atena — API de Neuroanatomía en línea",
+        "servicio": "Atena API",
+        "estado": "activo",
+        "version": "1.0.0",
+        "documentacion_swagger": "/docs",
+        "endpoints": {
+            "salud": "/salud",
+            "info": "/info",
+            "consultar_rag": "POST /consultar",
+            "evaluacion_preguntas": "GET /api/evaluacion/preguntas",
+        },
+    }
+
+
 @app.get("/salud", tags=["Sistema"])
 async def salud():
     """Health check — verifica que el servidor está vivo y expone la URL pública del servicio."""
