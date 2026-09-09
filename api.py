@@ -52,11 +52,72 @@ app.add_middleware(
 )
 
 
+import re
+
+# ── Formateador de texto para Unity (Rich Text) ────────────────────────────────
+def formatear_para_unity(texto: str) -> str:
+    """
+    Convierte formato Markdown a Unity Rich Text (TextMeshPro / UI Text):
+    - **negrita** -> <b>negrita</b>
+    - *cursiva* -> <i>cursiva</i>
+    - viñetas con guión -> viñetas limpias '• '
+    - Citas bibliográficas estilizadas en tono suave (<color=#E5C07B>)
+    - Espaciado visual limpio y fluido estilo Claude / ChatGPT.
+    """
+    if not texto:
+        return ""
+
+    t = texto.replace("\r\n", "\n")
+
+    # 1. Estilizar citas documentales: [Fuente X, pág. Y], (*[Fuente X], pág. Y*), etc.
+    def _estilizar_cita_fuente(match):
+        fuente = match.group(1)
+        pag = match.group(2) if match.group(2) else None
+        if pag:
+            return f'<color=#E5C07B><i>[Fuente {fuente}, pág. {pag}]</i></color>'
+        return f'<color=#E5C07B><i>[Fuente {fuente}]</i></color>'
+
+    t = re.sub(
+        r'\(?\*?\[Fuente\s*(\d+)\](?:,?\s*pág\.?\s*(\d+))?\*?\)?',
+        _estilizar_cita_fuente,
+        t,
+    )
+
+    # Citas con nombre de autor: (*Clark, pág. 231*) -> <color=#E5C07B><i>(Clark, pág. 231)</i></color>
+    t = re.sub(
+        r'\(\*([^*]+(?:pág\.?|p\.)[^*]+)\*\)',
+        r'<color=#E5C07B><i>(\1)</i></color>',
+        t,
+    )
+
+    # 2. Negrita y cursiva combinadas: ***texto*** -> <b><i>texto</i></b>
+    t = re.sub(r'\*\*\*([^\*\n]+)\*\*\*', r'<b><i>\1</i></b>', t)
+
+    # 3. Negrita: **texto** -> <b>texto</b>
+    t = re.sub(r'\*\*([^\*\n]+)\*\*', r'<b>\1</b>', t)
+
+    # 4. Cursiva restante: *texto* -> <i>texto</i> (sin romper etiquetas ya generadas)
+    t = re.sub(r'(?<![<\w\*])\*([^\*\n]+)\*(?![>\w\*])', r'<i>\1</i>', t)
+
+    # 5. Encabezados markdown (# Titulo, ## Titulo) -> <b>Titulo</b>
+    t = re.sub(r'^#{1,4}\s+(.+)$', r'<b>\1</b>', t, flags=re.MULTILINE)
+
+    # 6. Viñetas de lista: reemplazar guiones o asteriscos al inicio de línea por '  • '
+    t = re.sub(r'^[ \t]*[-*][ \t]+', '  • ', t, flags=re.MULTILINE)
+
+    # 7. Espaciado limpio entre secciones numeradas para que respire en pantallas móviles
+    t = re.sub(r'\n(?=\d+\.\s+<b>)', r'\n\n', t)
+    t = re.sub(r'\n{3,}', '\n\n', t)
+
+    return t.strip()
+
+
 # ── Schemas ────────────────────────────────────────────────────────────────────
 class ConsultaRequest(BaseModel):
     pregunta: str
     nivel: str = "avanzado"   # "basico" | "avanzado"
     k: int = 6
+    formato_unity: bool = True  # Convierte Markdown a Rich Text para Unity
 
 class FuenteResponse(BaseModel):
     fuente: str
@@ -143,8 +204,12 @@ async def consultar_endpoint(body: ConsultaRequest):
             fragmento=f.get("fragmento", ""),
         ))
 
+    texto_respuesta = resultado.get("respuesta", "")
+    if body.formato_unity:
+        texto_respuesta = formatear_para_unity(texto_respuesta)
+
     return ConsultaResponse(
-        respuesta=resultado.get("respuesta", ""),
+        respuesta=texto_respuesta,
         fuentes=fuentes,
         nivel=body.nivel,
     )
