@@ -12,7 +12,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -358,9 +358,13 @@ async def consultar_endpoint(body: ConsultaRequest):
     tags=["Evaluación"],
 )
 async def obtener_preguntas_evaluacion(
-    nivel: Optional[str] = None,
-    cantidad: Optional[int] = None,
-    aleatorio: bool = False,
+    nivel: Optional[str] = Query(
+        None,
+        description="Nivel a consultar exactamente como está en Supabase: 'Principiante', 'Avanzado' o 'General' (o 'todos' / omitir para traer las 45 preguntas).",
+        examples=["Principiante", "Avanzado", "General"]
+    ),
+    cantidad: Optional[int] = Query(None, description="Número de preguntas a retornar (ej: 5 o 15). Si se omite, retorna todas las del nivel."),
+    aleatorio: bool = Query(False, description="Mezcla las preguntas aleatoriamente si es true."),
 ):
     """
     Retorna el banco de preguntas de autoevaluación neuroanatómica desde PostgreSQL (Supabase),
