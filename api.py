@@ -161,19 +161,32 @@ def formatear_para_unity(texto: str) -> str:
     # Viñetas principales: punto limpio
     t = re.sub(r'^[ \t]*[-*][ \t]+', '  • ', t, flags=re.MULTILINE)
 
-    # 11. Desamontonar: añadir espaciado y aire vertical entre bloques y viñetas principales
+    # 11. Desamontonar: añadir espaciado y aire vertical entre introducciones, viñetas y conclusiones
     lineas_bloques = t.split("\n")
     resultado = []
+    prev_era_item = False
+
     for l in lineas_bloques:
         l_strip = l.strip()
-        # Si es un numeral (1. ) o una viñeta con concepto principal (contiene <b> o :)
-        es_bloque_nuevo = bool(
-            re.match(r'^\d+\.\s+', l_strip)
-            or (l_strip.startswith('•') and (':' in l_strip or '<b>' in l_strip))
+        if not l_strip:
+            if resultado and resultado[-1] != "":
+                resultado.append("")
+            prev_era_item = False
+            continue
+
+        # Detectar si la línea actual es un elemento de lista (viñeta o numeral)
+        es_item = bool(
+            re.match(r'^\d+[\.\)]\s+', l_strip)
+            or l_strip.startswith('•')
+            or l_strip.startswith('–')
         )
-        if es_bloque_nuevo and resultado and resultado[-1].strip() != '':
-            resultado.append('')
+
+        # Si inicia un ítem nuevo, o si salimos de una lista a un párrafo de texto normal (conclusión/síntesis)
+        if (es_item or prev_era_item) and resultado and resultado[-1] != "":
+            resultado.append("")
+
         resultado.append(l)
+        prev_era_item = es_item
 
     t = "\n".join(resultado)
     t = re.sub(r'\n{3,}', '\n\n', t)
