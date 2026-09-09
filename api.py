@@ -110,7 +110,7 @@ def formatear_para_unity(texto: str) -> str:
 
     t = "\n".join(nuevas_lineas)
 
-    # 3. Estilizar citas documentales: [Fuente X, pág. Y], (Fuente X, pág. Y), (*[Fuente X]*)
+    # 3. Estilizar citas documentales y autores (Reconocedor universal robusto)
     def _estilizar_cita_fuente(match):
         fuente = match.group(1)
         pag = match.group(2) if match.group(2) else None
@@ -118,17 +118,22 @@ def formatear_para_unity(texto: str) -> str:
             return f'<color=#E5C07B><i>[Fuente {fuente}, pág. {pag}]</i></color>'
         return f'<color=#E5C07B><i>[Fuente {fuente}]</i></color>'
 
+    # Captura: [Fuente X, p. Y], (Fuente X, pág. Y), (*[Fuente X], p. Y*), [Fuente X], etc.
     t = re.sub(
-        r'[\(\[]\*?Fuente\s*(\d+)(?:,?\s*pág\.?\s*(\d+))?\*?[\)\]]',
+        r'[\(\[\*]*Fuente\s*(\d+)(?:[\]\)]?,?\s*(?:págs?\.?|pags?\.?|pp?\.?)\s*([\d\-–]+))?[\)\]\*]*',
         _estilizar_cita_fuente,
         t,
         flags=re.IGNORECASE,
     )
 
-    # Citas con nombre de autor: (*Clark, pág. 231*) -> <color=#E5C07B><i>(Clark, pág. 231)</i></color>
+    # Citas con nombre de autor: (Clark, pág. 231), (*Clark, pág. 231*), (Lange, p. 195)
+    def _estilizar_cita_autor(match):
+        contenido = match.group(1).strip('*')
+        return f'<color=#E5C07B><i>({contenido})</i></color>'
+
     t = re.sub(
-        r'\(\*([^*]+(?:pág\.?|p\.)[^*]+)\*\)',
-        r'<color=#E5C07B><i>(\1)</i></color>',
+        r'\((?:\*)?([A-ZÁÉÍÓÚ][a-záéíóúA-Z\s]+,?\s*(?:págs?\.?|pags?\.?|pp?\.?)\s*[\d\-–]+)(?:\*)?\)',
+        _estilizar_cita_autor,
         t,
     )
 
