@@ -67,7 +67,7 @@ public class EvaluationClient : MonoBehaviour
     /// <summary>
     /// Consulta el banco de preguntas de autoevaluación filtrando por nivel pedagógico.
     /// </summary>
-    /// <param name="nivel">"basico" o "avanzado"</param>
+    /// <param name="nivel">"Principiante", "Avanzado" o "General" (tal como están en Supabase). Si es null o vacío, retorna todas.</param>
     /// <param name="cantidad">Cantidad opcional de preguntas (ej. 5 o 15). Si es 0 o menor, trae todas.</param>
     /// <param name="aleatorio">Si es true, el servidor entrega preguntas en orden aleatorio</param>
     /// <param name="onSuccess">Callback con la respuesta deserializada</param>
@@ -89,8 +89,13 @@ public class EvaluationClient : MonoBehaviour
         Action<PreguntasEvaluacionResponse> onSuccess,
         Action<string> onError)
     {
-        string nivelParam = string.IsNullOrEmpty(nivel) ? "avanzado" : nivel.ToLower();
-        string url = $"{baseUrl}/api/evaluacion/preguntas?nivel={UnityWebRequest.EscapeURL(nivelParam)}&aleatorio={aleatorio.ToString().ToLower()}";
+        // Si no se pasa nivel, se omite el parámetro para que la API devuelva todos los niveles.
+        // Niveles válidos en Supabase: "Principiante", "Avanzado", "General".
+        // Se envía tal cual para respetar las mayúsculas esperadas por el backend.
+        string nivelParam = string.IsNullOrEmpty(nivel) ? null : nivel;
+        string url = string.IsNullOrEmpty(nivelParam)
+            ? $"{baseUrl}/api/evaluacion/preguntas?aleatorio={aleatorio.ToString().ToLower()}"
+            : $"{baseUrl}/api/evaluacion/preguntas?nivel={UnityWebRequest.EscapeURL(nivelParam)}&aleatorio={aleatorio.ToString().ToLower()}";
 
         if (cantidad > 0)
         {

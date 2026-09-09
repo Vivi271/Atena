@@ -11,8 +11,8 @@ using TMPro;
 public class Screen_05_EvaluationController : MonoBehaviour
 {
     [Header("Configuración de Nivel")]
-    [Tooltip("Nivel actual a evaluar: 'basico' o 'avanzado'")]
-    public string nivel = "avanzado";
+    [Tooltip("Nivel actual a evaluar: 'Principiante', 'Avanzado' o 'General' (exactamente como está en Supabase)")]
+    public string nivel = "Principiante";
     [Tooltip("Cantidad de preguntas (15 por defecto, o 0 para todas)")]
     public int cantidadPreguntas = 15;
     [Tooltip("Mezclar preguntas del examen")]
