@@ -113,15 +113,38 @@ def obtener_preguntas_por_nivel(nivel: str, cantidad: int = None, aleatorio: boo
                 preguntas_dict[pid] = {
                     "id": pid,
                     "enunciado": fila["enunciado"],
+                    "pregunta": fila["enunciado"],  # Compatibilidad con app.py
                     "tema": fila["tema"],
                     "nivel": fila["nivel"],
-                    "respuestas": []
+                    "respuestas": [],
+                    "opcion_a": "",
+                    "opcion_b": "",
+                    "opcion_c": "",
+                    "opcion_d": "",
+                    "correcta": "A",
+                    "explicacion": fila["enunciado"],
                 }
-            preguntas_dict[pid]["respuestas"].append({
+
+            resp_item = {
                 "id": fila["respuesta_id"],
                 "texto": fila["respuesta_texto"],
-                "es_correcta": fila["es_correcta"]
-            })
+                "es_correcta": fila["es_correcta"],
+            }
+            preguntas_dict[pid]["respuestas"].append(resp_item)
+
+            num_resp = len(preguntas_dict[pid]["respuestas"])
+            letra = ["A", "B", "C", "D"][num_resp - 1] if num_resp <= 4 else "A"
+            if num_resp == 1:
+                preguntas_dict[pid]["opcion_a"] = fila["respuesta_texto"]
+            elif num_resp == 2:
+                preguntas_dict[pid]["opcion_b"] = fila["respuesta_texto"]
+            elif num_resp == 3:
+                preguntas_dict[pid]["opcion_c"] = fila["respuesta_texto"]
+            elif num_resp == 4:
+                preguntas_dict[pid]["opcion_d"] = fila["respuesta_texto"]
+
+            if fila["es_correcta"]:
+                preguntas_dict[pid]["correcta"] = letra
 
         # Mantenemos el orden aleatorio/original que definimos en ids_preguntas
         preguntas_ordenadas = [preguntas_dict[pid] for pid in ids_preguntas if pid in preguntas_dict]
@@ -138,9 +161,10 @@ def agregar_pregunta(nivel: str, tema: str, enunciado: str,
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT id FROM niveles WHERE LOWER(nombre) = LOWER(%s)", (nivel,))
+        filtros_n = _normalizar_filtro_nivel(nivel)
+        cursor.execute("SELECT id FROM niveles WHERE LOWER(nombre) = ANY(%s) LIMIT 1", (filtros_n,))
         row_nivel = cursor.fetchone()
-        cursor.execute("SELECT id FROM temas WHERE LOWER(nombre) = LOWER(%s)", (tema,))
+        cursor.execute("SELECT id FROM temas WHERE LOWER(nombre) = LOWER(%s) LIMIT 1", (tema,))
         row_tema = cursor.fetchone()
 
         if not row_nivel or not row_tema:
@@ -182,9 +206,10 @@ def actualizar_pregunta(pregunta_id: int, nivel: str, tema: str, enunciado: str,
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT id FROM niveles WHERE LOWER(nombre) = LOWER(%s)", (nivel,))
+        filtros_n = _normalizar_filtro_nivel(nivel)
+        cursor.execute("SELECT id FROM niveles WHERE LOWER(nombre) = ANY(%s) LIMIT 1", (filtros_n,))
         row_nivel = cursor.fetchone()
-        cursor.execute("SELECT id FROM temas WHERE LOWER(nombre) = LOWER(%s)", (tema,))
+        cursor.execute("SELECT id FROM temas WHERE LOWER(nombre) = LOWER(%s) LIMIT 1", (tema,))
         row_tema = cursor.fetchone()
 
         if not row_nivel or not row_tema:
