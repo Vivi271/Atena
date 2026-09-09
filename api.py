@@ -71,7 +71,10 @@ def formatear_para_unity(texto: str) -> str:
 
     t = texto.replace("\r\n", "\n")
 
-    # 1. Convertir tablas Markdown a viñetas limpias para interfaces móviles
+    # 1. Eliminar encabezados vacíos o símbolos markdown huérfanos tipo '###'
+    t = re.sub(r'^\s*#{1,6}\s*$', '', t, flags=re.MULTILINE)
+
+    # 2. Convertir tablas Markdown a viñetas limpias para interfaces móviles
     lineas = t.split("\n")
     nuevas_lineas = []
     en_tabla = False
@@ -86,11 +89,9 @@ def formatear_para_unity(texto: str) -> str:
         if l_strip.startswith("|") and l_strip.endswith("|") and l_strip.count("|") >= 2:
             celdas = [c.strip() for c in l_strip.strip("|").split("|")]
             if not en_tabla:
-                # Cabecera de la tabla (la omitimos como fila para dar formato de lista)
                 en_tabla = True
                 continue
             else:
-                # Fila de contenido
                 if len(celdas) >= 2:
                     primer_campo = celdas[0]
                     resto = [c for c in celdas[1:] if c]
@@ -109,7 +110,7 @@ def formatear_para_unity(texto: str) -> str:
 
     t = "\n".join(nuevas_lineas)
 
-    # 2. Estilizar citas documentales: [Fuente X, pág. Y], (Fuente X, pág. Y), (*[Fuente X]*)
+    # 3. Estilizar citas documentales: [Fuente X, pág. Y], (Fuente X, pág. Y), (*[Fuente X]*)
     def _estilizar_cita_fuente(match):
         fuente = match.group(1)
         pag = match.group(2) if match.group(2) else None
@@ -131,22 +132,25 @@ def formatear_para_unity(texto: str) -> str:
         t,
     )
 
-    # 3. Negrita y cursiva combinadas: ***texto*** -> <b><i>texto</i></b>
+    # 4. Negrita y cursiva combinadas: ***texto*** -> <b><i>texto</i></b>
     t = re.sub(r'\*\*\*([^\*\n]+)\*\*\*', r'<b><i>\1</i></b>', t)
 
-    # 4. Negrita: **texto** -> <b>texto</b>
+    # 5. Negrita: **texto** -> <b>texto</b>
     t = re.sub(r'\*\*([^\*\n]+)\*\*', r'<b>\1</b>', t)
 
-    # 5. Cursiva restante: *texto* -> <i>texto</i> (sin romper etiquetas ya generadas)
+    # 6. Cursiva restante: *texto* -> <i>texto</i> (sin romper etiquetas ya generadas)
     t = re.sub(r'(?<![<\w\*])\*([^\*\n]+)\*(?![>\w\*])', r'<i>\1</i>', t)
 
-    # 6. Encabezados markdown (# Titulo, ## Titulo) -> <b>Titulo</b>
+    # 7. Encabezados markdown (# Titulo, ## Titulo) -> <b>Titulo</b>
     t = re.sub(r'^#{1,4}\s+(.+)$', r'<b>\1</b>', t, flags=re.MULTILINE)
 
-    # 7. Viñetas de lista: reemplazar guiones o asteriscos al inicio de línea por '  • '
+    # 8. Viñetas con jerarquía para móviles:
+    # Sub-viñetas indentadas (con espacios): guión secundario indentado
+    t = re.sub(r'^[ \t]{2,}[-*][ \t]+', '    – ', t, flags=re.MULTILINE)
+    # Viñetas principales: punto limpio
     t = re.sub(r'^[ \t]*[-*][ \t]+', '  • ', t, flags=re.MULTILINE)
 
-    # 8. Espaciado limpio entre secciones numeradas para que respire en pantallas móviles
+    # 9. Espaciado limpio entre secciones numeradas para que respire en pantallas móviles
     t = re.sub(r'\n(?=\d+\.\s+)', r'\n\n', t)
     t = re.sub(r'\n{3,}', '\n\n', t)
 
