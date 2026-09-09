@@ -149,14 +149,33 @@ def formatear_para_unity(texto: str) -> str:
     # 7. Encabezados markdown (# Titulo, ## Titulo) -> <b>Titulo</b>
     t = re.sub(r'^#{1,4}\s+(.+)$', r'<b>\1</b>', t, flags=re.MULTILINE)
 
-    # 8. Viñetas con jerarquía para móviles:
-    # Sub-viñetas indentadas (con espacios): guión secundario indentado
+    # 8. Corregir dobles viñetas en la misma línea (ej. '• Título: • Contenido' -> '• Título: Contenido')
+    t = re.sub(r'([•\-\*]\s*[^:\n]+:)\s*[•\-\*]\s*', r'\1 ', t)
+
+    # 9. Destacar en negrita automáticamente los conceptos antes de dos puntos si el modelo los omitió
+    t = re.sub(r'^[ \t]*[•\-\*]\s*(?!\<b\>)([^:\n]{3,70}:)', r'  • <b>\1</b>', t, flags=re.MULTILINE)
+
+    # 10. Viñetas con jerarquía para móviles:
+    # Sub-viñetas indentadas (con 2+ espacios): guión secundario indentado
     t = re.sub(r'^[ \t]{2,}[-*][ \t]+', '    – ', t, flags=re.MULTILINE)
     # Viñetas principales: punto limpio
     t = re.sub(r'^[ \t]*[-*][ \t]+', '  • ', t, flags=re.MULTILINE)
 
-    # 9. Espaciado limpio entre secciones numeradas para que respire en pantallas móviles
-    t = re.sub(r'\n(?=\d+\.\s+)', r'\n\n', t)
+    # 11. Desamontonar: añadir espaciado y aire vertical entre bloques y viñetas principales
+    lineas_bloques = t.split("\n")
+    resultado = []
+    for l in lineas_bloques:
+        l_strip = l.strip()
+        # Si es un numeral (1. ) o una viñeta con concepto principal (contiene <b> o :)
+        es_bloque_nuevo = bool(
+            re.match(r'^\d+\.\s+', l_strip)
+            or (l_strip.startswith('•') and (':' in l_strip or '<b>' in l_strip))
+        )
+        if es_bloque_nuevo and resultado and resultado[-1].strip() != '':
+            resultado.append('')
+        resultado.append(l)
+
+    t = "\n".join(resultado)
     t = re.sub(r'\n{3,}', '\n\n', t)
 
     return t.strip()
