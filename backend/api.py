@@ -364,7 +364,7 @@ async def obtener_preguntas_evaluacion(
         examples=["Principiante", "Avanzado", "General"]
     ),
     cantidad: Optional[int] = Query(None, description="Número de preguntas a retornar (ej: 5 o 15). Si se omite, retorna todas las del nivel."),
-    aleatorio: bool = Query(False, description="Mezcla las preguntas aleatoriamente si es true."),
+    aleatorio: bool = Query(True, description="Mezcla las preguntas aleatoriamente si es true."),
 ):
     """
     Retorna el banco de preguntas de autoevaluación neuroanatómica desde PostgreSQL (Supabase),
