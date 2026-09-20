@@ -1,10 +1,11 @@
 """
-app.py — Punto de entrada de Atena RAG
+app.py — Punto de entrada de Atena RAG (modo ligero: delega RAG al API de FastAPI)
 """
 import streamlit as st
 import os
 import sys
 import time
+import httpx
 
 # Configuración de rutas — app.py está en la raíz del repo
 ROOT = os.path.dirname(os.path.abspath(__file__))   # raíz del repo
@@ -22,6 +23,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ── URL del API de FastAPI (configurable via variable de entorno) ──
+ATENA_API_URL = os.environ.get("ATENA_API_URL", "https://atena-vugz.onrender.com").rstrip("/")
 
 # ── 2. Cargar y aplicar estilos CSS ──
 CSS_PATH = os.path.join(ROOT, "frontend", "web", "style.css")
@@ -46,54 +50,43 @@ if "_uploader_key" not in st.session_state:
     st.session_state["_uploader_key"] = 0
 
 try:
-    from rag_pipeline import build_vector_store, consultar, stream_consultar
     from db_metrics import registrar_consulta, registrar_evaluacion
     from db_preguntas import obtener_preguntas_por_nivel
 except ImportError as e:
     st.error(f"Error al importar módulos del sistema: {e}")
     st.stop()
 
-# Carga del vector store (cacheado globalmente)
-# NOTA: No usar el objeto `vs` cacheado para operaciones de escritura (indexar/eliminar).
-# Las funciones add_documents_incremental y remove_documents_from_store crean siempre
-# un cliente ChromaDB fresco para evitar el error 'default_tenant does not exist'
-# causado por referencias obsoletas en el caché.
-@st.cache_resource
-def get_vector_store():
+# ── Función de consulta RAG vía API (ligero: sin cargar modelos localmente) ──
+def consultar_via_api(pregunta: str, nivel: str = "Principiante", k: int = 6):
+    """
+    Llama al endpoint POST /api/consultar del API de FastAPI.
+    Retorna (respuesta_texto, lista_fuentes) donde lista_fuentes es una lista de dicts
+    con claves: fuente, pagina, fragmento.
+    """
     try:
-        return build_vector_store(force_rebuild=False)
-    except FileNotFoundError:
-        # Base vectorial no creada todavía — es normal en primera ejecución
-        return None
-    except Exception as e:
-        err = str(e).lower()
-        # Si el SQLite está corrupto o el tenant no existe, borramos y empezamos limpio
-        if "default_tenant" in err or "does not exist" in err or "sqlite" in err:
-            import shutil as _sh
-            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_neuro_db")
-            if os.path.exists(db_path):
-                try:
-                    _sh.rmtree(db_path)
-                except Exception:
-                    pass
-        return None
+        with httpx.Client(timeout=60.0) as client:
+            response = client.post(
+                f"{ATENA_API_URL}/api/consultar",
+                json={
+                    "pregunta": pregunta,
+                    "nivel": nivel,
+                    "k": k,
+                    "formato_unity": False,  # Queremos Markdown, no Unity Rich Text
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("respuesta", ""), data.get("fuentes", [])
+    except httpx.TimeoutException:
+        return "⏳ El servidor tardó demasiado en responder. Por favor, intenta de nuevo.", []
+    except Exception as exc:
+        return f"❌ Error al contactar el sistema RAG: {exc}", []
 
-vs = get_vector_store()
+# Vector store no disponible en modo ligero (vs = None)
+vs = None
 
-# Auto-detección de base vacía al arrancar
-try:
-    _count = vs._collection.count() if vs is not None else 0
-except Exception:
-    _count = 0
-
-if _count == 0:
-    st.warning("Base de datos de conocimiento vacía.")
-    st.info("Inicia sesión como administrador en la barra lateral y haz clic en 'Reconstruir VectorDB' para indexar tus archivos PDFs.")
-    # Permitir que renderice de todos modos para que el admin pueda ingresar el PIN
-    
 # Cargar Componentes de Interfaz
 from components.sidebar import render_sidebar
-from components.admin_panel import render_admin_panel
 from config import es_consulta_saludo, NO_INFO_PHRASES, nombre_legible
 import html as html_module
 import re
@@ -239,9 +232,9 @@ with st.sidebar:
 if lanzar_evaluacion:
     mostrar_evaluacion(nivel)
 
-# Panel de administración (pestañas RAGAS y preguntas)
+# Panel de administración (no disponible en modo web ligero — usa la consola del API)
 if is_admin:
-    render_admin_panel()
+    st.info("ℹ️ El panel de administración (carga de PDFs / reconstrucción de VectorDB) se gestiona directamente desde la consola del API en Render.")
 
 # --- 5. Interfaz tipo Chat (Gemini / ChatGPT) ---
 if "mensajes" not in st.session_state:
@@ -347,26 +340,19 @@ with chat_container:
                     )
                     
                     t_start = time.time()
-                    token_gen, docs, ctx_tokens = stream_consultar(pregunta_a_procesar, vs, k=k_chunks, nivel=nivel)
-                    
-                    # Envolver generador para quitar los puntos al primer token
-                    def _stream_with_clear():
-                        first = True
-                        for token in token_gen:
-                            if first:
-                                thinking_placeholder.empty()
-                                first = False
-                            yield token
-                    
-                    # Streaming token por token (como ChatGPT/Gemini)
-                    respuesta_texto = st.write_stream(_stream_with_clear())
+                    # Consultar vía API de FastAPI (modo ligero, sin cargar modelos localmente)
+                    respuesta_texto, fuentes = consultar_via_api(
+                        pregunta_a_procesar, nivel=nivel, k=k_chunks
+                    )
+                    thinking_placeholder.empty()
+                    st.markdown(respuesta_texto)
                     latencia = time.time() - t_start
-                    
+
                     es_respuesta_sin_info = any(p in respuesta_texto.lower() for p in NO_INFO_PHRASES)
                     es_saludo = es_consulta_saludo(pregunta_a_procesar)
-                    
+
                     registrar_consulta(pregunta_a_procesar, respuesta_texto, nivel.lower(), latencia)
-                    
+
                     if es_respuesta_sin_info:
                         st.markdown(
                             '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); '
@@ -379,39 +365,43 @@ with chat_container:
 
                     evidencia_html = ""
                     reporte_txt = ""
-                    
-                    mostrar_evidencia = len(docs) > 0 and not es_saludo
+
+                    mostrar_evidencia = len(fuentes) > 0 and not es_saludo
                     if mostrar_evidencia:
                         evidencias_lista = []
-                        for i, doc in enumerate(docs, 1):
-                            file_name = os.path.basename(doc.metadata.get("source", "desconocido"))
-                            nombre_revista = nombre_legible(file_name)
-                            pagina = doc.metadata.get("page", "?")
-                            texto_escapado = html_module.escape(doc.page_content)
+                        fuentes_txt_lista = []
+                        for i, fuente in enumerate(fuentes, 1):
+                            nombre_revista = nombre_legible(fuente.get("fuente", "desconocido"))
+                            pagina = fuente.get("pagina", "?")
+                            texto_escapado = html_module.escape(fuente.get("fragmento", ""))
                             texto_limpio = formatear_evidencia_limpia(texto_escapado)
-                            
+
                             evidencias_lista.append(
                                 f"<div style='margin-bottom: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #8CC63F; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);'>"
                                 f"<div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>"
                                 f"<span style='font-weight: 600; font-size: 0.88rem; color: #1e293b;'>📖 [Fuente {i}] {nombre_revista}</span>"
                                 f"<span style='background: #f1f5f9; color: #475569; font-size: 0.76rem; padding: 2px 8px; border-radius: 10px; font-weight: 500;'>Pág. {pagina}</span>"
                                 f"</div>"
-                                f"<div style='font-size: 0.86rem; color: #334155; line-height: 1.6;'>"
-                                f"{texto_limpio}"
-                                f"</div>"
+                                f"<div style='font-size: 0.86rem; color: #334155; line-height: 1.6;'>{texto_limpio}</div>"
                                 f"</div>"
                             )
-                            
+                            fuentes_txt_lista.append(f"  [{i}] {nombre_revista} — Pág. {pagina}")
+
                         evidencia_html = f"<div style='max-height: 380px; overflow-y: auto; padding-right: 8px; margin-top: 6px;'>{''.join(evidencias_lista)}</div>"
-                        
+
                         with st.expander("Ver Evidencia Documental (Citas y Referencias)"):
                             st.markdown(evidencia_html, unsafe_allow_html=True)
-                            
-                        # Generar archivo descargable
-                        fuentes_txt = "\n".join([f"  [{i+1}] {nombre_legible(os.path.basename(d.metadata.get('source','?')))} — Pág. {d.metadata.get('page','?')}" for i, d in enumerate(docs)])
-                        
-                        reporte_txt = f"=========================================\nCONSULTA NEUROANATÓMICA — REPORTE RAG\n=========================================\n\nPREGUNTA:\n{pregunta_a_procesar}\n\nRESPUESTA:\n{respuesta_texto}\n\nFUENTES BASADAS EN LITERATURA:\n{fuentes_txt}\n\n========================================="
-                        
+
+                        reporte_txt = (
+                            f"=========================================\n"
+                            f"CONSULTA NEUROANATÓMICA — REPORTE RAG\n"
+                            f"=========================================\n\n"
+                            f"PREGUNTA:\n{pregunta_a_procesar}\n\n"
+                            f"RESPUESTA:\n{respuesta_texto}\n\n"
+                            f"FUENTES BASADAS EN LITERATURA:\n" + "\n".join(fuentes_txt_lista) +
+                            "\n\n========================================="
+                        )
+
                         st.download_button(
                             label="📥 Descargar Reporte PDF/TXT",
                             data=reporte_txt,
@@ -419,7 +409,7 @@ with chat_container:
                             mime="text/plain",
                             key=f"dl_new_{time.time()}"
                         )
-                        
+
                     # Guardar en el historial
                     st.session_state.mensajes.append({
                         "role": "assistant",
