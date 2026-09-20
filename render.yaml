@@ -1,0 +1,33 @@
+services:
+  # ── Servicio 1: API FastAPI (ya existente en Render) ──────────────────────
+  - type: web
+    name: atena-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # Se configura manualmente en el panel de Render
+      - key: GROQ_LLM_MODEL
+        value: openai/gpt-oss-120b
+      - key: EMBED_MODEL
+        value: all-MiniLM-L6-v2
+      - key: SUPABASE_DB_URL
+        sync: false          # Se configura manualmente en el panel de Render
+      - key: ADMIN_PIN
+        value: "12345"
+
+  # ── Servicio 2: Streamlit (interfaz web ligera) ────────────────────────────
+  - type: web
+    name: atena-streamlit
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements_streamlit.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: ATENA_API_URL
+        value: https://atena-vugz.onrender.com   # URL del servicio atena-api en Render
+      - key: SUPABASE_DB_URL
+        sync: false          # Se configura manualmente en el panel de Render
+      - key: ADMIN_PIN
+        value: "12345"
