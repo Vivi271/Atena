@@ -64,8 +64,15 @@ def render_sidebar(vs, disabled=False):
             st.rerun()
 
         # Separador y controles inferiores
-        st.markdown("<div style='height: 180px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='flex:1; min-height:80px;'></div>", unsafe_allow_html=True)
         st.markdown("---")
+
+        # Botón Consultor IA (abre el dialog de chat)
+        if st.button("Consultor IA", key="sidebar_abrir_chat_ia", use_container_width=True, type="primary"):
+            st.session_state["abrir_chat_ia_dialog"] = True
+            st.rerun()
+
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
         modo_txt = "Modo claro" if st.session_state.get("dark_mode", False) else "Modo oscuro"
         if st.button(modo_txt, key="sidebar_dark_toggle_admin", use_container_width=True):
             st.session_state.dark_mode = not st.session_state.get("dark_mode", False)

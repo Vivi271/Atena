@@ -885,99 +885,10 @@ def _render_admin_dashboard():
                     st.session_state["adm_pin_activo"] = pin_nuevo
                     st.success("PIN actualizado para esta sesion.")
 
-    # ── Chatbot Flotante Inferior Derecho (Estilo Tidio / Pandorabots) ──
-    st.markdown('''
-    <style>
-    /* Trigger del chatbot flotante fijado en esquina inferior derecha */
-    div[data-testid="stPopover"] {
-        position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        left: auto !important;
-        top: auto !important;
-        width: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        z-index: 999999 !important;
-    }
-    div[data-testid="stPopover"] > button {
-        border-radius: 50px !important;
-        background: #4a235a !important;
-        color: #ffffff !important;
-        padding: 10px 20px !important;
-        font-size: 0.88rem !important;
-        font-weight: 600 !important;
-        box-shadow: 0 4px 16px rgba(74, 35, 90, 0.4) !important;
-        border: 2px solid #8CC63F !important;
-        cursor: pointer !important;
-        width: auto !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-    }
-    div[data-testid="stPopover"] > button:hover {
-        transform: scale(1.05) !important;
-        box-shadow: 0 6px 24px rgba(74, 35, 90, 0.55) !important;
-        background: #6c3483 !important;
-        color: #ffffff !important;
-    }
-    div[data-testid="stPopoverBody"] {
-        position: fixed !important;
-        bottom: 74px !important;
-        right: 20px !important;
-        left: auto !important;
-        top: auto !important;
-        width: 340px !important;
-        max-width: calc(100vw - 40px) !important;
-        height: 460px !important;
-        max-height: calc(100vh - 95px) !important;
-        border-radius: 16px !important;
-        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22) !important;
-        border: 1px solid var(--border, #e2e8f0) !important;
-        background: var(--bg-surface, #ffffff) !important;
-        z-index: 999999 !important;
-        padding: 12px 12px 6px !important;
-        overflow-y: auto !important;
-    }
-    </style>
-    ''', unsafe_allow_html=True)
+    # ── Consultor IA: abierto desde el botón del sidebar (dialog Streamlit) ──
+    if st.session_state.pop("abrir_chat_ia_dialog", False):
+        _dialog_consultor_ia()
 
-    with st.popover("Chat IA"):
-        st.markdown(
-            '''
-            <div style="display:flex; align-items:center; gap:10px; background:#4a235a; padding:10px 12px; border-radius:10px; margin-bottom:8px; color:#ffffff;">
-                <div style="width:32px; height:32px; border-radius:50%; background:#8CC63F; display:flex; align-items:center; justify-content:center; font-weight:700; color:#4a235a; font-size:0.95rem;">A</div>
-                <div>
-                    <div style="font-weight:700; font-size:0.9rem; color:#ffffff; line-height:1.2;" translate="no" class="notranslate">Atena — Consultor IA</div>
-                    <div style="font-size:0.72rem; color:#d8b4e2; margin-top:2px;">Asistente de Neuroanatomía</div>
-                </div>
-            </div>
-            ''',
-            unsafe_allow_html=True
-        )
-        if "adm_chat_msgs" not in st.session_state:
-            st.session_state.adm_chat_msgs = []
-
-        chat_feed = st.container(height=280)
-        with chat_feed:
-            if not st.session_state.adm_chat_msgs:
-                st.info("Hola, soy Atena. Escribe tu consulta para revisar la literatura médica indexada.")
-            for _m in st.session_state.adm_chat_msgs:
-                with st.chat_message(_m["role"]):
-                    st.markdown(_m["content"])
-                    if _m.get("fuentes"):
-                        with st.expander("Fuentes consultadas"):
-                            for _i, _f in enumerate(_m["fuentes"], 1):
-                                st.caption(f"[{_i}] {nombre_legible(_f.get('fuente',''))} — Pág. {_f.get('pagina','?')}")
-
-        _q = st.chat_input("Escribe un mensaje...", key="adm_floating_chat_input")
-        if _q:
-            st.session_state.adm_chat_msgs.append({"role": "user", "content": _q})
-            with st.spinner("Consultando literatura..."):
-                _resp, _fuentes = consultar_via_api(_q, nivel="Avanzado", k=5)
-            st.session_state.adm_chat_msgs.append({"role": "assistant", "content": _resp, "fuentes": _fuentes})
-            st.rerun()
 
 
 # ── 4. Enrutamiento principal: Sidebar siempre presente + Admin vs Chat ───────
