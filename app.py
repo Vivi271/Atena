@@ -764,7 +764,10 @@ def _render_admin_dashboard():
                         st.error("Completa las 4 opciones.")
                     else:
                         ok = agregar_pregunta(n_niv, n_tem, n_enun, op_a, op_b, op_c, op_d, n_cor)
-                        st.success("Pregunta creada.") if ok else st.error("Error al crear.")
+                        if ok:
+                            st.success("Pregunta creada correctamente.")
+                        else:
+                            st.error("Error al crear la pregunta.")
 
     # ── ESTADISTICAS ─────────────────────────────────────────────────────────
     elif seccion == "estadisticas":
