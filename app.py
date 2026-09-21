@@ -713,14 +713,14 @@ def _render_admin_dashboard():
                     with c_card:
                         st.markdown(
                             f"<div style='display:flex;align-items:center;gap:14px;padding:13px 18px;"
-                            f"background:#fff;border:1px solid #e2e8f0;border-left:4px solid #8CC63F;"
+                            f"background:var(--bg-surface,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid #8CC63F;"
                             f"border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);'>"
                             f"<span style='font-size:0.7rem;font-weight:700;background:rgba(74,35,90,.08);"
                             f"color:#4a235a;padding:4px 8px;border-radius:4px;flex-shrink:0;'>{ext}</span>"
                             f"<div style='flex:1;overflow:hidden;'>"
-                            f"<div style='font-weight:600;font-size:0.92rem;color:#1e293b;"
+                            f"<div style='font-weight:600;font-size:0.92rem;color:var(--text-main,#1e293b);"
                             f"text-overflow:ellipsis;overflow:hidden;white-space:nowrap;'>{nombre_legible(nombre)}</div>"
-                            f"<div style='font-size:0.74rem;color:#94a3b8;margin-top:2px;'>Indexado en base vectorial RAG</div>"
+                            f"<div style='font-size:0.74rem;color:var(--text-muted,#94a3b8);margin-top:2px;'>Indexado en base vectorial RAG</div>"
                             f"</div></div>",
                             unsafe_allow_html=True
                         )
@@ -1035,7 +1035,7 @@ def _render_admin_dashboard():
                         )
                         st.plotly_chart(fig_vol, use_container_width=True)
                     else:
-                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin consultas en este periodo</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Las consultas aparecerán aquí al registrarse</p></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='border:2px dashed var(--border,#e2e8f0);border-radius:12px;padding:36px 20px;text-align:center;background:var(--bg-card,#fafbfc);margin:8px 0;'><p style='font-weight:600;color:var(--text-muted,#6b7280);margin:0;font-size:.88rem;'>Sin consultas en este periodo</p><p style='font-size:.75rem;color:var(--text-muted,#9ca3af);margin:4px 0 0;'>Las consultas aparecerán aquí al registrarse</p></div>", unsafe_allow_html=True)
 
                 with col_p:
                     if dist_niveles:
@@ -1055,7 +1055,7 @@ def _render_admin_dashboard():
                         )
                         st.plotly_chart(fig_pie, use_container_width=True)
                     else:
-                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin datos por nivel</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá al completar evaluaciones</p></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='border:2px dashed var(--border,#e2e8f0);border-radius:12px;padding:36px 20px;text-align:center;background:var(--bg-card,#fafbfc);margin:8px 0;'><p style='font-weight:600;color:var(--text-muted,#6b7280);margin:0;font-size:.88rem;'>Sin datos por nivel</p><p style='font-size:.75rem;color:var(--text-muted,#9ca3af);margin:4px 0 0;'>Aparecerá al completar evaluaciones</p></div>", unsafe_allow_html=True)
 
                 st.markdown("---")
 
@@ -1087,7 +1087,7 @@ def _render_admin_dashboard():
                         )
                         st.plotly_chart(fig_freq, use_container_width=True)
                     else:
-                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin temas frecuentes aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Los temas más consultados aparecerán aquí</p></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='border:2px dashed var(--border,#e2e8f0);border-radius:12px;padding:36px 20px;text-align:center;background:var(--bg-card,#fafbfc);margin:8px 0;'><p style='font-weight:600;color:var(--text-muted,#6b7280);margin:0;font-size:.88rem;'>Sin temas frecuentes aún</p><p style='font-size:.75rem;color:var(--text-muted,#9ca3af);margin:4px 0 0;'>Los temas más consultados aparecerán aquí</p></div>", unsafe_allow_html=True)
 
                 with col_pr:
                     if precision:
@@ -1115,7 +1115,7 @@ def _render_admin_dashboard():
                         )
                         st.plotly_chart(fig_prec, use_container_width=True)
                     else:
-                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin evaluaciones aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>La precisión aparecerá al evaluar respuestas</p></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='border:2px dashed var(--border,#e2e8f0);border-radius:12px;padding:36px 20px;text-align:center;background:var(--bg-card,#fafbfc);margin:8px 0;'><p style='font-weight:600;color:var(--text-muted,#6b7280);margin:0;font-size:.88rem;'>Sin evaluaciones aún</p><p style='font-size:.75rem;color:var(--text-muted,#9ca3af);margin:4px 0 0;'>La precisión aparecerá al evaluar respuestas</p></div>", unsafe_allow_html=True)
 
                 # ── FILA 3: Tendencia de aciertos ───────────────────────────────
                 if tend_aciertos:
@@ -1165,7 +1165,7 @@ def _render_admin_dashboard():
                         }
                     )
                 else:
-                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:10px;padding:30px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin historial de consultas</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá cuando los usuarios interactúen con Atena</p></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='border:2px dashed var(--border,#e2e8f0);border-radius:10px;padding:30px 20px;text-align:center;background:var(--bg-card,#fafbfc);margin:8px 0;'><p style='font-weight:600;color:var(--text-muted,#6b7280);margin:0;font-size:.88rem;'>Sin historial de consultas</p><p style='font-size:.75rem;color:var(--text-muted,#9ca3af);margin:4px 0 0;'>Aparecerá cuando los usuarios interactúen con Atena</p></div>", unsafe_allow_html=True)
 
         # ── SISTEMA ──────────────────────────────────────────────────────────────
     with tab_sis:
@@ -1366,7 +1366,7 @@ else:
                             texto_escapado = html_module.escape(fuente.get("fragmento", ""))
                             texto_limpio = formatear_evidencia_limpia(texto_escapado)
                             evidencias_lista.append(
-                                f"<div style='margin-bottom:14px;background:#ffffff;border:1px solid #e2e8f0;"
+                                f"<div style='margin-bottom:14px;background:var(--bg-surface,#ffffff);border:1px solid var(--border,#e2e8f0);"
                                 f"border-left:4px solid #8CC63F;border-radius:8px;padding:12px 16px;'>"
                                 f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>"
                                 f"<span style='font-weight:600;font-size:0.88rem;color:#1e293b;'>[{i}] {nombre_revista}</span>"
