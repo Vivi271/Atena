@@ -64,6 +64,7 @@ def render_sidebar(vs, disabled=False):
                 st.session_state.is_admin = False
                 st.rerun()
         st.info("☁️ Modo Nube: La gestión de documentos y vectores se maneja desde el servicio API (Docker). Aquí solo puedes consultar y evaluar.")
+        k_chunks = 5  # Valor por defecto en modo nube
     elif is_admin:
         col_adm1, col_adm2 = st.columns([3, 2])
         with col_adm1:
