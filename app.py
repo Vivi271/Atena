@@ -19,7 +19,8 @@ for _p in [_BACKEND_DIR, _COMPONENTS_DIR, ROOT]:
 # ── 1. Configuración de página (DEBE ser la primera instrucción de Streamlit) ──
 st.set_page_config(
     page_title="Atena — Consultor IA",
-    page_icon="🧠",
+    # page_icon sin emojis
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -38,37 +39,89 @@ if os.path.exists(CSS_PATH):
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
 
-# ── Inyección: pantalla de carga + modo + sidebar admin ──
-_dark = "dark" if st.session_state.dark_mode else "light"
-_is_admin_now = st.session_state.get("is_admin", False)
+# Inyección de estilos de modo oscuro (puro CSS, confiable y directo)
+if st.session_state.dark_mode:
+    st.markdown("""
+    <style>
+    :root {
+        --bg-base: #0d1117 !important;
+        --bg-surface: #161b22 !important;
+        --bg-card: #21262d !important;
+        --bg-hover: rgba(140, 198, 63, 0.12) !important;
+        --text-main: #f0f6fc !important;
+        --text-muted: #8b949e !important;
+        --border: #30363d !important;
+        --border-accent: rgba(140, 198, 63, 0.35) !important;
+    }
+    .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stHeader"],
+    section[data-testid="stSidebar"],
+    body {
+        background-color: #0d1117 !important;
+        color: #f0f6fc !important;
+    }
+    .atena-topbar {
+        background: #161b22 !important;
+        border-bottom: 1px solid #30363d !important;
+    }
+    .stButton > button {
+        background-color: #21262d !important;
+        color: #f0f6fc !important;
+        border-color: #30363d !important;
+    }
+    .stButton > button:hover {
+        background-color: #30363d !important;
+        border-color: #8CC63F !important;
+        color: #8CC63F !important;
+    }
+    .stButton > button[kind="primary"],
+    button[data-testid*="primary"] {
+        background-color: #4a235a !important;
+        color: #ffffff !important;
+        border-color: #6c3483 !important;
+    }
+    div[data-testid="stMetric"] {
+        background-color: #161b22 !important;
+        border: 1px solid #30363d !important;
+    }
+    div[data-testid="stMetricValue"], div[data-testid="stMetricLabel"] {
+        color: #f0f6fc !important;
+    }
+    .stTextInput input, .stTextArea textarea, .stSelectbox div {
+        background-color: #161b22 !important;
+        color: #f0f6fc !important;
+        border-color: #30363d !important;
+    }
+    div[data-testid="stExpander"] {
+        background-color: #161b22 !important;
+        border-color: #30363d !important;
+    }
+    div[data-testid="stChatMessage"] {
+        background-color: #161b22 !important;
+        border: 1px solid #30363d !important;
+    }
+    #atena-loader {
+        background: #0d1117 !important;
+    }
+    #atena-loader .loader-logo {
+        color: #f0f6fc !important;
+    }
+    #atena-loader .loader-sub {
+        color: #8b949e !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ── Pantalla de carga (desvanece automáticamente vía CSS en 1.2s sin bloquear) ──
+_loader_dark_cls = "dark" if st.session_state.dark_mode else ""
 st.markdown(f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<!-- Pantalla de carga -->
-<div id="atena-loader">
+<div id="atena-loader" class="{_loader_dark_cls}">
   <div class="loader-logo">Atena</div>
-  <div class="loader-sub">Consultor de Neuroanatom\u00eda &middot; Konrad Lorenz</div>
+  <div class="loader-sub">Consultor de Neuroanatomia &middot; Konrad Lorenz</div>
   <div class="loader-bar"><div class="loader-bar-fill"></div></div>
 </div>
-
-<script>
-(function(){{
-  // Aplicar tema
-  document.documentElement.setAttribute('data-theme', '{_dark}');
-  document.body.setAttribute('data-theme', '{_dark}');
-
-  // Colapsar sidebar si es admin
-  if ({'true' if _is_admin_now else 'false'}) {{
-    document.body.setAttribute('data-admin', 'true');
-  }}
-
-  // Quitar loader despues de 2.2s
-  setTimeout(function(){{
-    var loader = document.getElementById('atena-loader');
-    if (loader) loader.style.display = 'none';
-  }}, 2200);
-}})();
-</script>
 """, unsafe_allow_html=True)
 
 # ── 3. Inicialización de Estado ──
@@ -110,9 +163,9 @@ def consultar_via_api(pregunta: str, nivel: str = "Principiante", k: int = 6):
             data = response.json()
             return data.get("respuesta", ""), data.get("fuentes", [])
     except httpx.TimeoutException:
-        return "⏳ El servidor tardó demasiado en responder. Por favor, intenta de nuevo.", []
+        return "El servidor tardó demasiado en responder. Por favor, intenta de nuevo.", []
     except Exception as exc:
-        return f"❌ Error al contactar el sistema RAG: {exc}", []
+        return f"Error al contactar el sistema RAG: {exc}", []
 
 # Vector store no disponible en modo ligero (vs = None)
 vs = None
@@ -248,9 +301,37 @@ def mostrar_evaluacion(nivel):
                     st.session_state.pop(f"dlg_q_logged_{p['id']}", None)
                 st.rerun()
 
+# ── Ventanita Pequeña de Consultor IA (Modal Dialog) ─────────────────────────
+@st.dialog("Consultor IA — Atena", width="large")
+def _dialog_consultor_ia():
+    st.caption("Nivel Avanzado — Conectado a la base de conocimientos RAG")
+    if "adm_chat_msgs" not in st.session_state:
+        st.session_state.adm_chat_msgs = []
+
+    chat_box = st.container(height=380)
+    with chat_box:
+        if not st.session_state.adm_chat_msgs:
+            st.info("Escribe tu consulta sobre neuroanatomía para interactuar con Atena.")
+        for _m in st.session_state.adm_chat_msgs:
+            with st.chat_message(_m["role"]):
+                st.markdown(_m["content"])
+                if _m.get("fuentes"):
+                    with st.expander("Fuentes bibliográficas"):
+                        for _i, _f in enumerate(_m["fuentes"], 1):
+                            st.caption(f"[{_i}] {nombre_legible(_f.get('fuente',''))} — Pág. {_f.get('pagina','?')}")
+
+    _q = st.chat_input("Escribe tu consulta...", key="adm_dlg_chat_input")
+    if _q:
+        st.session_state.adm_chat_msgs.append({"role": "user", "content": _q})
+        with st.spinner("Consultando..."):
+            _resp, _fuentes = consultar_via_api(_q, nivel="Avanzado", k=5)
+        st.session_state.adm_chat_msgs.append({"role": "assistant", "content": _resp, "fuentes": _fuentes})
+        st.rerun()
+
+
 # ── Panel de Administración ───────────────────────────────────────────────────
 def _render_admin_dashboard():
-    """Panel de administración. Secciones: Documentos | Preguntas | Sistema."""
+    """Panel de administración. Secciones: Documentos | Preguntas | Estadísticas | Sistema."""
     ATENA_API_URL = os.environ.get("ATENA_API_URL", "https://atena-vugz.onrender.com").rstrip("/")
     ADMIN_PIN_ENV = st.session_state.get("adm_pin_activo", os.environ.get("ADMIN_PIN", "12345"))
 
@@ -268,57 +349,53 @@ def _render_admin_dashboard():
         st.session_state.adm_seccion = "documentos"
 
     # ── Topbar profesional ────────────────────────────────────────────────────
-    modo_icon = "Modo claro" if st.session_state.dark_mode else "Modo oscuro"
-    st.markdown(f"""
+    st.markdown("""
     <div class="atena-topbar">
-        <div class="topbar-brand"><span></span>Atena</div>
-        <div class="topbar-badge">Panel de Administracion</div>
-        <div class="topbar-spacer"></div>
-        <div class="topbar-user">Administrador activo</div>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-family:'Outfit',sans-serif; font-size:1.35rem; font-weight:700; color:var(--text-main, #1e293b); letter-spacing:-0.5px;">Atena</span>
+            <span style="color:var(--text-muted, #94a3b8); font-size:0.9rem;">|</span>
+            <span style="font-size:0.85rem; font-weight:500; color:var(--text-muted, #64748b);">Panel de Administracion</span>
+        </div>
+        <div style="flex:1;"></div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.8rem; padding:4px 10px; border-radius:20px; background:rgba(140,198,63,0.12); color:#7ab332; font-weight:600; border:1px solid rgba(140,198,63,0.3);">
+                Administrador Activo
+            </span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Fila: navegacion + acciones
-    nav_c1, nav_c2, nav_c3, nav_c4, nav_chat, nav_toggle = st.columns([2, 2, 2, 2, 1, 1])
-    secciones = [
-        ("documentos",   "Documentos",       nav_c1),
-        ("preguntas",    "Banco de Preguntas",nav_c2),
-        ("estadisticas", "Estadisticas",      nav_c3),
-        ("sistema",      "Sistema",           nav_c4),
-    ]
-    for key, label, col in secciones:
-        with col:
-            tipo = "primary" if st.session_state.adm_seccion == key else "secondary"
-            if st.button(label, key=f"adm_nav_{key}", use_container_width=True, type=tipo):
-                st.session_state.adm_seccion = key
+    # Barra de navegación limpia y equilibrada
+    col_tabs, col_actions = st.columns([5.5, 3.5])
+
+    with col_tabs:
+        t1, t2, t3, t4 = st.columns(4)
+        secciones = [
+            ("documentos",   "Documentos",        t1),
+            ("preguntas",    "Banco de Preguntas",t2),
+            ("estadisticas", "Estadisticas",      t3),
+            ("sistema",      "Sistema",           t4),
+        ]
+        for key, label, col in secciones:
+            with col:
+                tipo = "primary" if st.session_state.adm_seccion == key else "secondary"
+                if st.button(label, key=f"adm_nav_{key}", use_container_width=True, type=tipo):
+                    st.session_state.adm_seccion = key
+                    st.rerun()
+
+    with col_actions:
+        a_chat, a_theme, a_logout = st.columns([1.2, 1.2, 1.1])
+        with a_chat:
+            if st.button("Consultor IA", key="btn_open_dialog_chat", use_container_width=True):
+                _dialog_consultor_ia()
+        with a_theme:
+            modo_icon = "Modo claro" if st.session_state.dark_mode else "Modo oscuro"
+            if st.button(modo_icon, key="adm_toggle_dark", use_container_width=True):
+                st.session_state.dark_mode = not st.session_state.dark_mode
                 st.rerun()
-    with nav_toggle:
-        if st.button(modo_icon, key="adm_toggle_dark", use_container_width=True):
-            st.session_state.dark_mode = not st.session_state.dark_mode
-            st.rerun()
-    with nav_chat:
-        with st.popover("Consultor IA", use_container_width=True):
-            st.markdown("**Consultor de Neuroanatomia**")
-            st.caption("Nivel Avanzado — conectado al sistema RAG")
-            if "adm_chat_msgs" not in st.session_state:
-                st.session_state.adm_chat_msgs = []
-            # Mostrar historial
-            chat_box = st.container(height=320)
-            with chat_box:
-                for _m in st.session_state.adm_chat_msgs:
-                    with st.chat_message(_m["role"]):
-                        st.markdown(_m["content"])
-            # Input
-            _q = st.chat_input("Escribe tu consulta...", key="adm_pop_input")
-            if _q:
-                st.session_state.adm_chat_msgs.append({"role": "user", "content": _q})
-                with st.spinner("Consultando..."):
-                    _resp, _fuentes = consultar_via_api(_q, nivel="Avanzado", k=5)
-                st.session_state.adm_chat_msgs.append({"role": "assistant", "content": _resp})
-                if _fuentes:
-                    with st.expander("Fuentes"):
-                        for _i, _f in enumerate(_fuentes, 1):
-                            st.caption(f"[{_i}] {nombre_legible(_f.get('fuente',''))} — Pag. {_f.get('pagina','?')}")
+        with a_logout:
+            if st.button("Cerrar sesion", key="adm_btn_logout_top", use_container_width=True):
+                st.session_state.is_admin = False
                 st.rerun()
 
     st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
@@ -398,7 +475,7 @@ def _render_admin_dashboard():
             if docs:
                 for doc in docs:
                     nombre = doc["nombre"]
-                    c_n, c_d = st.columns([7, 1])
+                    c_n, c_d = st.columns([5, 1.5])
                     with c_n:
                         st.markdown(
                             f"<div style='padding:7px 12px; background:#f8fafc; border-radius:6px; "
@@ -408,7 +485,7 @@ def _render_admin_dashboard():
                             unsafe_allow_html=True
                         )
                     with c_d:
-                        if st.button("Eliminar", key=f"adm_del_{nombre}", help=f"Eliminar {nombre_legible(nombre)}"):
+                        if st.button("Eliminar", key=f"adm_del_{nombre}", use_container_width=True, help=f"Eliminar {nombre_legible(nombre)}"):
                             st.session_state["adm_pending_del"] = nombre
 
                 if st.session_state.get("adm_pending_del"):
@@ -823,45 +900,48 @@ def _render_admin_dashboard():
 
 
     
-# ── 4. Renderizar Componentes de UI ──
-
+# ── 4. Enrutamiento principal: Admin vs Chat de Usuario ──────────────────────
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = []
 
-with st.sidebar:
-    nivel, k_chunks, is_admin, lanzar_evaluacion, vs = render_sidebar(vs, disabled=st.session_state.is_generating)
+is_admin = st.session_state.get("is_admin", False)
 
-# Activar dialog de autoevaluación si se pulsó el botón
-if lanzar_evaluacion:
-    mostrar_evaluacion(nivel)
-
-# ── Enrutamiento principal: Admin vs Chat ────────────────────────────────────
 if is_admin:
-    # Colapsar sidebar con CSS (metodo confiable en Streamlit)
+    # Ocultar completamente el sidebar de Streamlit en modo administrador para aprovechar el 100% del ancho
     st.markdown("""
     <style>
-    section[data-testid="stSidebar"] {
+    section[data-testid="stSidebar"],
+    div[data-testid="stSidebarCollapsedControl"],
+    button[data-testid="baseButton-headerNoPadding"] {
         display: none !important;
-        width: 0 !important;
-        min-width: 0 !important;
+        width: 0px !important;
+        min-width: 0px !important;
     }
-    section[data-testid="stSidebar"] + div[class] {
-        margin-left: 0 !important;
-        padding-left: 0 !important;
-    }
-    .block-container {
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-        max-width: 100% !important;
+    .main .block-container {
+        padding-top: 1.2rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 1400px !important;
+        margin: 0 auto !important;
     }
     </style>
     """, unsafe_allow_html=True)
     _render_admin_dashboard()
 
 else:
+    # Renderizar el sidebar únicamente para usuarios normales
+    with st.sidebar:
+        nivel, k_chunks, is_admin_sidebar, lanzar_evaluacion, vs = render_sidebar(vs, disabled=st.session_state.is_generating)
+
+    if is_admin_sidebar:
+        st.session_state.is_admin = True
+        st.rerun()
+
+    if lanzar_evaluacion:
+        mostrar_evaluacion(nivel)
     # ── Interfaz de Chat para usuarios ───────────────────────────────────────
     clase_vacio = "chat-vacio" if len(st.session_state.mensajes) == 0 else "chat-con-mensajes"
-    st.markdown(f"<h2 class='main-title {clase_vacio}'>Consultor IA Neuroanatomía</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 class='main-title {clase_vacio}'>Consultor de Neuroanatomía</h2>", unsafe_allow_html=True)
 
     # Capturar input ANTES de renderizar historial
     pregunta_usuario = st.chat_input(
@@ -879,7 +959,7 @@ else:
                 <div style="text-align: center; padding: 48px 24px; max-width: 680px; margin: 20px auto;
                             background: rgba(255,255,255,0.6); border-radius: 16px;
                             border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);">
-                    <div style="font-size: 3rem; margin-bottom: 16px;">🧠</div>
+                    <div style="margin-bottom: 14px;"><span style="font-family:'Outfit',sans-serif; font-size: 2.2rem; font-weight: 700; color: #4a235a; letter-spacing: -0.5px;">Atena</span></div>
                     <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 700; margin-bottom: 10px;">
                         Consultor Académico de Neuroanatomía
                     </h2>
@@ -910,7 +990,7 @@ else:
                         st.markdown(msg["evidencia_html"], unsafe_allow_html=True)
                 if msg.get("reporte"):
                     st.download_button(
-                        label="📥 Descargar Reporte",
+                        label="Descargar Reporte",
                         data=msg["reporte"],
                         file_name="consulta_atena.txt",
                         mime="text/plain",
@@ -987,7 +1067,7 @@ else:
                                 f"<div style='margin-bottom:14px;background:#ffffff;border:1px solid #e2e8f0;"
                                 f"border-left:4px solid #8CC63F;border-radius:8px;padding:12px 16px;'>"
                                 f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>"
-                                f"<span style='font-weight:600;font-size:0.88rem;color:#1e293b;'>📖 [{i}] {nombre_revista}</span>"
+                                f"<span style='font-weight:600;font-size:0.88rem;color:#1e293b;'>[{i}] {nombre_revista}</span>"
                                 f"<span style='background:#f1f5f9;color:#475569;font-size:0.76rem;padding:2px 8px;border-radius:10px;'>Pág. {pagina}</span>"
                                 f"</div><div style='font-size:0.86rem;color:#334155;line-height:1.6;'>{texto_limpio}</div></div>"
                             )
@@ -1006,7 +1086,7 @@ else:
                             f"FUENTES:\n" + "\n".join(fuentes_txt_lista) + "\n\n========================================="
                         )
                         st.download_button(
-                            label="📥 Descargar Reporte",
+                            label="Descargar Reporte",
                             data=reporte_txt,
                             file_name="consulta_atena.txt",
                             mime="text/plain",

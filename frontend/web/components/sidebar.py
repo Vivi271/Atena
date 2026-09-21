@@ -39,7 +39,7 @@ def render_sidebar(vs, disabled=False):
     """, unsafe_allow_html=True)
 
     if disabled:
-        st.info("⏳ Consulta en progreso...")
+        st.info("Consulta en progreso...")
 
     # ══════════════════════════════════════════════════════════════
     # MODO ADMIN: sidebar mínimo — solo estado y logout
@@ -55,7 +55,7 @@ def render_sidebar(vs, disabled=False):
             margin-bottom: 12px;
         ">
             <div style="font-size:0.85rem; font-weight:700; color:#22c55e; margin-bottom:4px;">
-                🔓 Administrador Activo
+                Administrador Activo
             </div>
             <div style="font-size:0.75rem; color:#94a3b8;">
                 Panel completo en el área principal →
@@ -123,9 +123,9 @@ def render_sidebar(vs, disabled=False):
 
     # ── Login administrador ────────────────────────────────────────
     st.markdown("---")
-    with st.expander("🔐 Acceso Administrador", expanded=False):
+    with st.expander("Acceso Administrador", expanded=False):
         if disabled:
-            st.caption("⏳ Espera a que termine la consulta...")
+            st.caption("Espera a que termine la consulta...")
         with st.form("admin_login_form", clear_on_submit=False):
             pin_input = st.text_input(
                 "PIN de acceso:",
