@@ -1,7 +1,5 @@
 """
 sidebar.py — Panel lateral de Atena RAG
-Modo admin: solo muestra logo + logout + acceso para usuarios normales
-El panel admin completo está en el área principal (app.py)
 """
 import streamlit as st
 import os
@@ -9,10 +7,9 @@ import html as html_module
 
 def render_sidebar(vs, disabled=False):
     """
-    Renderiza la barra lateral.
-    Cuando el admin está activo, el sidebar es mínimo (el panel admin está en el área principal).
+    Renderiza la barra lateral para Administrador o Usuario normal.
+    Incluye el toggle de modo claro/oscuro en la parte inferior del panel.
     """
-    # ── Intentar importar módulos locales
     try:
         from config import ADMIN_PIN, nombre_legible
     except ImportError:
@@ -27,7 +24,7 @@ def render_sidebar(vs, disabled=False):
         _DB_AVAILABLE = False
         obtener_niveles = None
 
-    is_admin = st.session_state.is_admin
+    is_admin = st.session_state.get("is_admin", False)
 
     # ── Logo Konrad Lorenz ──────────────────────────────────────────────────────
     st.markdown("""
@@ -42,46 +39,51 @@ def render_sidebar(vs, disabled=False):
         st.info("Consulta en progreso...")
 
     # ══════════════════════════════════════════════════════════════
-    # MODO ADMIN: sidebar mínimo — solo estado y logout
-    # El panel completo está en el área principal (app.py)
+    # MODO ADMIN: estado + cerrar sesión + modo oscuro al final
     # ══════════════════════════════════════════════════════════════
     if is_admin:
         st.markdown("""
         <div style="
-            background: rgba(34,197,94,0.1);
-            border: 1px solid rgba(34,197,94,0.3);
+            background: rgba(140,198,63,0.12);
+            border: 1px solid rgba(140,198,63,0.3);
             border-radius: 10px;
-            padding: 12px 16px;
-            margin-bottom: 12px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
         ">
-            <div style="font-size:0.85rem; font-weight:700; color:#22c55e; margin-bottom:4px;">
+            <div style="font-size:0.85rem; font-weight:700; color:#8CC63F; margin-bottom:4px;">
                 Administrador Activo
             </div>
             <div style="font-size:0.75rem; color:#94a3b8;">
-                Panel completo en el área principal →
+                Gestión de documentos, preguntas y estadísticas.
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("Salir del modo Admin", key="logout_admin", use_container_width=True):
+        if st.button("Cerrar sesión de Admin", key="logout_admin_sidebar", use_container_width=True):
             st.session_state.is_admin = False
             st.rerun()
 
-        # k_chunks por defecto para modo admin
+        # Separador y controles inferiores
+        st.markdown("<div style='height: 180px;'></div>", unsafe_allow_html=True)
+        st.markdown("---")
+        modo_txt = "Modo claro" if st.session_state.get("dark_mode", False) else "Modo oscuro"
+        if st.button(modo_txt, key="sidebar_dark_toggle_admin", use_container_width=True):
+            st.session_state.dark_mode = not st.session_state.get("dark_mode", False)
+            st.rerun()
+
         k_chunks = 5
         nivel = "Avanzado"
         lanzar_evaluacion = False
         return nivel, k_chunks, is_admin, lanzar_evaluacion, vs
 
     # ══════════════════════════════════════════════════════════════
-    # MODO USUARIO NORMAL: perfil + evaluación + historial + login
+    # MODO USUARIO NORMAL: perfil + evaluación + historial + login + modo oscuro
     # ══════════════════════════════════════════════════════════════
 
     # ── Perfil de usuario ──────────────────────────────────────────
     st.markdown("---")
     st.markdown("### Perfil de Usuario")
 
-    # Sincronizar niveles desde Supabase; fallback a opciones hardcoded
     opciones_nivel = ["Principiante", "Avanzado", "General"]
     if _DB_AVAILABLE and obtener_niveles:
         try:
@@ -109,7 +111,7 @@ def render_sidebar(vs, disabled=False):
     )
 
     # ── Historial reciente ─────────────────────────────────────────
-    if st.session_state.historial:
+    if st.session_state.get("historial"):
         st.markdown("---")
         st.markdown("### Consultas Recientes")
         for h in reversed(st.session_state.historial[-5:]):
@@ -146,6 +148,13 @@ def render_sidebar(vs, disabled=False):
                     st.rerun()
                 else:
                     st.error("PIN incorrecto")
+
+    # ── Toggle de modo oscuro en la parte inferior del panel ──
+    st.markdown("---")
+    modo_txt = "Modo claro" if st.session_state.get("dark_mode", False) else "Modo oscuro"
+    if st.button(modo_txt, key="sidebar_dark_toggle_user", use_container_width=True):
+        st.session_state.dark_mode = not st.session_state.get("dark_mode", False)
+        st.rerun()
 
     k_chunks = 5
     return nivel, k_chunks, is_admin, lanzar_evaluacion, vs

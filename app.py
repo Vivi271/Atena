@@ -373,34 +373,19 @@ def _render_admin_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
-    # Barra de navegación limpia y equilibrada
-    col_tabs, col_actions = st.columns([6, 2.5])
-
-    with col_tabs:
-        t1, t2, t3, t4 = st.columns(4)
-        secciones = [
-            ("documentos",   "Documentos",        t1),
-            ("preguntas",    "Banco de Preguntas",t2),
-            ("estadisticas", "Estadisticas",      t3),
-            ("sistema",      "Sistema",           t4),
-        ]
-        for key, label, col in secciones:
-            with col:
-                tipo = "primary" if st.session_state.adm_seccion == key else "secondary"
-                if st.button(label, key=f"adm_nav_{key}", use_container_width=True, type=tipo):
-                    st.session_state.adm_seccion = key
-                    st.rerun()
-
-    with col_actions:
-        a_theme, a_logout = st.columns([1.2, 1.1])
-        with a_theme:
-            modo_icon = "Modo claro" if st.session_state.dark_mode else "Modo oscuro"
-            if st.button(modo_icon, key="adm_toggle_dark", use_container_width=True):
-                st.session_state.dark_mode = not st.session_state.dark_mode
-                st.rerun()
-        with a_logout:
-            if st.button("Cerrar sesion", key="adm_btn_logout_top", use_container_width=True):
-                st.session_state.is_admin = False
+    # Barra de navegación limpia con las 4 secciones principales
+    t1, t2, t3, t4 = st.columns(4)
+    secciones = [
+        ("documentos",   "Documentos",        t1),
+        ("preguntas",    "Banco de Preguntas",t2),
+        ("estadisticas", "Estadisticas",      t3),
+        ("sistema",      "Sistema",           t4),
+    ]
+    for key, label, col in secciones:
+        with col:
+            tipo = "primary" if st.session_state.adm_seccion == key else "secondary"
+            if st.button(label, key=f"adm_nav_{key}", use_container_width=True, type=tipo):
+                st.session_state.adm_seccion = key
                 st.rerun()
 
     st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
@@ -900,47 +885,59 @@ def _render_admin_dashboard():
                     st.session_state["adm_pin_activo"] = pin_nuevo
                     st.success("PIN actualizado para esta sesion.")
 
-    # ── Chatbot Flotante Inferior Derecho (Estilo Intercom / Web Chatbot) ──
+    # ── Chatbot Flotante Inferior Derecho (Estilo Tidio / Pandorabots) ──
     st.markdown('''
     <style>
-    /* Trigger del chatbot flotante abajo a la derecha */
+    /* Trigger del chatbot flotante fijado en esquina inferior derecha */
     div[data-testid="stPopover"] {
         position: fixed !important;
-        bottom: 24px !important;
-        right: 24px !important;
-        z-index: 99999 !important;
+        bottom: 20px !important;
+        right: 20px !important;
+        left: auto !important;
+        top: auto !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 999999 !important;
     }
     div[data-testid="stPopover"] > button {
         border-radius: 50px !important;
         background: #4a235a !important;
         color: #ffffff !important;
-        padding: 12px 24px !important;
-        font-size: 0.95rem !important;
+        padding: 10px 20px !important;
+        font-size: 0.88rem !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 20px rgba(74, 35, 90, 0.45) !important;
+        box-shadow: 0 4px 16px rgba(74, 35, 90, 0.4) !important;
         border: 2px solid #8CC63F !important;
         cursor: pointer !important;
-        transition: all 0.2s ease !important;
+        width: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
     }
     div[data-testid="stPopover"] > button:hover {
         transform: scale(1.05) !important;
-        box-shadow: 0 8px 28px rgba(74, 35, 90, 0.6) !important;
+        box-shadow: 0 6px 24px rgba(74, 35, 90, 0.55) !important;
         background: #6c3483 !important;
         color: #ffffff !important;
     }
     div[data-testid="stPopoverBody"] {
         position: fixed !important;
-        bottom: 84px !important;
-        right: 24px !important;
-        width: 390px !important;
-        max-width: calc(100vw - 48px) !important;
-        height: 520px !important;
-        max-height: calc(100vh - 110px) !important;
+        bottom: 74px !important;
+        right: 20px !important;
+        left: auto !important;
+        top: auto !important;
+        width: 340px !important;
+        max-width: calc(100vw - 40px) !important;
+        height: 460px !important;
+        max-height: calc(100vh - 95px) !important;
         border-radius: 16px !important;
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22) !important;
         border: 1px solid var(--border, #e2e8f0) !important;
         background: var(--bg-surface, #ffffff) !important;
-        z-index: 99999 !important;
+        z-index: 999999 !important;
+        padding: 12px 12px 6px !important;
         overflow-y: auto !important;
     }
     </style>
@@ -949,10 +946,11 @@ def _render_admin_dashboard():
     with st.popover("Chat IA"):
         st.markdown(
             '''
-            <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(0,0,0,0.08); padding-bottom:8px; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:10px; background:#4a235a; padding:10px 12px; border-radius:10px; margin-bottom:8px; color:#ffffff;">
+                <div style="width:32px; height:32px; border-radius:50%; background:#8CC63F; display:flex; align-items:center; justify-content:center; font-weight:700; color:#4a235a; font-size:0.95rem;">A</div>
                 <div>
-                    <div style="font-weight:700; font-size:1.05rem; color:#4a235a;" translate="no" class="notranslate">Atena — Consultor IA</div>
-                    <div style="font-size:0.75rem; color:#64748b;">Especialista en Neuroanatomía (RAG)</div>
+                    <div style="font-weight:700; font-size:0.9rem; color:#ffffff; line-height:1.2;" translate="no" class="notranslate">Atena — Consultor IA</div>
+                    <div style="font-size:0.72rem; color:#d8b4e2; margin-top:2px;">Asistente de Neuroanatomía</div>
                 </div>
             </div>
             ''',
@@ -961,7 +959,7 @@ def _render_admin_dashboard():
         if "adm_chat_msgs" not in st.session_state:
             st.session_state.adm_chat_msgs = []
 
-        chat_feed = st.container(height=340)
+        chat_feed = st.container(height=280)
         with chat_feed:
             if not st.session_state.adm_chat_msgs:
                 st.info("Hola, soy Atena. Escribe tu consulta para revisar la literatura médica indexada.")
@@ -973,7 +971,7 @@ def _render_admin_dashboard():
                             for _i, _f in enumerate(_m["fuentes"], 1):
                                 st.caption(f"[{_i}] {nombre_legible(_f.get('fuente',''))} — Pág. {_f.get('pagina','?')}")
 
-        _q = st.chat_input("Escribe tu consulta...", key="adm_floating_chat_input")
+        _q = st.chat_input("Escribe un mensaje...", key="adm_floating_chat_input")
         if _q:
             st.session_state.adm_chat_msgs.append({"role": "user", "content": _q})
             with st.spinner("Consultando literatura..."):
@@ -982,43 +980,22 @@ def _render_admin_dashboard():
             st.rerun()
 
 
-# ── 4. Enrutamiento principal: Admin vs Chat de Usuario ──────────────────────
+# ── 4. Enrutamiento principal: Sidebar siempre presente + Admin vs Chat ───────
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = []
+
+with st.sidebar:
+    nivel, k_chunks, is_admin_sidebar, lanzar_evaluacion, vs = render_sidebar(vs, disabled=st.session_state.is_generating)
+
+if is_admin_sidebar != st.session_state.get("is_admin", False):
+    st.session_state.is_admin = is_admin_sidebar
+    st.rerun()
 
 is_admin = st.session_state.get("is_admin", False)
 
 if is_admin:
-    # Ocultar completamente el sidebar de Streamlit en modo administrador para aprovechar el 100% del ancho
-    st.markdown("""
-    <style>
-    section[data-testid="stSidebar"],
-    div[data-testid="stSidebarCollapsedControl"],
-    button[data-testid="baseButton-headerNoPadding"] {
-        display: none !important;
-        width: 0px !important;
-        min-width: 0px !important;
-    }
-    .main .block-container {
-        padding-top: 1.2rem !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-        max-width: 1400px !important;
-        margin: 0 auto !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
     _render_admin_dashboard()
-
 else:
-    # Renderizar el sidebar únicamente para usuarios normales
-    with st.sidebar:
-        nivel, k_chunks, is_admin_sidebar, lanzar_evaluacion, vs = render_sidebar(vs, disabled=st.session_state.is_generating)
-
-    if is_admin_sidebar:
-        st.session_state.is_admin = True
-        st.rerun()
-
     if lanzar_evaluacion:
         mostrar_evaluacion(nivel)
     # ── Interfaz de Chat para usuarios ───────────────────────────────────────

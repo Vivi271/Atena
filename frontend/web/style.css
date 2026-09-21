@@ -1,3 +1,14 @@
+
+/* ══════════════════════════════════════════════
+   ANTI-STALE: Evitar que Streamlit opaque/blanquee la pantalla al consultar
+══════════════════════════════════════════════ */
+[data-stale="true"],
+.stale-element,
+div[data-testid="stAppViewContainer"] [data-stale="true"] {
+    opacity: 1 !important;
+    filter: none !important;
+    transition: none !important;
+}
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
 /* ══════════════════════════════════════════════
@@ -132,20 +143,7 @@ footer    { visibility: hidden; }
 .stDeployButton { display: none !important; }
 header[data-testid="stHeader"] { background: transparent !important; }
 
-/* Admin mode: collapse sidebar to nearly zero */
-body[data-admin="true"] section[data-testid="stSidebar"] {
-    width: 0 !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-}
-body[data-admin="true"] section[data-testid="stSidebar"] > div {
-    display: none !important;
-}
-body[data-admin="true"] .block-container {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-}
+/* Sidebar siempre visible */
 
 /* ══════════════════════════════════════════════
    TOP ADMIN BAR
