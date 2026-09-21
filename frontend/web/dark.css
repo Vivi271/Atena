@@ -1,0 +1,338 @@
+/* ══════════════════════════════════════════════════════════════
+   ATENA — SISTEMA DE DISEÑO MODO OSCURO (dark.css)
+   Cubre el 100% de la aplicación sin dejar elementos en blanco
+══════════════════════════════════════════════════════════════ */
+
+:root, html, body, .stApp {
+    --primary: #8CC63F;
+    --primary-light: #7ab332;
+    --accent: #8CC63F;
+    --accent-dark: #7ab332;
+    --bg-base: #0d1117;
+    --bg-surface: #161b22;
+    --bg-sidebar: #161b22;
+    --bg-card: #21262d;
+    --bg-hover: rgba(140, 198, 63, 0.12);
+    --text-main: #f0f6fc;
+    --text-muted: #8b949e;
+    --text-inverse: #0d1117;
+    --border: #30363d;
+    --border-accent: rgba(140, 198, 63, 0.35);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.6);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.6);
+}
+
+/* Base de aplicación y sidebar */
+html, body, .stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stHeader"],
+section[data-testid="stSidebar"] {
+    background-color: #0d1117 !important;
+    background: #0d1117 !important;
+    color: #f0f6fc !important;
+}
+
+.block-container,
+[data-testid="stMainBlockContainer"],
+[data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"] {
+    background-color: transparent !important;
+    color: #f0f6fc !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FRANJA INFERIOR DEL CHAT (CERO BLANCO EN LA PARTE INFERIOR)
+══════════════════════════════════════════════════════════════ */
+div[data-testid="stBottom"],
+div[data-testid="stBottom"] > div,
+div[data-testid="stBottom"] div[class*="stChatFloatingInputContainer"],
+div[class*="stChatFloatingInputContainer"],
+div[data-testid="stChatInputContainer"],
+div[class*="bottomBar"],
+footer {
+    background-color: #0d1117 !important;
+    background: #0d1117 !important;
+    border-color: #30363d !important;
+}
+
+/* Caja de entrada del chat */
+div[data-testid="stChatInput"] {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+div[data-testid="stChatInput"] > div {
+    background-color: #161b22 !important;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 24px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+}
+div[data-testid="stChatInput"] > div:focus-within {
+    border-color: #8CC63F !important;
+    box-shadow: 0 0 0 3px rgba(140,198,63,0.18) !important;
+}
+div[data-testid="stChatInput"] textarea {
+    background-color: transparent !important;
+    color: #f0f6fc !important;
+    -webkit-text-fill-color: #f0f6fc !important;
+}
+div[data-testid="stChatInput"] button {
+    color: #8CC63F !important;
+    background: transparent !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TARJETA DE BIENVENIDA (CENTRO DE PANTALLA)
+══════════════════════════════════════════════════════════════ */
+.atena-hero-card {
+    background-color: #161b22 !important;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
+    padding: 48px 24px !important;
+    max-width: 680px !important;
+    margin: 20px auto !important;
+    text-align: center !important;
+}
+.atena-hero-brand {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    color: #8CC63F !important;
+    letter-spacing: -0.5px !important;
+}
+.atena-hero-title,
+.atena-hero-card h2 {
+    color: #f0f6fc !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 10px !important;
+}
+.atena-hero-desc,
+.atena-hero-card p {
+    color: #8b949e !important;
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 0 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DATE INPUTS Y CONTENEDORES BASEWEB (COBERTURA TOTAL)
+══════════════════════════════════════════════════════════════ */
+div[data-testid="stDateInput"],
+div[data-testid="stDateInput"] *,
+div[data-baseweb="datepicker"],
+div[data-baseweb="datepicker"] *,
+div[data-baseweb="base-input"],
+div[data-baseweb="base-input"] *,
+div[data-baseweb="input"],
+div[data-baseweb="input"] *,
+.stTextInput div,
+.stNumberInput div,
+.stTextArea div {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+    color: #e6edf3 !important;
+    fill: #e6edf3 !important;
+}
+
+input, textarea,
+div[data-testid="stDateInput"] input,
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input {
+    background-color: #161b22 !important;
+    color: #e6edf3 !important;
+    -webkit-text-fill-color: #e6edf3 !important;
+    border-color: #30363d !important;
+    caret-color: #8CC63F !important;
+}
+
+/* Botones e iconos dentro de inputs (ojo contraseñas, icono calendario) */
+div[data-baseweb="input"] button,
+div[data-baseweb="base-input"] button,
+div[data-testid="stDateInput"] button,
+div[data-testid="stTextInput"] button {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    color: #e6edf3 !important;
+    fill: #e6edf3 !important;
+}
+div[data-baseweb="input"] svg,
+div[data-baseweb="base-input"] svg,
+div[data-testid="stDateInput"] svg {
+    fill: #e6edf3 !important;
+    color: #e6edf3 !important;
+}
+
+/* Calendario emergente */
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] *,
+div[data-baseweb="calendar"],
+div[data-baseweb="calendar"] *,
+div[role="dialog"],
+div[role="dialog"] * {
+    background-color: #161b22 !important;
+    color: #e6edf3 !important;
+    border-color: #30363d !important;
+}
+div[data-baseweb="calendar"] [aria-selected="true"],
+div[data-baseweb="calendar"] button[aria-selected="true"] {
+    background: linear-gradient(135deg, #4a235a, #6c3483) !important;
+    color: #ffffff !important;
+}
+div[data-baseweb="calendar"] button:hover {
+    background-color: #30363d !important;
+    color: #8CC63F !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SELECTBOX, MENUS Y RADIOS
+══════════════════════════════════════════════════════════════ */
+div[data-baseweb="select"] *,
+div[data-testid="stSelectbox"] *,
+div[data-testid="stMultiSelect"] *,
+[data-baseweb="menu"],
+[data-baseweb="menu"] li {
+    background-color: #21262d !important;
+    color: #e6edf3 !important;
+    border-color: #30363d !important;
+}
+div[data-baseweb="select"] [class*="ValueContainer"],
+div[data-baseweb="select"] [class*="control"] {
+    background-color: #161b22 !important;
+}
+div[data-testid="stRadio"] label,
+div[data-testid="stCheckbox"] label,
+div[data-testid="stRadio"] p,
+div[data-testid="stCheckbox"] p {
+    color: #e6edf3 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BOTONES Y TABS
+══════════════════════════════════════════════════════════════ */
+button,
+.stButton > button,
+div[data-testid="stFormSubmitButton"] > button,
+div[data-testid="stDownloadButton"] > button,
+div[data-testid="stBaseButton-secondary"] > button,
+div[data-testid="stBaseButton-secondary"] {
+    background-color: #21262d !important;
+    color: #e6edf3 !important;
+    border: 1px solid #30363d !important;
+}
+button:hover,
+.stButton > button:hover {
+    background-color: #30363d !important;
+    border-color: #8CC63F !important;
+    color: #8CC63F !important;
+}
+button[kind="primary"],
+.stButton > button[kind="primary"],
+div[data-testid="stBaseButton-primary"] > button,
+div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg, #4a235a, #6c3483) !important;
+    color: #ffffff !important;
+    border-color: #6c3483 !important;
+}
+
+div[data-testid="stTabList"] {
+    background-color: #161b22 !important;
+    border-bottom: 2px solid #30363d !important;
+}
+button[data-baseweb="tab"] {
+    color: #8b949e !important;
+    background-color: transparent !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #4a235a, #6c3483) !important;
+}
+button[data-baseweb="tab"]:hover {
+    background-color: #21262d !important;
+    color: #f0f6fc !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TARJETAS, ESTADOS VACÍOS, ALERTAS Y DIÁLOGOS
+══════════════════════════════════════════════════════════════ */
+.empty-state-card {
+    background-color: #161b22 !important;
+    border: 2px dashed #30363d !important;
+    border-radius: 12px;
+    padding: 36px 20px;
+    text-align: center;
+    margin: 8px 0;
+}
+.empty-state-card p {
+    color: #8b949e !important;
+}
+
+div[data-testid="stAlert"],
+div[role="alert"],
+.stAlert {
+    background-color: #21262d !important;
+    border-color: #30363d !important;
+    color: #e6edf3 !important;
+}
+
+div[data-testid="stExpander"],
+div[data-testid="stExpander"] > details,
+div[data-testid="stExpander"] details > div {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+}
+div[data-testid="stExpander"] summary,
+div[data-testid="stExpander"] summary p {
+    color: #e6edf3 !important;
+}
+
+div[data-testid="stChatMessage"] {
+    background-color: #161b22 !important;
+    border: 1px solid #30363d !important;
+}
+div[data-testid="stChatMessage"] p,
+div[data-testid="stChatMessage"] span,
+div[data-testid="stChatMessage"] li {
+    color: #f0f6fc !important;
+}
+
+div[data-testid="stPopoverBody"] {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    color: #f0f6fc !important;
+}
+
+/* Diálogos modales (st.dialog) */
+div[role="dialog"],
+div[data-testid="stDialog"] > div {
+    background-color: #161b22 !important;
+    border: 1px solid #30363d !important;
+    color: #f0f6fc !important;
+}
+
+/* Textos generales */
+p, span, label, li, td, th, h1, h2, h3, h4, h5, h6 {
+    color: #f0f6fc !important;
+}
+small, div[data-testid="stCaptionContainer"] p {
+    color: #8b949e !important;
+}
+
+/* Topbar */
+.atena-topbar {
+    background: #161b22 !important;
+    border-bottom: 1px solid #30363d !important;
+}
+
+/* Loading screen */
+#atena-loader { background: #0d1117 !important; }
+#atena-loader .loader-logo { color: #f0f6fc !important; }
+#atena-loader .loader-sub { color: #8b949e !important; }
+
+/* Scrollbars */
+::-webkit-scrollbar-track { background: #0d1117 !important; }
+::-webkit-scrollbar-thumb { background: #30363d !important; border-radius: 99px; }

@@ -492,3 +492,36 @@ div[data-testid="stPopoverBody"] {
     z-index: 999999 !important;
     overflow-y: auto !important;
 }
+
+/* ══════════════════════════════════════════════
+   HERO CARD (DEFAULT / LIGHT)
+══════════════════════════════════════════════ */
+.atena-hero-card {
+    text-align: center;
+    padding: 48px 24px;
+    max-width: 680px;
+    margin: 20px auto;
+    background: var(--bg-surface, #ffffff);
+    border-radius: 16px;
+    border: 1px solid var(--border, #e2e8f0);
+    box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);
+}
+.atena-hero-brand {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--primary, #4a235a);
+    letter-spacing: -0.5px;
+}
+.atena-hero-title {
+    color: var(--text-main, #1e293b);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+.atena-hero-desc {
+    color: var(--text-muted, #64748b);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 0;
+}
