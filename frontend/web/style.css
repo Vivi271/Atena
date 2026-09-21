@@ -451,3 +451,46 @@ hr { border-color: var(--border) !important; margin: 1.25rem 0 !important; }
 }
 
 [data-stale="true"], .stale-element { transition: opacity 0.2s ease; }
+
+/* ══════════════════════════════════════════════
+   FLOATING CHATBOT WIDGET (BOTTOM RIGHT)
+══════════════════════════════════════════════ */
+div[data-testid="stPopover"] {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    z-index: 999999 !important;
+}
+div[data-testid="stPopover"] > button {
+    border-radius: 50px !important;
+    background: #4a235a !important;
+    color: #ffffff !important;
+    padding: 12px 24px !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 20px rgba(74, 35, 90, 0.45) !important;
+    border: 2px solid #8CC63F !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stPopover"] > button:hover {
+    transform: scale(1.05) !important;
+    box-shadow: 0 8px 28px rgba(74, 35, 90, 0.6) !important;
+    background: #6c3483 !important;
+    color: #ffffff !important;
+}
+div[data-testid="stPopoverBody"] {
+    position: fixed !important;
+    bottom: 84px !important;
+    right: 24px !important;
+    width: 390px !important;
+    max-width: calc(100vw - 48px) !important;
+    height: 520px !important;
+    max-height: calc(100vh - 110px) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid var(--border, #e2e8f0) !important;
+    background: var(--bg-surface, #ffffff) !important;
+    z-index: 999999 !important;
+    overflow-y: auto !important;
+}

@@ -296,6 +296,7 @@ async def info():
 
 
 @app.post("/consultar", response_model=ConsultaResponse, tags=["RAG"])
+@app.post("/api/consultar", response_model=ConsultaResponse, tags=["RAG"])
 async def consultar_endpoint(body: ConsultaRequest):
     """
     Endpoint principal — recibe una pregunta y devuelve respuesta del RAG.

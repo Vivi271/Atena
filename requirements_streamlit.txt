@@ -1,6 +1,8 @@
-# Dependencias ligeras para el servicio Streamlit en Render
-# NO incluye: chromadb, sentence-transformers, torch, onnxruntime (esas van en el API)
+# Dependencias para el servicio Streamlit en Render
 streamlit>=1.35.0
 httpx>=0.27.0
 psycopg2-binary>=2.9.9
 python-dotenv>=1.0.0
+pandas>=2.0.0
+plotly>=5.18.0
+altair>=5.0.0

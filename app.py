@@ -118,7 +118,7 @@ _loader_dark_cls = "dark" if st.session_state.dark_mode else ""
 st.markdown(f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <div id="atena-loader" class="{_loader_dark_cls}">
-  <div class="loader-logo">Atena</div>
+  <div class="loader-logo" translate="no"><span class="notranslate">Atena</span></div>
   <div class="loader-sub">Consultor de Neuroanatomia &middot; Konrad Lorenz</div>
   <div class="loader-bar"><div class="loader-bar-fill"></div></div>
 </div>
@@ -144,28 +144,36 @@ except ImportError as e:
 # ── Función de consulta RAG vía API (ligero: sin cargar modelos localmente) ──
 def consultar_via_api(pregunta: str, nivel: str = "Principiante", k: int = 6):
     """
-    Llama al endpoint POST /api/consultar del API de FastAPI.
+    Llama al endpoint /consultar o /api/consultar del API de FastAPI.
     Retorna (respuesta_texto, lista_fuentes) donde lista_fuentes es una lista de dicts
     con claves: fuente, pagina, fragmento.
     """
-    try:
-        with httpx.Client(timeout=60.0) as client:
-            response = client.post(
-                f"{ATENA_API_URL}/api/consultar",
-                json={
-                    "pregunta": pregunta,
-                    "nivel": nivel,
-                    "k": k,
-                    "formato_unity": False,  # Queremos Markdown, no Unity Rich Text
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data.get("respuesta", ""), data.get("fuentes", [])
-    except httpx.TimeoutException:
-        return "El servidor tardó demasiado en responder. Por favor, intenta de nuevo.", []
-    except Exception as exc:
-        return f"Error al contactar el sistema RAG: {exc}", []
+    endpoints = [
+        f"{ATENA_API_URL}/consultar",
+        f"{ATENA_API_URL}/api/consultar",
+    ]
+    for url in endpoints:
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                response = client.post(
+                    url,
+                    json={
+                        "pregunta": pregunta,
+                        "nivel": nivel,
+                        "k": k,
+                        "formato_unity": False,
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("respuesta", ""), data.get("fuentes", [])
+                elif response.status_code != 404:
+                    return f"Error del servidor ({response.status_code}): {response.text[:120]}", []
+        except httpx.TimeoutException:
+            return "El servidor tardó demasiado en responder. Por favor, intenta de nuevo.", []
+        except Exception:
+            continue
+    return "Error al contactar el sistema RAG. Por favor, intenta de nuevo en unos momentos.", []
 
 # Vector store no disponible en modo ligero (vs = None)
 vs = None
@@ -352,7 +360,7 @@ def _render_admin_dashboard():
     st.markdown("""
     <div class="atena-topbar">
         <div style="display:flex; align-items:center; gap:12px;">
-            <span style="font-family:'Outfit',sans-serif; font-size:1.35rem; font-weight:700; color:var(--text-main, #1e293b); letter-spacing:-0.5px;">Atena</span>
+            <span translate="no" class="notranslate" style="font-family:'Outfit',sans-serif; font-size:1.35rem; font-weight:700; color:var(--text-main, #1e293b); letter-spacing:-0.5px;">Atena</span>
             <span style="color:var(--text-muted, #94a3b8); font-size:0.9rem;">|</span>
             <span style="font-size:0.85rem; font-weight:500; color:var(--text-muted, #64748b);">Panel de Administracion</span>
         </div>
@@ -366,7 +374,7 @@ def _render_admin_dashboard():
     """, unsafe_allow_html=True)
 
     # Barra de navegación limpia y equilibrada
-    col_tabs, col_actions = st.columns([5.5, 3.5])
+    col_tabs, col_actions = st.columns([6, 2.5])
 
     with col_tabs:
         t1, t2, t3, t4 = st.columns(4)
@@ -384,10 +392,7 @@ def _render_admin_dashboard():
                     st.rerun()
 
     with col_actions:
-        a_chat, a_theme, a_logout = st.columns([1.2, 1.2, 1.1])
-        with a_chat:
-            if st.button("Consultor IA", key="btn_open_dialog_chat", use_container_width=True):
-                _dialog_consultor_ia()
+        a_theme, a_logout = st.columns([1.2, 1.1])
         with a_theme:
             modo_icon = "Modo claro" if st.session_state.dark_mode else "Modo oscuro"
             if st.button(modo_icon, key="adm_toggle_dark", use_container_width=True):
@@ -895,11 +900,88 @@ def _render_admin_dashboard():
                     st.session_state["adm_pin_activo"] = pin_nuevo
                     st.success("PIN actualizado para esta sesion.")
 
+    # ── Chatbot Flotante Inferior Derecho (Estilo Intercom / Web Chatbot) ──
+    st.markdown('''
+    <style>
+    /* Trigger del chatbot flotante abajo a la derecha */
+    div[data-testid="stPopover"] {
+        position: fixed !important;
+        bottom: 24px !important;
+        right: 24px !important;
+        z-index: 99999 !important;
+    }
+    div[data-testid="stPopover"] > button {
+        border-radius: 50px !important;
+        background: #4a235a !important;
+        color: #ffffff !important;
+        padding: 12px 24px !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 20px rgba(74, 35, 90, 0.45) !important;
+        border: 2px solid #8CC63F !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+    div[data-testid="stPopover"] > button:hover {
+        transform: scale(1.05) !important;
+        box-shadow: 0 8px 28px rgba(74, 35, 90, 0.6) !important;
+        background: #6c3483 !important;
+        color: #ffffff !important;
+    }
+    div[data-testid="stPopoverBody"] {
+        position: fixed !important;
+        bottom: 84px !important;
+        right: 24px !important;
+        width: 390px !important;
+        max-width: calc(100vw - 48px) !important;
+        height: 520px !important;
+        max-height: calc(100vh - 110px) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
+        border: 1px solid var(--border, #e2e8f0) !important;
+        background: var(--bg-surface, #ffffff) !important;
+        z-index: 99999 !important;
+        overflow-y: auto !important;
+    }
+    </style>
+    ''', unsafe_allow_html=True)
+
+    with st.popover("Chat IA"):
+        st.markdown(
+            '''
+            <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(0,0,0,0.08); padding-bottom:8px; margin-bottom:10px;">
+                <div>
+                    <div style="font-weight:700; font-size:1.05rem; color:#4a235a;" translate="no" class="notranslate">Atena — Consultor IA</div>
+                    <div style="font-size:0.75rem; color:#64748b;">Especialista en Neuroanatomía (RAG)</div>
+                </div>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
+        if "adm_chat_msgs" not in st.session_state:
+            st.session_state.adm_chat_msgs = []
+
+        chat_feed = st.container(height=340)
+        with chat_feed:
+            if not st.session_state.adm_chat_msgs:
+                st.info("Hola, soy Atena. Escribe tu consulta para revisar la literatura médica indexada.")
+            for _m in st.session_state.adm_chat_msgs:
+                with st.chat_message(_m["role"]):
+                    st.markdown(_m["content"])
+                    if _m.get("fuentes"):
+                        with st.expander("Fuentes consultadas"):
+                            for _i, _f in enumerate(_m["fuentes"], 1):
+                                st.caption(f"[{_i}] {nombre_legible(_f.get('fuente',''))} — Pág. {_f.get('pagina','?')}")
+
+        _q = st.chat_input("Escribe tu consulta...", key="adm_floating_chat_input")
+        if _q:
+            st.session_state.adm_chat_msgs.append({"role": "user", "content": _q})
+            with st.spinner("Consultando literatura..."):
+                _resp, _fuentes = consultar_via_api(_q, nivel="Avanzado", k=5)
+            st.session_state.adm_chat_msgs.append({"role": "assistant", "content": _resp, "fuentes": _fuentes})
+            st.rerun()
 
 
-
-
-    
 # ── 4. Enrutamiento principal: Admin vs Chat de Usuario ──────────────────────
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = []
