@@ -575,133 +575,119 @@ with st.sidebar:
 if lanzar_evaluacion:
     mostrar_evaluacion(nivel)
 
-# ── Enrutamiento principal: Admin Dashboard vs Chat ──────────────────────────
+# ── Enrutamiento principal: Admin vs Chat ────────────────────────────────────
 if is_admin:
     _render_admin_dashboard()
+
 else:
+    # ── Interfaz de Chat para usuarios ───────────────────────────────────────
+    clase_vacio = "chat-vacio" if len(st.session_state.mensajes) == 0 else "chat-con-mensajes"
+    st.markdown(f"<h2 class='main-title {clase_vacio}'>Consultor IA Neuroanatomía</h2>", unsafe_allow_html=True)
 
-    # --- 5. Interfaz tipo Chat ---
-    if "mensajes" not in st.session_state:
-        st.session_state.mensajes = []
+    # Capturar input ANTES de renderizar historial
+    pregunta_usuario = st.chat_input(
+        "Escribe tu consulta sobre neuroanatomía...",
+        key="chat_query",
+        disabled=st.session_state.is_generating
+    )
 
-    # Capturar input del usuario ANTES de renderizar
-    pregunta_usuario = st.chat_input("Escribe tu consulta sobre neuroanatomía...", key="chat_query", disabled=st.session_state.is_generating)
+    chat_container = st.container()
+    with chat_container:
+        # Bienvenida si chat vacío
+        if len(st.session_state.mensajes) == 0 and not pregunta_usuario and not st.session_state.get("pregunta_activa"):
+            st.markdown(
+                """
+                <div style="text-align: center; padding: 48px 24px; max-width: 680px; margin: 20px auto;
+                            background: rgba(255,255,255,0.6); border-radius: 16px;
+                            border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">🧠</div>
+                    <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 700; margin-bottom: 10px;">
+                        Consultor Académico de Neuroanatomía
+                    </h2>
+                    <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">
+                        Formula libremente cualquier consulta conceptual, funcional o anatómica.
+                        Las respuestas son sintetizadas en tiempo real a partir de la literatura científica indexada.
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-# Contenedor principal del chat — todo dentro de un solo container
-chat_container = st.container()
+        # Historial de mensajes
+        for msg in st.session_state.mensajes:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                if msg.get("es_respuesta_sin_info"):
+                    st.markdown(
+                        '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);'
+                        'color:#10b981;padding:6px 12px;border-radius:6px;font-size:0.85rem;margin-top:8px;'
+                        'display:inline-block;font-weight:500;">'
+                        'Respuesta validada: El sistema reconoció el límite de su conocimiento'
+                        '</div>',
+                        unsafe_allow_html=True
+                    )
+                if msg.get("evidencia_html"):
+                    with st.expander("Ver Evidencia Documental (Citas y Referencias)"):
+                        st.markdown(msg["evidencia_html"], unsafe_allow_html=True)
+                if msg.get("reporte"):
+                    st.download_button(
+                        label="📥 Descargar Reporte",
+                        data=msg["reporte"],
+                        file_name="consulta_atena.txt",
+                        mime="text/plain",
+                        key=f"dl_{msg['id']}"
+                    )
 
-with chat_container:
-    # Si el chat está vacío y no hay consultas en curso, mostrar mensaje de bienvenida limpio
-    if len(st.session_state.mensajes) == 0 and not pregunta_usuario and not st.session_state.get("pregunta_activa"):
-        st.markdown(
-            """
-            <div style="text-align: center; padding: 48px 24px; max-width: 680px; margin: 20px auto; background: rgba(255, 255, 255, 0.6); border-radius: 16px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);">
-                <div style="font-size: 3rem; margin-bottom: 16px;">🧠</div>
-                <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 700; margin-bottom: 10px;">
-                    Consultor Académico de Neuroanatomía
-                </h2>
-                <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">
-                    Formula libremente cualquier consulta conceptual, funcional o anatómica. Las respuestas son sintetizadas en tiempo real a partir de la literatura científica indexada en la base de conocimiento.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # Nueva pregunta → activar generación
+        if pregunta_usuario:
+            if not pregunta_usuario.strip():
+                st.warning("Por favor, escribe una pregunta válida.")
+            else:
+                st.session_state.pregunta_activa = pregunta_usuario
+                st.session_state.is_generating = True
+                st.rerun()
 
-    # Mostrar el historial de mensajes del chat
-    for msg in st.session_state.mensajes:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            
-            # Mostrar badge de sin alucinación si aplica
-            if msg.get("es_respuesta_sin_info"):
-                st.markdown(
-                    '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); '
-                    'color: #10b981; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; margin-top: 8px; '
-                    'display: inline-block; font-weight: 500;">'
-                    'Respuesta validada: El sistema reconoció el límite de su conocimiento'
-                    '</div>',
-                    unsafe_allow_html=True
-                )
+        # Procesar pregunta activa
+        pregunta_a_procesar = st.session_state.get("pregunta_activa")
+        if pregunta_a_procesar:
+            st.session_state.historial.append(pregunta_a_procesar)
+            st.session_state.mensajes.append({"role": "user", "content": pregunta_a_procesar, "id": str(time.time())})
+            with st.chat_message("user"):
+                st.markdown(pregunta_a_procesar)
 
-            # Mostrar evidencia si existe
-            if msg.get("evidencia_html"):
-                with st.expander("Ver Evidencia Documental (Citas y Referencias)"):
-                    st.markdown(msg["evidencia_html"], unsafe_allow_html=True)
-                    
-            # Mostrar botón de descarga si existe reporte
-            if msg.get("reporte"):
-                st.download_button(
-                    label="📥 Descargar Reporte PDF/TXT",
-                    data=msg["reporte"],
-                    file_name="consulta_atena.txt",
-                    mime="text/plain",
-                    key=f"dl_{msg['id']}"
-                )
-
-    # Guardar en estado y re-ejecutar para desactivar controles en el sidebar antes de procesar
-    if pregunta_usuario:
-        if not pregunta_usuario.strip():
-            st.warning("Por favor, escribe una pregunta válida.")
-        else:
-            st.session_state.pregunta_activa = pregunta_usuario
-            st.session_state.is_generating = True
-            st.rerun()
-
-    # Procesar nueva pregunta en la ejecución deshabilitada
-    pregunta_a_procesar = st.session_state.get("pregunta_activa")
-    if pregunta_a_procesar:
-        st.session_state.historial.append(pregunta_a_procesar)
-        
-        # Guardar y mostrar el mensaje del usuario
-        st.session_state.mensajes.append({"role": "user", "content": pregunta_a_procesar, "id": str(time.time())})
-        with st.chat_message("user"):
-            st.markdown(pregunta_a_procesar)
-            
-        # Preparar contenedor del asistente con streaming
-        with st.chat_message("assistant"):
-            try:
-                    # Mostrar puntos suspensivos animados mientras piensa
+            with st.chat_message("assistant"):
+                try:
                     thinking_placeholder = st.empty()
                     thinking_placeholder.markdown(
                         """
-                        <div style="display:flex; align-items:center; gap:8px; padding:4px 0;">
-                            <div style="display:flex; gap:4px;">
+                        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                            <div style="display:flex;gap:4px;">
                                 <span style="background:#8CC63F;width:8px;height:8px;border-radius:50%;display:inline-block;animation:pulse 1.4s infinite ease-in-out both;animation-delay:-0.32s;"></span>
                                 <span style="background:#8CC63F;width:8px;height:8px;border-radius:50%;display:inline-block;animation:pulse 1.4s infinite ease-in-out both;animation-delay:-0.16s;"></span>
                                 <span style="background:#8CC63F;width:8px;height:8px;border-radius:50%;display:inline-block;animation:pulse 1.4s infinite ease-in-out both;"></span>
                             </div>
-                            <span style="color:#64748b; font-size:0.85rem; font-style:italic;">Consultando fuentes...</span>
+                            <span style="color:#64748b;font-size:0.85rem;font-style:italic;">Consultando fuentes...</span>
                         </div>
-                        <style>
-                        @keyframes pulse {
-                            0%, 80%, 100% { transform: scale(0); opacity: 0; }
-                            40% { transform: scale(1.0); opacity: 1; }
-                        }
-                        </style>
+                        <style>@keyframes pulse{0%,80%,100%{transform:scale(0);opacity:0;}40%{transform:scale(1.0);opacity:1;}}</style>
                         """,
                         unsafe_allow_html=True
                     )
-                    
+
                     t_start = time.time()
-                    # Consultar vía API de FastAPI (modo ligero, sin cargar modelos localmente)
-                    respuesta_texto, fuentes = consultar_via_api(
-                        pregunta_a_procesar, nivel=nivel, k=k_chunks
-                    )
+                    respuesta_texto, fuentes = consultar_via_api(pregunta_a_procesar, nivel=nivel, k=k_chunks)
                     thinking_placeholder.empty()
                     st.markdown(respuesta_texto)
                     latencia = time.time() - t_start
 
                     es_respuesta_sin_info = any(p in respuesta_texto.lower() for p in NO_INFO_PHRASES)
                     es_saludo = es_consulta_saludo(pregunta_a_procesar)
-
                     registrar_consulta(pregunta_a_procesar, respuesta_texto, nivel.lower(), latencia)
 
                     if es_respuesta_sin_info:
                         st.markdown(
-                            '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); '
-                            'color: #10b981; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; margin-top: 8px; '
-                            'display: inline-block; font-weight: 500;">'
+                            '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);'
+                            'color:#10b981;padding:6px 12px;border-radius:6px;font-size:0.85rem;margin-top:8px;'
+                            'display:inline-block;font-weight:500;">'
                             'Respuesta validada: El sistema reconoció el límite de su conocimiento'
                             '</div>',
                             unsafe_allow_html=True
@@ -710,8 +696,7 @@ with chat_container:
                     evidencia_html = ""
                     reporte_txt = ""
 
-                    mostrar_evidencia = len(fuentes) > 0 and not es_saludo
-                    if mostrar_evidencia:
+                    if len(fuentes) > 0 and not es_saludo:
                         evidencias_lista = []
                         fuentes_txt_lista = []
                         for i, fuente in enumerate(fuentes, 1):
@@ -719,20 +704,17 @@ with chat_container:
                             pagina = fuente.get("pagina", "?")
                             texto_escapado = html_module.escape(fuente.get("fragmento", ""))
                             texto_limpio = formatear_evidencia_limpia(texto_escapado)
-
                             evidencias_lista.append(
-                                f"<div style='margin-bottom: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #8CC63F; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);'>"
-                                f"<div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>"
-                                f"<span style='font-weight: 600; font-size: 0.88rem; color: #1e293b;'>📖 [Fuente {i}] {nombre_revista}</span>"
-                                f"<span style='background: #f1f5f9; color: #475569; font-size: 0.76rem; padding: 2px 8px; border-radius: 10px; font-weight: 500;'>Pág. {pagina}</span>"
-                                f"</div>"
-                                f"<div style='font-size: 0.86rem; color: #334155; line-height: 1.6;'>{texto_limpio}</div>"
-                                f"</div>"
+                                f"<div style='margin-bottom:14px;background:#ffffff;border:1px solid #e2e8f0;"
+                                f"border-left:4px solid #8CC63F;border-radius:8px;padding:12px 16px;'>"
+                                f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>"
+                                f"<span style='font-weight:600;font-size:0.88rem;color:#1e293b;'>📖 [{i}] {nombre_revista}</span>"
+                                f"<span style='background:#f1f5f9;color:#475569;font-size:0.76rem;padding:2px 8px;border-radius:10px;'>Pág. {pagina}</span>"
+                                f"</div><div style='font-size:0.86rem;color:#334155;line-height:1.6;'>{texto_limpio}</div></div>"
                             )
                             fuentes_txt_lista.append(f"  [{i}] {nombre_revista} — Pág. {pagina}")
 
-                        evidencia_html = f"<div style='max-height: 380px; overflow-y: auto; padding-right: 8px; margin-top: 6px;'>{''.join(evidencias_lista)}</div>"
-
+                        evidencia_html = f"<div style='max-height:380px;overflow-y:auto;padding-right:8px;margin-top:6px;'>{''.join(evidencias_lista)}</div>"
                         with st.expander("Ver Evidencia Documental (Citas y Referencias)"):
                             st.markdown(evidencia_html, unsafe_allow_html=True)
 
@@ -742,19 +724,16 @@ with chat_container:
                             f"=========================================\n\n"
                             f"PREGUNTA:\n{pregunta_a_procesar}\n\n"
                             f"RESPUESTA:\n{respuesta_texto}\n\n"
-                            f"FUENTES BASADAS EN LITERATURA:\n" + "\n".join(fuentes_txt_lista) +
-                            "\n\n========================================="
+                            f"FUENTES:\n" + "\n".join(fuentes_txt_lista) + "\n\n========================================="
                         )
-
                         st.download_button(
-                            label="📥 Descargar Reporte PDF/TXT",
+                            label="📥 Descargar Reporte",
                             data=reporte_txt,
                             file_name="consulta_atena.txt",
                             mime="text/plain",
                             key=f"dl_new_{time.time()}"
                         )
 
-                    # Guardar en el historial
                     st.session_state.mensajes.append({
                         "role": "assistant",
                         "content": respuesta_texto,
@@ -765,11 +744,10 @@ with chat_container:
                     })
                     st.session_state.pregunta_activa = None
                     st.session_state.is_generating = False
-                    # Forzar re-render limpio para eliminar fantasmas
                     st.rerun()
-            except Exception as e:
-                st.session_state.pregunta_activa = None
-                st.session_state.is_generating = False
-                st.error(f"Error al generar respuesta: {str(e)}")
+                except Exception as e:
+                    st.session_state.pregunta_activa = None
+                    st.session_state.is_generating = False
+                    st.error(f"Error al generar respuesta: {str(e)}")
 
 
