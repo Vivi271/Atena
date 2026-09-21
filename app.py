@@ -337,6 +337,135 @@ def _dialog_consultor_ia():
         st.rerun()
 
 
+
+
+# ── Chat Flotante Tipo Tidio (inyeccion DOM via components.html) ──────────────
+def _inject_floating_chat():
+    """Widget de chat flotante esquina inferior derecha."""
+    import streamlit.components.v1 as components
+    api_url = ATENA_API_URL
+    html = f"""
+    <script>
+    (function() {{
+        var A = '{api_url}';
+        var W = window.parent, D = W.document;
+        var st = W._atenaChatSt || {{}};
+        var msgs = st.msgs || [], open = st.open || false, szIdx = st.szIdx || 0;
+        var SZ = [
+            {{w:'360px',h:'500px',lbl:'Ampliar'}},
+            {{w:'540px',h:'660px',lbl:'Grande'}},
+            {{w:'720px',h:'82vh', lbl:'Compacto'}}
+        ];
+        ['atena-cw','atena-cw-st'].forEach(function(id){{
+            var e=D.getElementById(id); if(e) e.remove();
+        }});
+        var s=D.createElement('style'); s.id='atena-cw-st';
+        s.textContent=[
+            '#atena-cw{{position:fixed;bottom:20px;right:20px;z-index:2147483647;font-family:Inter,-apple-system,sans-serif;}}',
+            '#a-fab{{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#4a235a,#6c3483);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(74,35,90,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;transition:transform .2s,box-shadow .2s;outline:none;}}',
+            '#a-fab:hover{{transform:scale(1.1);box-shadow:0 6px 28px rgba(74,35,90,.65);}}',
+            '#a-pan{{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.22);border:1px solid #e2e8f0;display:flex;flex-direction:column;overflow:hidden;resize:both;min-width:300px;min-height:400px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);}}',
+            '#a-hdr{{background:linear-gradient(135deg,#4a235a,#6c3483);padding:12px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}}',
+            '.a-av{{width:36px;height:36px;border-radius:50%;background:#8CC63F;display:flex;align-items:center;justify-content:center;font-weight:800;color:#4a235a;font-size:1rem;flex-shrink:0;}}',
+            '.a-tt{{color:#fff;font-weight:700;font-size:.93rem;margin:0;}}',
+            '.a-sub{{color:rgba(255,255,255,.6);font-size:.7rem;margin:2px 0 0;}}',
+            '.a-act{{margin-left:auto;display:flex;gap:6px;align-items:center;}}',
+            '.a-hb{{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:.75rem;font-weight:600;transition:background .15s;outline:none;white-space:nowrap;}}',
+            '.a-hb:hover{{background:rgba(255,255,255,.32);}}',
+            '.a-cl{{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .15s;outline:none;}}',
+            '.a-cl:hover{{background:rgba(220,50,50,.5);}}',
+            '#a-msgs{{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f8fafc;scroll-behavior:smooth;}}',
+            '#a-msgs::-webkit-scrollbar{{width:4px;}}',
+            '#a-msgs::-webkit-scrollbar-thumb{{background:#cbd5e1;border-radius:4px;}}',
+            '.m-u{{background:linear-gradient(135deg,#4a235a,#6c3483);color:#fff;align-self:flex-end;padding:10px 14px;border-radius:14px 14px 4px 14px;max-width:82%;font-size:.86rem;line-height:1.5;word-break:break-word;}}',
+            '.m-b{{background:#fff;color:#1e293b;align-self:flex-start;padding:10px 14px;border-radius:14px 14px 14px 4px;max-width:86%;font-size:.86rem;line-height:1.5;border:1px solid #e2e8f0;word-break:break-word;}}',
+            '.m-b.tk{{color:#94a3b8;border-style:dashed;animation:aBl 1s infinite;}}',
+            '@keyframes aBl{{0%,100%{{opacity:1}}50%{{opacity:.3}}}}',
+            '.m-w{{text-align:center;color:#94a3b8;font-size:.83rem;padding:24px 10px;line-height:1.6;}}',
+            '#a-irow{{padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:flex-end;background:#fff;flex-shrink:0;}}',
+            '#a-inp{{flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:.87rem;outline:none;font-family:inherit;background:#f8fafc;resize:none;min-height:38px;max-height:100px;line-height:1.4;transition:border-color .15s;}}',
+            '#a-inp:focus{{border-color:#8CC63F;background:#fff;box-shadow:0 0 0 3px rgba(140,198,63,.15);}}',
+            '#a-snd{{background:linear-gradient(135deg,#4a235a,#6c3483);color:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.1rem;transition:opacity .15s;outline:none;}}',
+            '#a-snd:hover{{opacity:.85;}}',
+            '#a-snd:disabled{{opacity:.4;cursor:not-allowed;}}',
+            '#a-ft{{text-align:center;font-size:.63rem;color:#cbd5e1;padding:4px;border-top:1px solid #f1f5f9;flex-shrink:0;background:#fff;}}'
+        ].join('');
+        D.head.appendChild(s);
+        var root=D.createElement('div'); root.id='atena-cw';
+        var fab=D.createElement('button'); fab.id='a-fab'; fab.title='Consultor IA';
+        fab.innerHTML='&#x1F4AC;'; fab.style.display=open?'none':'flex';
+        fab.onclick=function(){{W._atenaCW.open();}};
+        root.appendChild(fab);
+        var sz=SZ[szIdx];
+        var pan=D.createElement('div'); pan.id='a-pan';
+        pan.style.cssText='width:'+sz.w+';height:'+sz.h+';display:'+(open?'flex':'none');
+        var mH=msgs.length===0
+            ? '<div class="m-w">Hola, soy Atena.<br>Escribe tu consulta.</div>'
+            : msgs.map(function(m){{var e=m.c.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');return '<div class="m-'+(m.r==='u'?'u':'b')+'">'+e+'</div>';}}).join('');
+        pan.innerHTML='<div id="a-hdr"><div class="a-av">A</div><div><p class="a-tt" translate="no">Atena IA</p><p class="a-sub">Consultor de Neuroanatomia</p></div><div class="a-act"><button class="a-hb" id="a-sz" onclick="W._atenaCW.sz()">'+sz.lbl+'</button><button class="a-cl" onclick="W._atenaCW.close()">&#x2715;</button></div></div><div id="a-msgs">'+mH+'</div><div id="a-irow"><textarea id="a-inp" placeholder="Escribe tu consulta..." rows="1"></textarea><button id="a-snd">&#x27A4;</button></div><div id="a-ft">Atena RAG &middot; Konrad Lorenz</div>';
+        root.appendChild(pan); D.body.appendChild(root);
+        var m=D.getElementById('a-msgs'); if(m) m.scrollTop=m.scrollHeight;
+        var inp=D.getElementById('a-inp'), sb=D.getElementById('a-snd');
+        if(inp){{
+            inp.addEventListener('keydown',function(e){{if(e.key==='Enter'&&!e.shiftKey){{e.preventDefault();W._atenaCW.send();}}}});
+            inp.addEventListener('input',function(){{this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';}});
+        }}
+        if(sb) sb.addEventListener('click',function(){{W._atenaCW.send();}});
+        W._atenaChatSt={{msgs:msgs,open:open,szIdx:szIdx}};
+        W._atenaCW={{
+            open:function(){{
+                open=true;W._atenaChatSt.open=true;
+                var f=D.getElementById('a-fab');if(f)f.style.display='none';
+                var p=D.getElementById('a-pan');if(p)p.style.display='flex';
+                var i=D.getElementById('a-inp');setTimeout(function(){{if(i)i.focus();}},80);
+                var ms=D.getElementById('a-msgs');if(ms)ms.scrollTop=ms.scrollHeight;
+            }},
+            close:function(){{
+                open=false;W._atenaChatSt.open=false;
+                var f=D.getElementById('a-fab');if(f)f.style.display='flex';
+                var p=D.getElementById('a-pan');if(p)p.style.display='none';
+            }},
+            sz:function(){{
+                szIdx=(szIdx+1)%3;W._atenaChatSt.szIdx=szIdx;
+                var ns=SZ[szIdx];
+                var p=D.getElementById('a-pan');if(p){{p.style.width=ns.w;p.style.height=ns.h;}}
+                var b=D.getElementById('a-sz');if(b)b.textContent=ns.lbl;
+            }},
+            send:async function(){{
+                var i2=D.getElementById('a-inp'),b2=D.getElementById('a-snd');
+                if(!i2)return;
+                var txt=i2.value.trim();if(!txt)return;
+                i2.value='';i2.style.height='auto';
+                if(b2)b2.disabled=true;i2.disabled=true;
+                msgs.push({{r:'u',c:txt}});W._atenaChatSt.msgs=msgs;
+                var mEl=D.getElementById('a-msgs');
+                if(mEl){{
+                    var we=mEl.querySelector('.m-w');if(we)we.remove();
+                    var ud=D.createElement('div');ud.className='m-u';ud.textContent=txt;mEl.appendChild(ud);
+                    var td=D.createElement('div');td.className='m-b tk';td.id='a-tk';td.textContent='Consultando fuentes...';mEl.appendChild(td);
+                    mEl.scrollTop=mEl.scrollHeight;
+                }}
+                var bt='Error al contactar el servidor.';
+                try{{
+                    var urls=[A+'/api/consultar',A+'/consultar'],res=null;
+                    for(var i=0;i<urls.length;i++){{
+                        try{{res=await fetch(urls[i],{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{pregunta:txt,nivel:'Avanzado',k:5,formato_unity:false}})}});
+                        if(res&&res.ok)break;}}catch(ex){{res=null;}}
+                    }}
+                    if(res&&res.ok){{var d=await res.json();bt=d.respuesta||'Sin respuesta.';}}
+                }}catch(err){{bt='Error: '+(err.message||'');}}
+                msgs.push({{r:'b',c:bt}});W._atenaChatSt.msgs=msgs;
+                var tk=D.getElementById('a-tk');if(tk){{tk.className='m-b';tk.id='';tk.textContent=bt;}}
+                if(b2)b2.disabled=false;i2.disabled=false;
+                setTimeout(function(){{if(i2)i2.focus();}},50);
+                var mEl2=D.getElementById('a-msgs');if(mEl2)mEl2.scrollTop=mEl2.scrollHeight;
+            }}
+        }};
+    }})();
+    </script>
+    """
+    components.html(html, height=0)
+
 # ── Panel de Administración ───────────────────────────────────────────────────
 def _render_admin_dashboard():
     """Panel de administración. Secciones: Documentos | Preguntas | Estadísticas | Sistema."""
@@ -395,14 +524,97 @@ def _render_admin_dashboard():
     # ── DOCUMENTOS ──────────────────────────────────────────────────────────
     if seccion == "documentos":
         st.markdown("### Documentos del sistema")
-        st.caption("Sube materiales al servidor. El sistema los indexa para el consultor de IA.")
+        st.caption("Biblioteca de literatura indexada. Sube PDF o DOCX para ampliar el conocimiento de Atena.")
 
-        col_l, col_r = st.columns([1, 1], gap="large")
+        ab1, ab2, _sp = st.columns([1.2, 1.2, 7])
+        with ab1:
+            if st.button("Actualizar", key="adm_refresh_docs", use_container_width=True):
+                st.session_state.pop("adm_docs_cache", None)
+                st.rerun()
+        with ab2:
+            if st.button("Reindexar todo", key="adm_rebuild", use_container_width=True):
+                with st.spinner("Reconstruyendo base vectorial..."):
+                    try:
+                        resp = httpx.post(f"{ATENA_API_URL}/api/admin/rebuild",
+                                          headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=120.0)
+                        if resp.status_code == 200:
+                            st.success(f"{resp.json().get('total_vectores','?')} vectores reconstruidos")
+                        else:
+                            st.error(resp.text[:120])
+                    except Exception as e:
+                        st.error(str(e))
 
-        with col_l:
-            st.markdown("**Subir archivo**")
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+
+        if "adm_docs_cache" not in st.session_state:
+            try:
+                resp = httpx.get(f"{ATENA_API_URL}/api/admin/documents",
+                                 headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=15.0)
+                st.session_state["adm_docs_cache"] = resp.json().get("documentos", []) if resp.status_code == 200 else []
+            except Exception:
+                st.session_state["adm_docs_cache"] = []
+
+        docs = st.session_state.get("adm_docs_cache", [])
+        if docs:
+            st.markdown(
+                f"<p style='font-size:0.8rem;color:#94a3b8;margin-bottom:10px;'>"
+                f"{len(docs)} documento{'s' if len(docs)>1 else ''} indexado{'s' if len(docs)>1 else ''}</p>",
+                unsafe_allow_html=True
+            )
+            for doc in docs:
+                nombre = doc["nombre"]
+                ext = os.path.splitext(nombre)[1].upper().replace(".", "") or "DOC"
+                c_card, c_del = st.columns([8, 1])
+                with c_card:
+                    st.markdown(
+                        f"<div style='display:flex;align-items:center;gap:14px;padding:13px 18px;"
+                        f"background:#fff;border:1px solid #e2e8f0;border-left:4px solid #8CC63F;"
+                        f"border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);'>"
+                        f"<span style='font-size:0.7rem;font-weight:700;background:rgba(74,35,90,.08);"
+                        f"color:#4a235a;padding:4px 8px;border-radius:4px;flex-shrink:0;'>{ext}</span>"
+                        f"<div style='flex:1;overflow:hidden;'>"
+                        f"<div style='font-weight:600;font-size:0.92rem;color:#1e293b;"
+                        f"text-overflow:ellipsis;overflow:hidden;white-space:nowrap;'>{nombre_legible(nombre)}</div>"
+                        f"<div style='font-size:0.74rem;color:#94a3b8;margin-top:2px;'>Indexado en base vectorial RAG</div>"
+                        f"</div></div>",
+                        unsafe_allow_html=True
+                    )
+                with c_del:
+                    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+                    if st.button("Eliminar", key=f"adm_del_{nombre}", use_container_width=True):
+                        st.session_state["adm_pending_del"] = nombre
+
+            if st.session_state.get("adm_pending_del"):
+                pending = st.session_state["adm_pending_del"]
+                st.warning(f"Confirmar: eliminar '{nombre_legible(pending)}' del servidor.")
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    if st.button("Si, eliminar", key="adm_confirm_del", use_container_width=True, type="primary"):
+                        with st.spinner("Eliminando..."):
+                            try:
+                                resp = httpx.delete(f"{ATENA_API_URL}/api/admin/delete/{pending}",
+                                                    headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=30.0)
+                                if resp.status_code == 200:
+                                    st.success("Documento eliminado.")
+                                    st.session_state.pop("adm_docs_cache", None)
+                                else:
+                                    st.error(resp.text[:120])
+                            except Exception as e:
+                                st.error(str(e))
+                        st.session_state.pop("adm_pending_del", None)
+                        st.rerun()
+                with cc2:
+                    if st.button("Cancelar", key="adm_cancel_del", use_container_width=True):
+                        st.session_state.pop("adm_pending_del", None)
+                        st.rerun()
+        else:
+            st.info("No hay documentos registrados o no se pudo conectar al servidor.")
+
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+        with st.expander("Subir nuevo material", expanded=False):
+            st.caption("Arrastra archivos PDF o DOCX. El sistema los fragmenta y vectoriza automaticamente.")
             archivos = st.file_uploader(
-                "Selecciona PDF o DOCX:", type=["pdf", "docx"],
+                "Selecciona archivos:", type=["pdf", "docx"],
                 accept_multiple_files=True, key="adm_uploader"
             )
             if archivos:
@@ -424,7 +636,7 @@ def _render_admin_dashboard():
                                     )
                                     if resp.status_code == 200:
                                         data = resp.json()
-                                        st.success(f"{archivo.name} indexado — {data.get('fragmentos_indexados','?')} fragmentos")
+                                        st.success(f"{archivo.name} indexado - {data.get('fragmentos_indexados','?')} fragmentos")
                                         ya_subidos.add(archivo.name)
                                         st.session_state.pop("adm_docs_cache", None)
                                     else:
@@ -432,77 +644,8 @@ def _render_admin_dashboard():
                                 except Exception as e:
                                     st.error(f"Sin conexion: {e}")
                         st.session_state["adm_uploads_ok"] = ya_subidos
+                        st.rerun()
 
-        with col_r:
-            st.markdown("**Archivos en el servidor**")
-            btn_col1, btn_col2 = st.columns(2)
-            with btn_col1:
-                if st.button("Actualizar lista", key="adm_refresh_docs", use_container_width=True):
-                    st.session_state.pop("adm_docs_cache", None)
-                    st.rerun()
-            with btn_col2:
-                if st.button("Reindexar todo", key="adm_rebuild", use_container_width=True, type="secondary"):
-                    with st.spinner("Reconstruyendo base vectorial..."):
-                        try:
-                            resp = httpx.post(f"{ATENA_API_URL}/api/admin/rebuild",
-                                              headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=120.0)
-                            if resp.status_code == 200:
-                                st.success(f"{resp.json().get('total_vectores','?')} vectores reconstruidos")
-                            else:
-                                st.error(resp.text[:120])
-                        except Exception as e:
-                            st.error(str(e))
-
-            if "adm_docs_cache" not in st.session_state:
-                try:
-                    resp = httpx.get(f"{ATENA_API_URL}/api/admin/documents",
-                                     headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=15.0)
-                    st.session_state["adm_docs_cache"] = resp.json().get("documentos", []) if resp.status_code == 200 else []
-                except Exception:
-                    st.session_state["adm_docs_cache"] = []
-
-            docs = st.session_state.get("adm_docs_cache", [])
-            if docs:
-                for doc in docs:
-                    nombre = doc["nombre"]
-                    c_n, c_d = st.columns([5, 1.5])
-                    with c_n:
-                        st.markdown(
-                            f"<div style='padding:7px 12px; background:#f8fafc; border-radius:6px; "
-                            f"border:1px solid #e2e8f0; font-size:0.85rem; margin-bottom:4px; "
-                            f"overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>"
-                            f"{nombre_legible(nombre)}</div>",
-                            unsafe_allow_html=True
-                        )
-                    with c_d:
-                        if st.button("Eliminar", key=f"adm_del_{nombre}", use_container_width=True, help=f"Eliminar {nombre_legible(nombre)}"):
-                            st.session_state["adm_pending_del"] = nombre
-
-                if st.session_state.get("adm_pending_del"):
-                    pending = st.session_state["adm_pending_del"]
-                    st.warning(f"Eliminar '{nombre_legible(pending)}' del servidor. Esta accion no se puede deshacer.")
-                    cc1, cc2 = st.columns(2)
-                    with cc1:
-                        if st.button("Eliminar", key="adm_confirm_del", use_container_width=True, type="primary"):
-                            with st.spinner("Eliminando..."):
-                                try:
-                                    resp = httpx.delete(f"{ATENA_API_URL}/api/admin/delete/{pending}",
-                                                        headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=30.0)
-                                    if resp.status_code == 200:
-                                        st.success("Eliminado.")
-                                        st.session_state.pop("adm_docs_cache", None)
-                                    else:
-                                        st.error(resp.text[:120])
-                                except Exception as e:
-                                    st.error(str(e))
-                            st.session_state.pop("adm_pending_del", None)
-                            st.rerun()
-                    with cc2:
-                        if st.button("Cancelar", key="adm_cancel_del", use_container_width=True):
-                            st.session_state.pop("adm_pending_del", None)
-                            st.rerun()
-            else:
-                st.info("No hay documentos o no se pudo conectar al servidor.")
 
     # ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
     elif seccion == "preguntas":
@@ -885,9 +1028,6 @@ def _render_admin_dashboard():
                     st.session_state["adm_pin_activo"] = pin_nuevo
                     st.success("PIN actualizado para esta sesion.")
 
-    # ── Consultor IA: abierto desde el botón del sidebar (dialog Streamlit) ──
-    if st.session_state.pop("abrir_chat_ia_dialog", False):
-        _dialog_consultor_ia()
 
 
 
@@ -906,6 +1046,7 @@ is_admin = st.session_state.get("is_admin", False)
 
 if is_admin:
     _render_admin_dashboard()
+    _inject_floating_chat()
 else:
     if lanzar_evaluacion:
         mostrar_evaluacion(nivel)
