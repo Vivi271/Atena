@@ -656,6 +656,11 @@ def _render_admin_dashboard():
     # ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
     elif seccion == "preguntas":
         st.markdown("### Banco de Preguntas")
+        # Fix visual "do" en radio horizontal (Streamlit label truncation)
+        st.markdown("""<style>
+        div[data-testid="stRadio"] > div { gap: 20px !important; }
+        div[data-testid="stRadio"] label > div { white-space: nowrap !important; }
+        </style>""", unsafe_allow_html=True)
 
         if not _DB_AVAILABLE:
             st.error("No se pudo conectar a la base de datos.")
@@ -668,6 +673,9 @@ def _render_admin_dashboard():
             st.error(f"Error Supabase: {e}")
             return
 
+        _modo_forzar = st.session_state.pop("adm_modo_q_forzar", None)
+        if _modo_forzar:
+            st.session_state["adm_modo_q"] = _modo_forzar
         modo_q = st.radio("", ["Ver y editar", "Nueva pregunta"],
                           horizontal=True, key="adm_modo_q", label_visibility="collapsed")
         st.markdown("---")
@@ -765,9 +773,29 @@ def _render_admin_dashboard():
                     else:
                         ok = agregar_pregunta(n_niv, n_tem, n_enun, op_a, op_b, op_c, op_d, n_cor)
                         if ok:
-                            st.success("Pregunta creada correctamente.")
+                            st.session_state["adm_pregunta_creada"] = True
+                            st.rerun()
                         else:
                             st.error("Error al crear la pregunta.")
+
+        # Flujo post-creación
+        if st.session_state.get("adm_pregunta_creada"):
+            st.session_state.pop("adm_pregunta_creada", None)
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;"
+                "border-left:4px solid #22c55e;border-radius:10px;padding:20px 24px;margin:12px 0;'>"
+                "<div style='font-weight:700;font-size:1rem;color:#166534;margin-bottom:6px;'>Pregunta creada</div>"
+                "<div style='font-size:0.85rem;color:#16a34a;'>¿Desea agregar otra pregunta?</div>"
+                "</div>", unsafe_allow_html=True
+            )
+            _ca, _cb = st.columns(2)
+            with _ca:
+                if st.button("Si, agregar otra", key="adm_otra_si", use_container_width=True, type="primary"):
+                    pass  # permanece en modo Nueva pregunta
+            with _cb:
+                if st.button("No, ver lista", key="adm_otra_no", use_container_width=True):
+                    st.session_state["adm_modo_q_forzar"] = "Ver y editar"
+                    st.rerun()
 
     # ── ESTADISTICAS ─────────────────────────────────────────────────────────
     elif seccion == "estadisticas":
