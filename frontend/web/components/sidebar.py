@@ -11,14 +11,22 @@ def render_sidebar(vs, disabled=False):
     Paso 2: Indexar / Reconstruir VectorDB (ONNX local)
     Paso 3: Publicar cambios a la Nube / Unity (GitHub + Render)
     """
-    from rag_pipeline import (
-        add_documents_incremental,
-        remove_documents_from_store,
-        build_vector_store,
-        DOCS_DIR,
-        GROQ_LLM_MODEL,
-        EMBED_MODEL_NAME
-    )
+    # Intentar importar rag_pipeline (solo disponible en modo completo, no en Render)
+    try:
+        from rag_pipeline import (
+            add_documents_incremental,
+            remove_documents_from_store,
+            build_vector_store,
+            DOCS_DIR,
+            GROQ_LLM_MODEL,
+            EMBED_MODEL_NAME
+        )
+        _RAG_AVAILABLE = True
+    except ImportError:
+        _RAG_AVAILABLE = False
+        DOCS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "Docs")
+        GROQ_LLM_MODEL = os.environ.get("GROQ_LLM_MODEL", "N/A")
+        EMBED_MODEL_NAME = os.environ.get("EMBED_MODEL", "N/A")
     
     is_admin = st.session_state.is_admin
 
@@ -35,14 +43,28 @@ def render_sidebar(vs, disabled=False):
         st.info("⏳ Consulta en progreso. Por favor, espera a que termine para usar estos controles.")
 
     # Directorio de documentos
-    docs_dir = DOCS_DIR
-    os.makedirs(docs_dir, exist_ok=True)
-    pdfs_disponibles = sorted([f for f in os.listdir(docs_dir) if f.lower().endswith((".pdf", ".docx"))])
+    if _RAG_AVAILABLE:
+        docs_dir = DOCS_DIR
+        os.makedirs(docs_dir, exist_ok=True)
+        pdfs_disponibles = sorted([f for f in os.listdir(docs_dir) if f.lower().endswith((".pdf", ".docx"))])
+    else:
+        docs_dir = None
+        pdfs_disponibles = []
 
     # ═════════════════════════════════════════════════════════════════════
     # SECCIÓN 1: PANEL DE ADMINISTRACIÓN COMPACTO (PESTAÑAS)
     # ═════════════════════════════════════════════════════════════════════
-    if is_admin:
+    if is_admin and not _RAG_AVAILABLE:
+        # Modo nube — las herramientas de gestión de documentos no están disponibles
+        col_adm1, col_adm2 = st.columns([3, 2])
+        with col_adm1:
+            st.markdown("<div style='font-size:0.82rem; font-weight:600; color:#22c55e; padding:6px 0;'>🔓 Admin Activo</div>", unsafe_allow_html=True)
+        with col_adm2:
+            if st.button("Salir", key="logout_admin", disabled=disabled, use_container_width=True):
+                st.session_state.is_admin = False
+                st.rerun()
+        st.info("☁️ Modo Nube: La gestión de documentos y vectores se maneja desde el servicio API (Docker). Aquí solo puedes consultar y evaluar.")
+    elif is_admin:
         col_adm1, col_adm2 = st.columns([3, 2])
         with col_adm1:
             st.markdown("<div style='font-size:0.82rem; font-weight:600; color:#22c55e; padding:6px 0;'>🔓 Admin Activo</div>", unsafe_allow_html=True)
