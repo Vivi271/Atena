@@ -241,21 +241,22 @@ class PreguntasEvaluacionResponse(BaseModel):
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
-@app.get("/", tags=["Sistema"])
+from fastapi.responses import FileResponse as _FileResponse
+
+@app.get("/", tags=["Sistema"], include_in_schema=False)
 async def root():
-    """Ruta raíz — mensaje de bienvenida, estado y acceso a la documentación."""
+    """Sirve el frontend web (index.html). Documentación de la API en /docs."""
+    static_index = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "frontend", "web", "static", "index.html"
+    )
+    if os.path.isfile(static_index):
+        return _FileResponse(static_index)
+    # Fallback JSON si el frontend no está presente
     return {
         "mensaje": "🧠 Atena — API de Neuroanatomía en línea",
-        "servicio": "Atena API",
-        "estado": "activo",
-        "version": "1.0.0",
-        "documentacion_swagger": "/docs",
-        "endpoints": {
-            "salud": "/salud",
-            "info": "/info",
-            "consultar_rag": "POST /consultar",
-            "evaluacion_preguntas": "GET /api/evaluacion/preguntas",
-        },
+        "documentacion": "/docs",
+        "salud": "/salud",
     }
 
 
@@ -458,19 +459,17 @@ async def listar_documentos(x_admin_pin: str = Header(..., alias="X-Admin-Pin"))
     """Lista los documentos PDF/DOCX disponibles en la carpeta Docs/."""
     _verificar_pin(x_admin_pin)
     try:
-        from rag_pipeline import DOCS_DIR
+        try:
+            from rag_pipeline import DOCS_DIR
+        except ImportError:
+            # En entorno local sin dependencias de RAG instaladas, usar ruta relativa
+            DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Docs")
         os.makedirs(DOCS_DIR, exist_ok=True)
         archivos = sorted([
             f for f in os.listdir(DOCS_DIR)
             if f.lower().endswith((".pdf", ".docx"))
         ])
-        # Contar vectores por documento
-        docs_info = []
-        for archivo in archivos:
-            docs_info.append({
-                "nombre": archivo,
-                "ruta": os.path.join(DOCS_DIR, archivo),
-            })
+        docs_info = [{"nombre": archivo} for archivo in archivos]
         return {"documentos": docs_info, "total": len(docs_info)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al listar documentos: {e}")
