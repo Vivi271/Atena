@@ -439,8 +439,133 @@ async def diagnostico_db():
     return resultado
 
 
+# ── Admin: autenticación por PIN ──────────────────────────────────────────────
+from fastapi import Header, UploadFile, File
+
+ADMIN_PIN = os.environ.get("ADMIN_PIN", "12345")
+
+def _verificar_pin(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
+    """Verifica que el header X-Admin-Pin coincida con ADMIN_PIN."""
+    if x_admin_pin != ADMIN_PIN:
+        raise HTTPException(status_code=403, detail="PIN de administrador incorrecto.")
+
+
+# ── Endpoints de Administración de Documentos ─────────────────────────────────
+
+@app.get("/api/admin/documents", tags=["Admin"])
+async def listar_documentos(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
+    """Lista los documentos PDF/DOCX disponibles en la carpeta Docs/."""
+    _verificar_pin(x_admin_pin)
+    try:
+        from rag_pipeline import DOCS_DIR
+        os.makedirs(DOCS_DIR, exist_ok=True)
+        archivos = sorted([
+            f for f in os.listdir(DOCS_DIR)
+            if f.lower().endswith((".pdf", ".docx"))
+        ])
+        # Contar vectores por documento
+        docs_info = []
+        for archivo in archivos:
+            docs_info.append({
+                "nombre": archivo,
+                "ruta": os.path.join(DOCS_DIR, archivo),
+            })
+        return {"documentos": docs_info, "total": len(docs_info)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al listar documentos: {e}")
+
+
+@app.post("/api/admin/upload", tags=["Admin"])
+async def subir_documento(
+    file: UploadFile = File(...),
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Sube un PDF/DOCX, lo guarda en Docs/ y lo indexa incrementalmente en ChromaDB."""
+    _verificar_pin(x_admin_pin)
+    global vector_store
+
+    if not file.filename.lower().endswith((".pdf", ".docx")):
+        raise HTTPException(status_code=400, detail="Solo se aceptan archivos PDF o DOCX.")
+
+    try:
+        from rag_pipeline import DOCS_DIR, add_documents_incremental
+
+        os.makedirs(DOCS_DIR, exist_ok=True)
+        destino = os.path.join(DOCS_DIR, file.filename)
+
+        # Guardar archivo
+        contenido = await file.read()
+        with open(destino, "wb") as f:
+            f.write(contenido)
+
+        # Indexar incrementalmente
+        vs_nuevo, n_chunks = add_documents_incremental([destino], vs_existente=vector_store)
+        if vs_nuevo is not None:
+            vector_store = vs_nuevo
+
+        return {
+            "mensaje": f"✅ '{file.filename}' subido e indexado correctamente.",
+            "archivo": file.filename,
+            "fragmentos_indexados": n_chunks,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al subir documento: {e}")
+
+
+@app.delete("/api/admin/delete/{filename}", tags=["Admin"])
+async def eliminar_documento(
+    filename: str,
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Elimina un documento de Docs/ y remueve sus vectores de ChromaDB."""
+    _verificar_pin(x_admin_pin)
+    global vector_store
+
+    try:
+        from rag_pipeline import DOCS_DIR, remove_documents_from_store
+
+        ruta_archivo = os.path.join(DOCS_DIR, filename)
+
+        # Eliminar de ChromaDB
+        vs_nuevo, n_eliminados = remove_documents_from_store(filename, vs_existente=vector_store)
+        if vs_nuevo is not None:
+            vector_store = vs_nuevo
+
+        # Eliminar archivo físico
+        if os.path.exists(ruta_archivo):
+            os.remove(ruta_archivo)
+
+        return {
+            "mensaje": f"✅ '{filename}' eliminado.",
+            "vectores_eliminados": n_eliminados,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al eliminar documento: {e}")
+
+
+@app.post("/api/admin/rebuild", tags=["Admin"])
+async def reconstruir_vectorstore(
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Reconstruye completamente el vector store desde todos los documentos en Docs/."""
+    _verificar_pin(x_admin_pin)
+    global vector_store
+
+    try:
+        from rag_pipeline import build_vector_store
+        vector_store = build_vector_store(force_rebuild=True)
+        count = vector_store._collection.count() if vector_store else 0
+        return {
+            "mensaje": "✅ Vector store reconstruido.",
+            "total_vectores": count,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al reconstruir: {e}")
+
+
 # ── Arranque local ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run("api:app", host="0.0.0.0", port=port, reload=False)
+
