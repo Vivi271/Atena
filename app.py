@@ -216,14 +216,11 @@ def mostrar_evaluacion(nivel):
                     st.session_state.pop(f"dlg_q_logged_{p['id']}", None)
                 st.rerun()
 
-# ── Función: Panel Admin Dashboard (limpio, sin tabs anidados) ────────────────
+# ── Panel de Administración ───────────────────────────────────────────────────
 def _render_admin_dashboard():
-    """
-    Panel de administración profesional. Navegación simple sin tabs anidados.
-    Todas las keys tienen prefijo 'adm_' para evitar conflictos con el sidebar.
-    """
+    """Panel de administración. Secciones: Documentos | Preguntas | Sistema."""
     ATENA_API_URL = os.environ.get("ATENA_API_URL", "https://atena-vugz.onrender.com").rstrip("/")
-    ADMIN_PIN_ENV = os.environ.get("ADMIN_PIN", "12345")
+    ADMIN_PIN_ENV = st.session_state.get("adm_pin_activo", os.environ.get("ADMIN_PIN", "12345"))
 
     try:
         from db_preguntas import (
@@ -235,53 +232,48 @@ def _render_admin_dashboard():
     except ImportError:
         _DB_AVAILABLE = False
 
-    # ── Navegación por sección ────────────────────────────────────────────────
     if "adm_seccion" not in st.session_state:
         st.session_state.adm_seccion = "documentos"
 
-    # Botones de navegación en la parte superior
-    nav_cols = st.columns(4)
+    nav_cols = st.columns(3)
     secciones = [
-        ("documentos", "📚 Documentos"),
-        ("preguntas",  "📋 Preguntas"),
-        ("consultor",  "💬 Consultor IA"),
-        ("sistema",    "⚙️ Sistema"),
+        ("documentos", "Documentos"),
+        ("preguntas",  "Banco de Preguntas"),
+        ("sistema",    "Sistema"),
     ]
     for col, (key, label) in zip(nav_cols, secciones):
         with col:
-            activo = st.session_state.adm_seccion == key
-            tipo = "primary" if activo else "secondary"
+            tipo = "primary" if st.session_state.adm_seccion == key else "secondary"
             if st.button(label, key=f"adm_nav_{key}", use_container_width=True, type=tipo):
                 st.session_state.adm_seccion = key
                 st.rerun()
 
-    st.markdown("<hr style='margin:12px 0 20px; border-color:rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
     seccion = st.session_state.adm_seccion
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SECCIÓN 1: DOCUMENTOS
-    # ══════════════════════════════════════════════════════════════════════════
+    # ── DOCUMENTOS ──────────────────────────────────────────────────────────
     if seccion == "documentos":
-        st.markdown("## 📚 Documentos del sistema")
-        st.caption("Sube libros y materiales al servidor. El sistema los indexa automáticamente para el consultor de IA.")
+        st.markdown("### Documentos del sistema")
+        st.caption("Sube materiales al servidor. El sistema los indexa para el consultor de IA.")
 
         col_l, col_r = st.columns([1, 1], gap="large")
 
-        # Columna izquierda: subir
         with col_l:
-            st.markdown("#### Subir nuevo archivo")
+            st.markdown("**Subir archivo**")
             archivos = st.file_uploader(
-                "PDF o DOCX:", type=["pdf", "docx"],
+                "Selecciona PDF o DOCX:", type=["pdf", "docx"],
                 accept_multiple_files=True, key="adm_uploader"
             )
             if archivos:
                 ya_subidos = st.session_state.get("adm_uploads_ok", set())
                 nuevos = [f for f in archivos if f.name not in ya_subidos]
                 if nuevos:
-                    if st.button(f"⬆️ Subir e indexar ({len(nuevos)} archivo{'s' if len(nuevos)>1 else ''})",
-                                 key="adm_btn_upload", use_container_width=True, type="primary"):
+                    if st.button(
+                        f"Subir e indexar ({len(nuevos)} archivo{'s' if len(nuevos) > 1 else ''})",
+                        key="adm_btn_upload", use_container_width=True, type="primary"
+                    ):
                         for archivo in nuevos:
-                            with st.spinner(f"Indexando '{archivo.name}'..."):
+                            with st.spinner(f"Indexando {archivo.name}..."):
                                 try:
                                     resp = httpx.post(
                                         f"{ATENA_API_URL}/api/admin/upload",
@@ -291,37 +283,35 @@ def _render_admin_dashboard():
                                     )
                                     if resp.status_code == 200:
                                         data = resp.json()
-                                        st.success(f"✅ {archivo.name} — {data.get('fragmentos_indexados','?')} fragmentos")
+                                        st.success(f"{archivo.name} indexado — {data.get('fragmentos_indexados','?')} fragmentos")
                                         ya_subidos.add(archivo.name)
                                         st.session_state.pop("adm_docs_cache", None)
                                     else:
                                         st.error(f"Error: {resp.text[:120]}")
                                 except Exception as e:
-                                    st.error(f"Sin conexión: {e}")
+                                    st.error(f"Sin conexion: {e}")
                         st.session_state["adm_uploads_ok"] = ya_subidos
 
-        # Columna derecha: lista + acciones
         with col_r:
-            st.markdown("#### Archivos en el servidor")
+            st.markdown("**Archivos en el servidor**")
             btn_col1, btn_col2 = st.columns(2)
             with btn_col1:
-                if st.button("🔄 Actualizar", key="adm_refresh_docs", use_container_width=True):
+                if st.button("Actualizar lista", key="adm_refresh_docs", use_container_width=True):
                     st.session_state.pop("adm_docs_cache", None)
                     st.rerun()
             with btn_col2:
-                if st.button("♻️ Reindexar todo", key="adm_rebuild", use_container_width=True, type="secondary"):
+                if st.button("Reindexar todo", key="adm_rebuild", use_container_width=True, type="secondary"):
                     with st.spinner("Reconstruyendo base vectorial..."):
                         try:
                             resp = httpx.post(f"{ATENA_API_URL}/api/admin/rebuild",
                                               headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=120.0)
                             if resp.status_code == 200:
-                                st.success(f"✅ {resp.json().get('total_vectores','?')} vectores listos")
+                                st.success(f"{resp.json().get('total_vectores','?')} vectores reconstruidos")
                             else:
                                 st.error(resp.text[:120])
                         except Exception as e:
                             st.error(str(e))
 
-            # Cargar lista de documentos
             if "adm_docs_cache" not in st.session_state:
                 try:
                     resp = httpx.get(f"{ATENA_API_URL}/api/admin/documents",
@@ -337,28 +327,28 @@ def _render_admin_dashboard():
                     c_n, c_d = st.columns([7, 1])
                     with c_n:
                         st.markdown(
-                            f"<div style='padding:8px 12px; background:rgba(255,255,255,0.05); border-radius:8px; "
-                            f"border:1px solid rgba(255,255,255,0.08); font-size:0.86rem; margin-bottom:5px; "
-                            f"color:#e2e8f0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>"
-                            f"📄 {nombre_legible(nombre)}</div>",
+                            f"<div style='padding:7px 12px; background:#f8fafc; border-radius:6px; "
+                            f"border:1px solid #e2e8f0; font-size:0.85rem; margin-bottom:4px; "
+                            f"overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>"
+                            f"{nombre_legible(nombre)}</div>",
                             unsafe_allow_html=True
                         )
                     with c_d:
-                        if st.button("🗑️", key=f"adm_del_{nombre}", help="Eliminar"):
+                        if st.button("x", key=f"adm_del_{nombre}", help="Eliminar"):
                             st.session_state["adm_pending_del"] = nombre
 
                 if st.session_state.get("adm_pending_del"):
                     pending = st.session_state["adm_pending_del"]
-                    st.warning(f"⚠️ ¿Eliminar **{nombre_legible(pending)}** del servidor?")
+                    st.warning(f"Eliminar '{nombre_legible(pending)}' del servidor. Esta accion no se puede deshacer.")
                     cc1, cc2 = st.columns(2)
                     with cc1:
-                        if st.button("Sí, eliminar", key="adm_confirm_del", use_container_width=True, type="primary"):
+                        if st.button("Eliminar", key="adm_confirm_del", use_container_width=True, type="primary"):
                             with st.spinner("Eliminando..."):
                                 try:
                                     resp = httpx.delete(f"{ATENA_API_URL}/api/admin/delete/{pending}",
                                                         headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=30.0)
                                     if resp.status_code == 200:
-                                        st.success("✅ Eliminado.")
+                                        st.success("Eliminado.")
                                         st.session_state.pop("adm_docs_cache", None)
                                     else:
                                         st.error(resp.text[:120])
@@ -373,14 +363,12 @@ def _render_admin_dashboard():
             else:
                 st.info("No hay documentos o no se pudo conectar al servidor.")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SECCIÓN 2: BANCO DE PREGUNTAS
-    # ══════════════════════════════════════════════════════════════════════════
+    # ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
     elif seccion == "preguntas":
-        st.markdown("## 📋 Banco de Preguntas de Evaluación")
+        st.markdown("### Banco de Preguntas")
 
         if not _DB_AVAILABLE:
-            st.error("❌ No se pudo conectar a Supabase.")
+            st.error("No se pudo conectar a la base de datos.")
             return
 
         try:
@@ -390,29 +378,29 @@ def _render_admin_dashboard():
             st.error(f"Error Supabase: {e}")
             return
 
-        # Sub-navegación: Ver/Editar o Nueva
-        modo_q = st.radio("", ["📖 Ver y editar", "➕ Nueva pregunta"],
+        modo_q = st.radio("", ["Ver y editar", "Nueva pregunta"],
                           horizontal=True, key="adm_modo_q", label_visibility="collapsed")
         st.markdown("---")
 
-        if modo_q == "📖 Ver y editar":
+        if modo_q == "Ver y editar":
             col_f, col_c = st.columns([2, 1])
             with col_f:
-                nivel_filtro = st.selectbox("Nivel:", ["todos"] + niveles_db, key="adm_filtro_nivel")
+                nivel_filtro = st.selectbox("Filtrar por nivel:", ["Todos"] + niveles_db, key="adm_filtro_nivel")
             try:
                 preguntas = obtener_preguntas_por_nivel(
-                    nivel=None if nivel_filtro == "todos" else nivel_filtro, cantidad=50)
+                    nivel=None if nivel_filtro == "Todos" else nivel_filtro, cantidad=50)
             except Exception as e:
                 st.error(str(e)); preguntas = []
             with col_c:
-                st.metric("Total", len(preguntas))
+                st.metric("Total encontradas", len(preguntas))
 
             for p in preguntas:
                 pid = p["id"]
-                resumen = p["enunciado"][:65] + "…" if len(p["enunciado"]) > 65 else p["enunciado"]
+                resumen = p["enunciado"][:65] + "..." if len(p["enunciado"]) > 65 else p["enunciado"]
                 respuestas = p.get("respuestas", [])
                 textos = [r["texto"] for r in respuestas]
-                while len(textos) < 4: textos.append("")
+                while len(textos) < 4:
+                    textos.append("")
                 idx_cor = next((i for i, r in enumerate(respuestas) if r.get("es_correcta")), 0)
                 letras = ["A", "B", "C", "D"]
 
@@ -431,38 +419,38 @@ def _render_admin_dashboard():
                         opciones = []
                         for i, l in enumerate(letras):
                             with c_op[i % 2]:
-                                opciones.append(st.text_input(f"Opción {l}:", value=textos[i],
+                                opciones.append(st.text_input(f"Opcion {l}:", value=textos[i],
                                                                key=f"adm_op{l}_{pid}"))
                         n_cor = st.radio("Respuesta correcta:", letras, index=idx_cor,
                                           horizontal=True, key=f"adm_cor_{pid}")
                         cg, ce = st.columns(2)
                         with cg:
-                            if st.form_submit_button("💾 Guardar", use_container_width=True, type="primary"):
+                            if st.form_submit_button("Guardar cambios", use_container_width=True, type="primary"):
                                 ok = actualizar_pregunta(pid, n_niv, n_tem, n_enun,
                                                           opciones[0], opciones[1], opciones[2], opciones[3], n_cor)
                                 if ok:
-                                    st.success("✅ Guardado.")
+                                    st.success("Guardado.")
                                     time.sleep(0.5); st.rerun()
                                 else:
                                     st.error("Error al guardar.")
                         with ce:
-                            if st.form_submit_button("🗑️ Eliminar", use_container_width=True):
+                            if st.form_submit_button("Eliminar", use_container_width=True):
                                 st.session_state[f"adm_cdel_{pid}"] = True
 
                     if st.session_state.get(f"adm_cdel_{pid}"):
-                        st.warning("¿Eliminar esta pregunta?")
+                        st.warning("Confirma que deseas eliminar esta pregunta.")
                         cy, cn = st.columns(2)
                         with cy:
-                            if st.button("Sí", key=f"adm_yes_{pid}", use_container_width=True, type="primary"):
+                            if st.button("Si, eliminar", key=f"adm_yes_{pid}", use_container_width=True, type="primary"):
                                 eliminar_pregunta(pid)
                                 st.session_state.pop(f"adm_cdel_{pid}", None)
                                 time.sleep(0.5); st.rerun()
                         with cn:
-                            if st.button("No", key=f"adm_no_{pid}", use_container_width=True):
+                            if st.button("Cancelar", key=f"adm_no_{pid}", use_container_width=True):
                                 st.session_state.pop(f"adm_cdel_{pid}", None)
                                 st.rerun()
         else:
-            # Nueva pregunta
+            st.markdown("**Nueva pregunta**")
             with st.form("adm_nueva_form", clear_on_submit=True):
                 ca, cb = st.columns([3, 1])
                 with ca:
@@ -472,93 +460,75 @@ def _render_admin_dashboard():
                     n_tem = st.selectbox("Tema:", temas_db, key="adm_nueva_tem")
                 c_op = st.columns(2)
                 with c_op[0]:
-                    op_a = st.text_input("Opción A:", key="adm_nop_a")
-                    op_c = st.text_input("Opción C:", key="adm_nop_c")
+                    op_a = st.text_input("Opcion A:", key="adm_nop_a")
+                    op_c = st.text_input("Opcion C:", key="adm_nop_c")
                 with c_op[1]:
-                    op_b = st.text_input("Opción B:", key="adm_nop_b")
-                    op_d = st.text_input("Opción D:", key="adm_nop_d")
+                    op_b = st.text_input("Opcion B:", key="adm_nop_b")
+                    op_d = st.text_input("Opcion D:", key="adm_nop_d")
                 n_cor = st.radio("Respuesta correcta:", ["A", "B", "C", "D"],
                                   horizontal=True, key="adm_nueva_cor")
-                if st.form_submit_button("✅ Crear Pregunta", use_container_width=True, type="primary"):
+                if st.form_submit_button("Crear pregunta", use_container_width=True, type="primary"):
                     if not n_enun.strip():
-                        st.error("El enunciado no puede estar vacío.")
+                        st.error("El enunciado no puede estar vacio.")
                     elif not all([op_a, op_b, op_c, op_d]):
                         st.error("Completa las 4 opciones.")
                     else:
                         ok = agregar_pregunta(n_niv, n_tem, n_enun, op_a, op_b, op_c, op_d, n_cor)
-                        st.success("✅ Creada.") if ok else st.error("Error. Verifica nivel y tema en Supabase.")
+                        st.success("Pregunta creada.") if ok else st.error("Error al crear.")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SECCIÓN 3: CONSULTOR IA
-    # ══════════════════════════════════════════════════════════════════════════
-    elif seccion == "consultor":
-        st.markdown("## 💬 Consultor IA")
-        st.caption("Prueba el sistema RAG con nivel Avanzado.")
-        _render_chat_interface(nivel="Avanzado", k_chunks=6)
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # SECCIÓN 4: SISTEMA
-    # ══════════════════════════════════════════════════════════════════════════
+    # ── SISTEMA ──────────────────────────────────────────────────────────────
     elif seccion == "sistema":
-        st.markdown("## ⚙️ Estado del Sistema")
+        st.markdown("### Sistema y Configuracion")
 
         col_s1, col_s2, col_s3 = st.columns(3)
         info_cards = [
-            ("SERVICIO API", "🟢 atena-vugz.onrender.com", "#22c55e"),
-            ("MODELO LLM", f"🧠 {os.environ.get('GROQ_LLM_MODEL','N/A')}", "#e2e8f0"),
-            ("EMBEDDINGS", f"🔢 {os.environ.get('EMBED_MODEL','all-MiniLM-L6-v2')}", "#e2e8f0"),
+            ("Servicio API", "atena-vugz.onrender.com", "#22c55e"),
+            ("Modelo LLM", os.environ.get("GROQ_LLM_MODEL", "N/A"), "#1e293b"),
+            ("Embeddings", os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"), "#1e293b"),
         ]
         for col, (titulo, valor, color) in zip([col_s1, col_s2, col_s3], info_cards):
             with col:
                 st.markdown(
-                    f"<div style='background:rgba(255,255,255,0.05); border-radius:12px; padding:16px; "
-                    f"border:1px solid rgba(255,255,255,0.1);'>"
-                    f"<div style='font-size:0.72rem; color:#94a3b8; margin-bottom:6px; letter-spacing:.05em;'>{titulo}</div>"
+                    f"<div style='background:#f8fafc; border-radius:8px; padding:14px 16px; border:1px solid #e2e8f0;'>"
+                    f"<div style='font-size:0.72rem; color:#94a3b8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em;'>{titulo}</div>"
                     f"<div style='font-size:0.88rem; color:{color}; font-weight:600;'>{valor}</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
 
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔍 Verificar estado del API", key="adm_ping", use_container_width=False):
+        if st.button("Verificar conexion con el API", key="adm_ping"):
             try:
                 resp = httpx.get(f"{ATENA_API_URL}/salud", timeout=10.0)
                 data = resp.json()
                 if data.get("estado") == "ok":
                     vs_ok = data.get("vector_store_listo", False)
-                    st.success(f"✅ API activo — Vector Store: {'✅ listo' if vs_ok else '⚠️ no disponible'}")
+                    st.success(f"API activo. Vector Store: {'listo' if vs_ok else 'no disponible'}")
                 else:
                     st.warning(str(data))
             except Exception as e:
-                st.error(f"Sin conexión: {e}")
+                st.error(f"Sin conexion: {e}")
+
+        st.markdown("---")
+        st.markdown("**Cambiar PIN de administrador**")
+        st.caption("El cambio aplica para esta sesion. Para hacerlo permanente, actualiza ADMIN_PIN en las variables de entorno de Render.")
+        with st.form("adm_cambiar_pin", clear_on_submit=True):
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                pin_actual = st.text_input("PIN actual:", type="password", key="adm_pin_actual")
+            with col_p2:
+                pin_nuevo = st.text_input("PIN nuevo:", type="password", key="adm_pin_nuevo")
+            if st.form_submit_button("Cambiar PIN", use_container_width=True, type="primary"):
+                pin_real = st.session_state.get("adm_pin_activo", os.environ.get("ADMIN_PIN", "12345"))
+                if pin_actual != pin_real:
+                    st.error("El PIN actual es incorrecto.")
+                elif len(pin_nuevo) < 4:
+                    st.error("El PIN nuevo debe tener al menos 4 caracteres.")
+                else:
+                    st.session_state["adm_pin_activo"] = pin_nuevo
+                    st.success("PIN actualizado para esta sesion.")
 
 
-def _render_chat_interface(nivel="Principiante", k_chunks=5):
-    """Interfaz de chat para el tab Consultor IA del admin."""
-    if "adm_mensajes" not in st.session_state:
-        st.session_state.adm_mensajes = []
-
-    pregunta = st.chat_input("Escribe tu consulta...", key="adm_chat_input")
-
-    for msg in st.session_state.adm_mensajes:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    if pregunta:
-        st.session_state.adm_mensajes.append({"role": "user", "content": pregunta})
-        with st.chat_message("user"):
-            st.markdown(pregunta)
-        with st.chat_message("assistant"):
-            with st.spinner("Consultando fuentes..."):
-                respuesta_texto, fuentes = consultar_via_api(pregunta, nivel=nivel, k=k_chunks)
-            st.markdown(respuesta_texto)
-            if fuentes:
-                with st.expander("Ver fuentes documentales"):
-                    for i, f in enumerate(fuentes, 1):
-                        st.markdown(f"**[{i}] {nombre_legible(f.get('fuente',''))}** — Pág. {f.get('pagina','?')}")
-                        st.caption(f.get("fragmento","")[:200])
-        st.session_state.adm_mensajes.append({"role": "assistant", "content": respuesta_texto})
-        st.rerun()
 
 
 
