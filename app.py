@@ -479,6 +479,11 @@ def _render_admin_dashboard():
 
     # ── ESTADISTICAS ─────────────────────────────────────────────────────────
     elif seccion == "estadisticas":
+        import pandas as pd
+        import plotly.express as px
+        import plotly.graph_objects as go
+        from datetime import date, timedelta
+
         st.markdown("### Estadisticas de uso")
 
         try:
@@ -495,115 +500,196 @@ def _render_admin_dashboard():
         if not _METRICS_OK:
             st.error("No se pudo conectar al modulo de metricas.")
         else:
-            periodo = st.radio("Periodo:", ["7 dias", "30 dias", "Todo"], horizontal=True, key="adm_periodo")
-            dias_map = {"7 dias": 7, "30 dias": 30, "Todo": 3650}
-            dias = dias_map[periodo]
+            # ── Filtros de fecha ────────────────────────────────────────────
+            fc1, fc2, fc3 = st.columns([1, 1, 1])
+            with fc1:
+                fecha_desde = st.date_input("Desde:", value=date.today() - timedelta(days=30), key="adm_f_desde")
+            with fc2:
+                fecha_hasta = st.date_input("Hasta:", value=date.today(), key="adm_f_hasta")
+            with fc3:
+                acceso_rapido = st.selectbox("Acceso rapido:", ["Personalizado", "Ultima semana", "Ultimo mes", "Ultimos 3 meses", "Todo el historial"], key="adm_rapido")
+                if acceso_rapido != "Personalizado":
+                    deltas = {"Ultima semana": 7, "Ultimo mes": 30, "Ultimos 3 meses": 90, "Todo el historial": 3650}
+                    fecha_desde = date.today() - timedelta(days=deltas[acceso_rapido])
+                    fecha_hasta = date.today()
+
+            dias = max(1, (fecha_hasta - fecha_desde).days + 1)
             st.markdown("---")
 
             try:
-                stats = obtener_metricas()
-                volumen = obtener_volumen_diario(dias)
-                frecuentes = obtener_preguntas_frecuentes(10)
+                stats        = obtener_metricas()
+                volumen      = obtener_volumen_diario(dias)
+                frecuentes   = obtener_preguntas_frecuentes(10)
                 dist_niveles = obtener_distribucion_niveles()
-                precision = obtener_precision_evaluaciones()
-                tend_aciertos = obtener_tendencia_aciertos_diaria(dias)
-                recientes = obtener_consultas_recientes(15)
+                precision    = obtener_precision_evaluaciones()
+                tend_aciertos= obtener_tendencia_aciertos_diaria(dias)
+                recientes    = obtener_consultas_recientes(20)
             except Exception as e:
                 st.error(f"Error al cargar estadisticas: {e}")
                 st.stop()
 
-            # ── KPIs ──────────────────────────────────────────────────────
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total de consultas", stats["total_consultas"])
-            lat_str = f"{stats['latencia_promedio']} s" if stats["latencia_promedio"] else "—"
-            k2.metric("Latencia promedio", lat_str)
-            k3.metric("Evaluaciones realizadas", stats["total_evaluaciones"])
-            aciertos_str = f"{stats['porcentaje_aciertos']} %" if stats["total_evaluaciones"] else "—"
-            k4.metric("Precision global", aciertos_str)
+            # ── KPIs ────────────────────────────────────────────────────────
+            k1, k2, k3, k4, k5 = st.columns(5)
+            k1.metric("Consultas totales", stats["total_consultas"])
+            k2.metric("Latencia promedio", f"{stats['latencia_promedio']} s" if stats["latencia_promedio"] else "—")
+            k3.metric("Evaluaciones", stats["total_evaluaciones"])
+            k4.metric("Precision global", f"{stats['porcentaje_aciertos']} %" if stats["total_evaluaciones"] else "—")
+            aciertos = stats.get("evaluaciones_correctas", 0)
+            k5.metric("Respuestas correctas", aciertos)
+
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # ── Graficos ──────────────────────────────────────────────────
-            col_izq, col_der = st.columns([3, 2], gap="large")
+            # ── FILA 1: Volumen + Torta niveles ─────────────────────────────
+            col_v, col_p = st.columns([3, 2], gap="large")
 
-            with col_izq:
-                # Volumen diario de consultas
+            with col_v:
                 if volumen:
-                    import pandas as pd
                     df_vol = pd.DataFrame(volumen)
                     df_vol["dia"] = pd.to_datetime(df_vol["dia"])
-                    df_vol = df_vol.rename(columns={"total": "Consultas", "dia": "Fecha", "latencia_avg": "Latencia (s)"})
-                    st.markdown("**Consultas por dia**")
-                    st.bar_chart(df_vol.set_index("Fecha")["Consultas"])
+                    df_vol["latencia_avg"] = df_vol["latencia_avg"].apply(lambda x: round(float(x), 2) if x else 0)
+                    fig_vol = px.bar(
+                        df_vol, x="dia", y="total",
+                        labels={"dia": "Fecha", "total": "Consultas"},
+                        title="Consultas por dia",
+                        color_discrete_sequence=["#8CC63F"],
+                        custom_data=["latencia_avg"],
+                    )
+                    fig_vol.update_traces(
+                        hovertemplate="<b>%{x|%d %b}</b><br>Consultas: %{y}<br>Latencia prom: %{customdata[0]} s<extra></extra>"
+                    )
+                    fig_vol.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                        height=280, title_font_size=14,
+                        xaxis=dict(showgrid=False), yaxis=dict(gridcolor="rgba(0,0,0,0.06)"),
+                    )
+                    st.plotly_chart(fig_vol, use_container_width=True)
                 else:
-                    st.info("Sin datos de volumen para el periodo seleccionado.")
+                    st.info("Sin datos de volumen en el periodo seleccionado.")
 
-            with col_der:
-                # Distribucion por nivel
+            with col_p:
                 if dist_niveles:
-                    import pandas as pd
-                    df_niv = pd.DataFrame({"Nivel": list(dist_niveles.keys()), "Consultas": list(dist_niveles.values())})
-                    st.markdown("**Distribucion por nivel**")
-                    st.dataframe(df_niv, hide_index=True, use_container_width=True)
+                    labels = list(dist_niveles.keys())
+                    values = list(dist_niveles.values())
+                    fig_pie = go.Figure(go.Pie(
+                        labels=labels, values=values, hole=0.5,
+                        marker=dict(colors=["#4a235a", "#8CC63F", "#7ab332", "#6c3483"]),
+                        textinfo="percent+label",
+                    ))
+                    fig_pie.update_layout(
+                        title="Distribucion por nivel",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Inter"),
+                        margin=dict(l=0, r=0, t=40, b=0),
+                        height=280, showlegend=False, title_font_size=14,
+                    )
+                    st.plotly_chart(fig_pie, use_container_width=True)
                 else:
-                    st.info("Sin datos de nivel.")
+                    st.info("Sin datos de niveles.")
 
             st.markdown("---")
-            col_a, col_b = st.columns([1, 1], gap="large")
 
-            with col_a:
-                # Temas mas consultados
+            # ── FILA 2: Barras frecuentes + Barras precision ─────────────────
+            col_f, col_pr = st.columns([1, 1], gap="large")
+
+            with col_f:
                 if frecuentes:
-                    import pandas as pd
                     df_freq = pd.DataFrame(frecuentes)
-                    df_freq["pregunta"] = df_freq["pregunta"].apply(lambda x: x[:70] + "..." if len(x) > 70 else x)
-                    df_freq = df_freq.rename(columns={
-                        "pregunta": "Consulta", "veces": "Veces", "latencia_avg": "Lat. prom (s)"
-                    })
-                    df_freq["Lat. prom (s)"] = df_freq["Lat. prom (s)"].apply(lambda x: round(x, 2) if x else "—")
-                    st.markdown("**Consultas mas frecuentes**")
-                    st.dataframe(df_freq, hide_index=True, use_container_width=True)
+                    df_freq["pregunta_corta"] = df_freq["pregunta"].apply(lambda x: x[:55] + "..." if len(x) > 55 else x)
+                    df_freq["lat_r"] = df_freq["latencia_avg"].apply(lambda x: round(float(x), 2) if x else 0)
+                    fig_freq = px.bar(
+                        df_freq, x="veces", y="pregunta_corta",
+                        orientation="h",
+                        labels={"veces": "Veces consultada", "pregunta_corta": ""},
+                        title="Temas mas consultados",
+                        color="veces",
+                        color_continuous_scale=["#c7e8a0", "#4a235a"],
+                        custom_data=["lat_r"],
+                    )
+                    fig_freq.update_traces(
+                        hovertemplate="<b>%{y}</b><br>Consultas: %{x}<br>Latencia: %{customdata[0]} s<extra></extra>"
+                    )
+                    fig_freq.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                        height=340, coloraxis_showscale=False, title_font_size=14,
+                        yaxis=dict(tickfont=dict(size=10)), xaxis=dict(gridcolor="rgba(0,0,0,0.06)"),
+                    )
+                    st.plotly_chart(fig_freq, use_container_width=True)
                 else:
-                    st.info("Sin datos de frecuencia.")
+                    st.info("Sin datos de frecuencia aun.")
 
-            with col_b:
-                # Precision por pregunta de evaluacion
+            with col_pr:
                 if precision:
-                    import pandas as pd
                     df_prec = pd.DataFrame(precision)
-                    df_prec["pregunta"] = df_prec["pregunta"].apply(lambda x: x[:60] + "..." if len(x) > 60 else x)
-                    df_prec = df_prec.rename(columns={
-                        "pregunta": "Pregunta", "intentos": "Intentos",
-                        "aciertos": "Aciertos", "porcentaje": "% Correcto"
-                    })
-                    st.markdown("**Precision por pregunta (menor % primero)**")
-                    st.dataframe(df_prec, hide_index=True, use_container_width=True)
+                    df_prec["preg_c"] = df_prec["pregunta"].apply(lambda x: x[:50] + "..." if len(x) > 50 else x)
+                    df_prec["porcentaje"] = df_prec["porcentaje"].apply(float)
+                    fig_prec = px.bar(
+                        df_prec, x="porcentaje", y="preg_c",
+                        orientation="h",
+                        labels={"porcentaje": "% Aciertos", "preg_c": ""},
+                        title="Precision por pregunta",
+                        color="porcentaje",
+                        color_continuous_scale=["#ef4444", "#f59e0b", "#22c55e"],
+                        range_color=[0, 100],
+                        custom_data=["intentos"],
+                    )
+                    fig_prec.update_traces(
+                        hovertemplate="<b>%{y}</b><br>Aciertos: %{x}%<br>Intentos: %{customdata[0]}<extra></extra>"
+                    )
+                    fig_prec.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                        height=340, coloraxis_showscale=False, title_font_size=14,
+                        yaxis=dict(tickfont=dict(size=10)), xaxis=dict(gridcolor="rgba(0,0,0,0.06)", range=[0, 100]),
+                    )
+                    st.plotly_chart(fig_prec, use_container_width=True)
                 else:
-                    st.info("Sin datos de evaluaciones.")
+                    st.info("Sin datos de evaluaciones aun.")
 
-            # Tendencia de aciertos
+            # ── FILA 3: Tendencia de aciertos ───────────────────────────────
             if tend_aciertos:
-                import pandas as pd
                 st.markdown("---")
-                st.markdown("**Tendencia de precision en evaluaciones**")
                 df_tend = pd.DataFrame(tend_aciertos)
                 df_tend["dia"] = pd.to_datetime(df_tend["dia"])
-                df_tend = df_tend.rename(columns={"pct_aciertos": "% Aciertos", "dia": "Fecha"})
-                st.line_chart(df_tend.set_index("Fecha")["% Aciertos"])
+                df_tend["pct_aciertos"] = df_tend["pct_aciertos"].apply(float)
+                fig_tend = px.line(
+                    df_tend, x="dia", y="pct_aciertos",
+                    labels={"dia": "Fecha", "pct_aciertos": "% Aciertos"},
+                    title="Tendencia de precision en evaluaciones",
+                    markers=True,
+                    color_discrete_sequence=["#4a235a"],
+                )
+                fig_tend.add_hline(y=70, line_dash="dash", line_color="#f59e0b", annotation_text="Meta 70%")
+                fig_tend.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                    height=260, title_font_size=14,
+                    yaxis=dict(range=[0, 105], gridcolor="rgba(0,0,0,0.06)"),
+                    xaxis=dict(showgrid=False),
+                )
+                st.plotly_chart(fig_tend, use_container_width=True)
 
-            # Log de consultas recientes
+            # ── FILA 4: Log de consultas recientes ───────────────────────────
             st.markdown("---")
-            st.markdown("**Consultas recientes**")
+            st.markdown("**Registro de consultas recientes**")
             if recientes:
-                import pandas as pd
                 df_rec = pd.DataFrame(recientes)
-                df_rec["pregunta"] = df_rec["pregunta"].apply(lambda x: x[:80] + "..." if len(x) > 80 else x)
-                df_rec["fecha"] = pd.to_datetime(df_rec["fecha"]).dt.strftime("%Y-%m-%d %H:%M")
-                df_rec["latencia"] = df_rec["latencia"].apply(lambda x: f"{round(x,2)} s" if x else "—")
-                df_rec = df_rec.rename(columns={
-                    "fecha": "Fecha", "pregunta": "Consulta",
-                    "nivel": "Nivel", "latencia": "Latencia"
-                })
-                st.dataframe(df_rec, hide_index=True, use_container_width=True)
+                df_rec["pregunta"] = df_rec["pregunta"].apply(lambda x: x[:90] + "..." if len(x) > 90 else x)
+                df_rec["fecha"] = pd.to_datetime(df_rec["fecha"]).dt.strftime("%d/%m/%Y %H:%M")
+                df_rec["latencia"] = df_rec["latencia"].apply(lambda x: f"{round(float(x),2)} s" if x else "—")
+                df_rec = df_rec.rename(columns={"fecha": "Fecha", "pregunta": "Consulta", "nivel": "Nivel", "latencia": "Latencia"})
+                st.dataframe(
+                    df_rec,
+                    hide_index=True,
+                    use_container_width=True,
+                    column_config={
+                        "Fecha":    st.column_config.TextColumn("Fecha", width="small"),
+                        "Nivel":    st.column_config.TextColumn("Nivel", width="small"),
+                        "Latencia": st.column_config.TextColumn("Latencia", width="small"),
+                        "Consulta": st.column_config.TextColumn("Consulta"),
+                    }
+                )
             else:
                 st.info("No hay consultas registradas aun.")
 
