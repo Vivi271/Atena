@@ -517,6 +517,12 @@ def _render_admin_dashboard():
                 st.session_state.adm_seccion = key
                 st.rerun()
 
+    st.markdown(
+        "<style>section[data-testid='stMain'] > div:first-child > div:first-child "
+        "{animation:atenaSFade .2s ease;}"
+        "@keyframes atenaSFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}"
+        "</style>", unsafe_allow_html=True
+    )
     st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
     seccion = st.session_state.adm_seccion
 
@@ -813,14 +819,25 @@ def _render_admin_dashboard():
 
             # ── KPIs ────────────────────────────────────────────────────────
             k1, k2, k3, k4, k5 = st.columns(5)
-            k1.metric("Consultas totales", stats["total_consultas"])
-            k2.metric("Latencia promedio", f"{stats['latencia_promedio']} s" if stats["latencia_promedio"] else "—")
-            k3.metric("Evaluaciones", stats["total_evaluaciones"])
-            k4.metric("Precision global", f"{stats['porcentaje_aciertos']} %" if stats["total_evaluaciones"] else "—")
-            aciertos = stats.get("evaluaciones_correctas", 0)
-            k5.metric("Respuestas correctas", aciertos)
-
-            st.markdown("<br>", unsafe_allow_html=True)
+            _kpis = [
+                ("Consultas totales", str(stats["total_consultas"]), "#4a235a", "📬"),
+                ("Latencia prom.", f"{stats['latencia_promedio']} s" if stats["latencia_promedio"] else "—", "#1e3a5f", "⚡"),
+                ("Evaluaciones", str(stats["total_evaluaciones"]), "#14532d", "📝"),
+                ("Precision global", f"{stats['porcentaje_aciertos']} %" if stats["total_evaluaciones"] else "—", "#7c2d12", "🎯"),
+                ("Resp. correctas", str(stats.get("evaluaciones_correctas", 0)), "#1e3a5f", "✅"),
+            ]
+            for _c, (_l, _v, _bg, _ic) in zip([k1,k2,k3,k4,k5], _kpis):
+                with _c:
+                    st.markdown(
+                        f"<div style='background:linear-gradient(135deg,{_bg}18,{_bg}05);"
+                        f"border:1px solid {_bg}22;border-top:3px solid {_bg};"
+                        f"border-radius:10px;padding:16px 12px;text-align:center;'>"
+                        f"<div style='font-size:1.3rem;margin-bottom:4px;'>{_ic}</div>"
+                        f"<div style='font-size:0.65rem;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:6px;'>{_l}</div>"
+                        f"<div style='font-size:1.5rem;font-weight:800;color:{_bg};'>{_v}</div>"
+                        f"</div>", unsafe_allow_html=True
+                    )
+            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
             # ── FILA 1: Volumen + Torta niveles ─────────────────────────────
             col_v, col_p = st.columns([3, 2], gap="large")
@@ -848,7 +865,7 @@ def _render_admin_dashboard():
                     )
                     st.plotly_chart(fig_vol, use_container_width=True)
                 else:
-                    st.info("Sin datos de volumen en el periodo seleccionado.")
+                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>📊</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin consultas en este periodo</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Las consultas aparecerán aquí al registrarse</p></div>", unsafe_allow_html=True)
 
             with col_p:
                 if dist_niveles:
@@ -868,7 +885,7 @@ def _render_admin_dashboard():
                     )
                     st.plotly_chart(fig_pie, use_container_width=True)
                 else:
-                    st.info("Sin datos de niveles.")
+                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>🎓</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin datos por nivel</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá al completar evaluaciones</p></div>", unsafe_allow_html=True)
 
             st.markdown("---")
 
@@ -900,7 +917,7 @@ def _render_admin_dashboard():
                     )
                     st.plotly_chart(fig_freq, use_container_width=True)
                 else:
-                    st.info("Sin datos de frecuencia aun.")
+                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>🔍</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin temas frecuentes aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Los temas más consultados aparecerán aquí</p></div>", unsafe_allow_html=True)
 
             with col_pr:
                 if precision:
@@ -928,7 +945,7 @@ def _render_admin_dashboard():
                     )
                     st.plotly_chart(fig_prec, use_container_width=True)
                 else:
-                    st.info("Sin datos de evaluaciones aun.")
+                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>🎯</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin evaluaciones aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>La precisión aparecerá al evaluar respuestas</p></div>", unsafe_allow_html=True)
 
             # ── FILA 3: Tendencia de aciertos ───────────────────────────────
             if tend_aciertos:
@@ -974,7 +991,7 @@ def _render_admin_dashboard():
                     }
                 )
             else:
-                st.info("No hay consultas registradas aun.")
+                st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:10px;padding:30px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>📋</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin historial de consultas</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá cuando los usuarios interactúen con Atena</p></div>", unsafe_allow_html=True)
 
     # ── SISTEMA ──────────────────────────────────────────────────────────────
     elif seccion == "sistema":
