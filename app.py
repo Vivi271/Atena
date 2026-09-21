@@ -235,11 +235,12 @@ def _render_admin_dashboard():
     if "adm_seccion" not in st.session_state:
         st.session_state.adm_seccion = "documentos"
 
-    nav_cols = st.columns(3)
+    nav_cols = st.columns(4)
     secciones = [
-        ("documentos", "Documentos"),
-        ("preguntas",  "Banco de Preguntas"),
-        ("sistema",    "Sistema"),
+        ("documentos",   "Documentos"),
+        ("preguntas",    "Banco de Preguntas"),
+        ("estadisticas", "Estadisticas"),
+        ("sistema",      "Sistema"),
     ]
     for col, (key, label) in zip(nav_cols, secciones):
         with col:
@@ -475,6 +476,136 @@ def _render_admin_dashboard():
                     else:
                         ok = agregar_pregunta(n_niv, n_tem, n_enun, op_a, op_b, op_c, op_d, n_cor)
                         st.success("Pregunta creada.") if ok else st.error("Error al crear.")
+
+    # ── ESTADISTICAS ─────────────────────────────────────────────────────────
+    elif seccion == "estadisticas":
+        st.markdown("### Estadisticas de uso")
+
+        try:
+            from db_metrics import (
+                obtener_metricas, obtener_preguntas_frecuentes,
+                obtener_volumen_diario, obtener_distribucion_niveles,
+                obtener_precision_evaluaciones, obtener_tendencia_aciertos_diaria,
+                obtener_consultas_recientes,
+            )
+            _METRICS_OK = True
+        except ImportError:
+            _METRICS_OK = False
+
+        if not _METRICS_OK:
+            st.error("No se pudo conectar al modulo de metricas.")
+        else:
+            periodo = st.radio("Periodo:", ["7 dias", "30 dias", "Todo"], horizontal=True, key="adm_periodo")
+            dias_map = {"7 dias": 7, "30 dias": 30, "Todo": 3650}
+            dias = dias_map[periodo]
+            st.markdown("---")
+
+            try:
+                stats = obtener_metricas()
+                volumen = obtener_volumen_diario(dias)
+                frecuentes = obtener_preguntas_frecuentes(10)
+                dist_niveles = obtener_distribucion_niveles()
+                precision = obtener_precision_evaluaciones()
+                tend_aciertos = obtener_tendencia_aciertos_diaria(dias)
+                recientes = obtener_consultas_recientes(15)
+            except Exception as e:
+                st.error(f"Error al cargar estadisticas: {e}")
+                st.stop()
+
+            # ── KPIs ──────────────────────────────────────────────────────
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Total de consultas", stats["total_consultas"])
+            lat_str = f"{stats['latencia_promedio']} s" if stats["latencia_promedio"] else "—"
+            k2.metric("Latencia promedio", lat_str)
+            k3.metric("Evaluaciones realizadas", stats["total_evaluaciones"])
+            aciertos_str = f"{stats['porcentaje_aciertos']} %" if stats["total_evaluaciones"] else "—"
+            k4.metric("Precision global", aciertos_str)
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── Graficos ──────────────────────────────────────────────────
+            col_izq, col_der = st.columns([3, 2], gap="large")
+
+            with col_izq:
+                # Volumen diario de consultas
+                if volumen:
+                    import pandas as pd
+                    df_vol = pd.DataFrame(volumen)
+                    df_vol["dia"] = pd.to_datetime(df_vol["dia"])
+                    df_vol = df_vol.rename(columns={"total": "Consultas", "dia": "Fecha", "latencia_avg": "Latencia (s)"})
+                    st.markdown("**Consultas por dia**")
+                    st.bar_chart(df_vol.set_index("Fecha")["Consultas"])
+                else:
+                    st.info("Sin datos de volumen para el periodo seleccionado.")
+
+            with col_der:
+                # Distribucion por nivel
+                if dist_niveles:
+                    import pandas as pd
+                    df_niv = pd.DataFrame({"Nivel": list(dist_niveles.keys()), "Consultas": list(dist_niveles.values())})
+                    st.markdown("**Distribucion por nivel**")
+                    st.dataframe(df_niv, hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sin datos de nivel.")
+
+            st.markdown("---")
+            col_a, col_b = st.columns([1, 1], gap="large")
+
+            with col_a:
+                # Temas mas consultados
+                if frecuentes:
+                    import pandas as pd
+                    df_freq = pd.DataFrame(frecuentes)
+                    df_freq["pregunta"] = df_freq["pregunta"].apply(lambda x: x[:70] + "..." if len(x) > 70 else x)
+                    df_freq = df_freq.rename(columns={
+                        "pregunta": "Consulta", "veces": "Veces", "latencia_avg": "Lat. prom (s)"
+                    })
+                    df_freq["Lat. prom (s)"] = df_freq["Lat. prom (s)"].apply(lambda x: round(x, 2) if x else "—")
+                    st.markdown("**Consultas mas frecuentes**")
+                    st.dataframe(df_freq, hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sin datos de frecuencia.")
+
+            with col_b:
+                # Precision por pregunta de evaluacion
+                if precision:
+                    import pandas as pd
+                    df_prec = pd.DataFrame(precision)
+                    df_prec["pregunta"] = df_prec["pregunta"].apply(lambda x: x[:60] + "..." if len(x) > 60 else x)
+                    df_prec = df_prec.rename(columns={
+                        "pregunta": "Pregunta", "intentos": "Intentos",
+                        "aciertos": "Aciertos", "porcentaje": "% Correcto"
+                    })
+                    st.markdown("**Precision por pregunta (menor % primero)**")
+                    st.dataframe(df_prec, hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sin datos de evaluaciones.")
+
+            # Tendencia de aciertos
+            if tend_aciertos:
+                import pandas as pd
+                st.markdown("---")
+                st.markdown("**Tendencia de precision en evaluaciones**")
+                df_tend = pd.DataFrame(tend_aciertos)
+                df_tend["dia"] = pd.to_datetime(df_tend["dia"])
+                df_tend = df_tend.rename(columns={"pct_aciertos": "% Aciertos", "dia": "Fecha"})
+                st.line_chart(df_tend.set_index("Fecha")["% Aciertos"])
+
+            # Log de consultas recientes
+            st.markdown("---")
+            st.markdown("**Consultas recientes**")
+            if recientes:
+                import pandas as pd
+                df_rec = pd.DataFrame(recientes)
+                df_rec["pregunta"] = df_rec["pregunta"].apply(lambda x: x[:80] + "..." if len(x) > 80 else x)
+                df_rec["fecha"] = pd.to_datetime(df_rec["fecha"]).dt.strftime("%Y-%m-%d %H:%M")
+                df_rec["latencia"] = df_rec["latencia"].apply(lambda x: f"{round(x,2)} s" if x else "—")
+                df_rec = df_rec.rename(columns={
+                    "fecha": "Fecha", "pregunta": "Consulta",
+                    "nivel": "Nivel", "latencia": "Latencia"
+                })
+                st.dataframe(df_rec, hide_index=True, use_container_width=True)
+            else:
+                st.info("No hay consultas registradas aun.")
 
     # ── SISTEMA ──────────────────────────────────────────────────────────────
     elif seccion == "sistema":
