@@ -18,7 +18,7 @@ for _p in [_BACKEND_DIR, _COMPONENTS_DIR, ROOT]:
 
 # ── 1. Configuración de página (DEBE ser la primera instrucción de Streamlit) ──
 st.set_page_config(
-    page_title="Atena",
+    page_title="Atena — Consultor IA",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -34,9 +34,41 @@ if os.path.exists(CSS_PATH):
         css_content = f.read()
     st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 
-# ── Viewport meta tag for proper mobile rendering ──
-st.markdown("""
+# ── Modo oscuro / claro ──
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+# ── Inyección: pantalla de carga + modo + sidebar admin ──
+_dark = "dark" if st.session_state.dark_mode else "light"
+_is_admin_now = st.session_state.get("is_admin", False)
+st.markdown(f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- Pantalla de carga -->
+<div id="atena-loader">
+  <div class="loader-logo">Atena</div>
+  <div class="loader-sub">Consultor de Neuroanatom\u00eda &middot; Konrad Lorenz</div>
+  <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+</div>
+
+<script>
+(function(){{
+  // Aplicar tema
+  document.documentElement.setAttribute('data-theme', '{_dark}');
+  document.body.setAttribute('data-theme', '{_dark}');
+
+  // Colapsar sidebar si es admin
+  if ({'true' if _is_admin_now else 'false'}) {{
+    document.body.setAttribute('data-admin', 'true');
+  }}
+
+  // Quitar loader despues de 2.2s
+  setTimeout(function(){{
+    var loader = document.getElementById('atena-loader');
+    if (loader) loader.style.display = 'none';
+  }}, 2200);
+}})();
+</script>
 """, unsafe_allow_html=True)
 
 # ── 3. Inicialización de Estado ──
@@ -235,22 +267,39 @@ def _render_admin_dashboard():
     if "adm_seccion" not in st.session_state:
         st.session_state.adm_seccion = "documentos"
 
-    nav_cols = st.columns(4)
+    # ── Topbar profesional ────────────────────────────────────────────────────
+    modo_icon = "Modo claro" if st.session_state.dark_mode else "Modo oscuro"
+    st.markdown(f"""
+    <div class="atena-topbar">
+        <div class="topbar-brand"><span></span>Atena</div>
+        <div class="topbar-badge">Panel de Administracion</div>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-user">Administrador activo</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Fila: navegacion + toggle modo
+    nav_c1, nav_c2, nav_c3, nav_c4, nav_toggle = st.columns([2, 2, 2, 2, 1])
     secciones = [
-        ("documentos",   "Documentos"),
-        ("preguntas",    "Banco de Preguntas"),
-        ("estadisticas", "Estadisticas"),
-        ("sistema",      "Sistema"),
+        ("documentos",   "Documentos",       nav_c1),
+        ("preguntas",    "Banco de Preguntas",nav_c2),
+        ("estadisticas", "Estadisticas",      nav_c3),
+        ("sistema",      "Sistema",           nav_c4),
     ]
-    for col, (key, label) in zip(nav_cols, secciones):
+    for key, label, col in secciones:
         with col:
             tipo = "primary" if st.session_state.adm_seccion == key else "secondary"
             if st.button(label, key=f"adm_nav_{key}", use_container_width=True, type=tipo):
                 st.session_state.adm_seccion = key
                 st.rerun()
+    with nav_toggle:
+        if st.button(modo_icon, key="adm_toggle_dark", use_container_width=True):
+            st.session_state.dark_mode = not st.session_state.dark_mode
+            st.rerun()
 
     st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
     seccion = st.session_state.adm_seccion
+
 
     # ── DOCUMENTOS ──────────────────────────────────────────────────────────
     if seccion == "documentos":
@@ -335,7 +384,7 @@ def _render_admin_dashboard():
                             unsafe_allow_html=True
                         )
                     with c_d:
-                        if st.button("x", key=f"adm_del_{nombre}", help="Eliminar"):
+                        if st.button("Eliminar", key=f"adm_del_{nombre}", help=f"Eliminar {nombre_legible(nombre)}"):
                             st.session_state["adm_pending_del"] = nombre
 
                 if st.session_state.get("adm_pending_del"):
