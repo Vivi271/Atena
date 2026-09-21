@@ -550,40 +550,30 @@ def _render_admin_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
-    # Barra de navegación limpia con las 4 secciones principales
-    t1, t2, t3, t4 = st.columns(4)
-    secciones = [
-        ("documentos",   "Documentos",        t1),
-        ("preguntas",    "Banco de Preguntas",t2),
-        ("estadisticas", "Estadisticas",      t3),
-        ("sistema",      "Sistema",           t4),
-    ]
-    for key, label, col in secciones:
-        with col:
-            tipo = "primary" if st.session_state.adm_seccion == key else "secondary"
-            if st.button(label, key=f"adm_nav_{key}", use_container_width=True, type=tipo):
-                st.session_state.adm_seccion = key
-                st.rerun()
+    # ── Navegación: st.tabs() nativos (sin rerun → sin bleeding de módulos) ──
+    # Estilos para personalizar los tabs nativos de Streamlit
+    st.markdown("""<style>
+    div[data-testid="stTabs"] button[data-baseweb="tab"] {
+        font-weight: 600 !important;
+        font-size: 0.88rem !important;
+        padding: 10px 20px !important;
+        border-radius: 0 !important;
+    }
+    div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(135deg, #4a235a, #6c3483) !important;
+        color: white !important;
+    }
+    div[data-testid="stTabList"] {
+        border-bottom: 2px solid #e2e8f0 !important;
+        margin-bottom: 20px !important;
+    }
+    </style>""", unsafe_allow_html=True)
 
-    st.markdown(
-        "<style>section[data-testid='stMain'] > div:first-child > div:first-child "
-        "{animation:atenaSFade .2s ease;}"
-        "@keyframes atenaSFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}"
-        "</style>", unsafe_allow_html=True
+    tab_docs, tab_preg, tab_stats, tab_sis = st.tabs(
+        ["Documentos", "Banco de Preguntas", "Estadísticas", "Sistema"]
     )
-    st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
-    # ─── Arreglo bleeding: mostrar placeholder mientras carga sección nueva ─────
-    _prev_sec = st.session_state.get("_adm_last_sec")
-    seccion = st.session_state.adm_seccion
-    if _prev_sec != seccion:
-        st.session_state["_adm_last_sec"] = seccion
 
-
-    # ── DOCUMENTOS ──────────────────────────────────────────────────────────
-    # ── Contenedor atómico: evita módulo anterior visible durante carga ─────
-    _section_slot = st.empty()
-    with _section_slot.container():
-        if seccion == "documentos":
+    with tab_docs:
             st.markdown("### Documentos del sistema")
             st.caption("Biblioteca de literatura indexada. Sube PDF o DOCX para ampliar el conocimiento de Atena.")
 
@@ -709,7 +699,7 @@ def _render_admin_dashboard():
 
 
         # ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
-        elif seccion == "preguntas":
+    with tab_preg:
             st.markdown("### Banco de Preguntas")
             # Fix visual "do" en radio horizontal (Streamlit label truncation)
             st.markdown("""<style>
@@ -853,7 +843,7 @@ def _render_admin_dashboard():
                         st.rerun()
 
         # ── ESTADISTICAS ─────────────────────────────────────────────────────────
-        elif seccion == "estadisticas":
+    with tab_stats:
             import pandas as pd
             import plotly.express as px
             import plotly.graph_objects as go
@@ -1084,7 +1074,7 @@ def _render_admin_dashboard():
                     st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:10px;padding:30px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin historial de consultas</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá cuando los usuarios interactúen con Atena</p></div>", unsafe_allow_html=True)
 
         # ── SISTEMA ──────────────────────────────────────────────────────────────
-        elif seccion == "sistema":
+    with tab_sis:
             st.markdown("### Sistema y Configuracion")
 
             col_s1, col_s2, col_s3 = st.columns(3)
