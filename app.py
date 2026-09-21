@@ -216,14 +216,376 @@ def mostrar_evaluacion(nivel):
                     st.session_state.pop(f"dlg_q_logged_{p['id']}", None)
                 st.rerun()
 
+# ── Función: Panel Admin Dashboard (vista completa, ancho total) ──────────────
+def _render_admin_dashboard():
+    """
+    Panel de administración profesional que ocupa el área principal.
+    Se muestra cuando el admin está logueado en lugar del chat.
+    """
+    ATENA_API_URL = os.environ.get("ATENA_API_URL", "https://atena-vugz.onrender.com").rstrip("/")
+    ADMIN_PIN_ENV = os.environ.get("ADMIN_PIN", "12345")
+
+    try:
+        from db_preguntas import (
+            obtener_preguntas_por_nivel, agregar_pregunta,
+            actualizar_pregunta, eliminar_pregunta,
+            obtener_niveles, obtener_temas,
+        )
+        _DB_AVAILABLE = True
+    except ImportError:
+        _DB_AVAILABLE = False
+
+    # ── Header del admin ──────────────────────────────────────────────────────
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 16px; padding: 24px 32px; margin-bottom: 24px;
+        border: 1px solid rgba(139,198,63,0.3);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+        display: flex; align-items: center; gap: 16px;
+    ">
+        <div style="font-size: 2.5rem;">🛡️</div>
+        <div>
+            <h1 style="margin:0; color:#f8fafc; font-size:1.6rem; font-weight:700;">
+                Panel de Administración — Atena
+            </h1>
+            <p style="margin:4px 0 0; color:#94a3b8; font-size:0.9rem;">
+                Gestión de documentos, banco de preguntas y configuración del sistema
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Tabs principales ──────────────────────────────────────────────────────
+    tab_docs, tab_preguntas, tab_chat, tab_motor = st.tabs([
+        "📚 Documentos",
+        "📋 Banco de Preguntas",
+        "💬 Consultor IA",
+        "⚙️ Sistema",
+    ])
+
+    # ── TAB 1: DOCUMENTOS ─────────────────────────────────────────────────────
+    with tab_docs:
+        st.markdown("### 📚 Gestión de Documentos")
+        st.caption("Sube PDFs al servidor para indexarlos en la base vectorial del sistema RAG.")
+
+        col_upload, col_list = st.columns([1, 1], gap="large")
+
+        with col_upload:
+            st.markdown("#### ⬆️ Subir nuevo documento")
+            archivos = st.file_uploader(
+                "Selecciona PDF o DOCX:",
+                type=["pdf", "docx"],
+                accept_multiple_files=True,
+                key="admin_uploader_main"
+            )
+            if archivos:
+                ya_subidos = st.session_state.get("_admin_uploads_ok", set())
+                nuevos = [f for f in archivos if f.name not in ya_subidos]
+                if nuevos:
+                    if st.button(f"⬆️ Subir {len(nuevos)} archivo(s) e indexar", key="btn_upload_docs", use_container_width=True, type="primary"):
+                        for archivo in nuevos:
+                            with st.spinner(f"Procesando '{archivo.name}'..."):
+                                try:
+                                    resp = httpx.post(
+                                        f"{ATENA_API_URL}/api/admin/upload",
+                                        headers={"X-Admin-Pin": ADMIN_PIN_ENV},
+                                        files={"file": (archivo.name, archivo.getvalue(), "application/octet-stream")},
+                                        timeout=180.0,
+                                    )
+                                    if resp.status_code == 200:
+                                        data = resp.json()
+                                        st.success(f"✅ '{archivo.name}' — {data.get('fragmentos_indexados','?')} fragmentos indexados")
+                                        ya_subidos.add(archivo.name)
+                                        st.session_state.pop("_docs_lista_cache", None)
+                                    else:
+                                        st.error(f"Error {resp.status_code}: {resp.text[:150]}")
+                                except Exception as e:
+                                    st.error(f"❌ Error de conexión: {e}")
+                        st.session_state["_admin_uploads_ok"] = ya_subidos
+
+        with col_list:
+            st.markdown("#### 📄 Documentos en el servidor")
+            col_r, col_rebuild = st.columns([1,1])
+            with col_r:
+                if st.button("🔄 Actualizar lista", key="refresh_docs_main"):
+                    st.session_state.pop("_docs_lista_cache", None)
+            with col_rebuild:
+                if st.button("♻️ Reindexar todo", key="rebuild_main", type="secondary"):
+                    with st.spinner("Reconstruyendo vectores..."):
+                        try:
+                            resp = httpx.post(
+                                f"{ATENA_API_URL}/api/admin/rebuild",
+                                headers={"X-Admin-Pin": ADMIN_PIN_ENV},
+                                timeout=120.0,
+                            )
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                st.success(f"✅ {data.get('total_vectores','?')} vectores reconstruidos")
+                            else:
+                                st.error(f"Error: {resp.text[:150]}")
+                        except Exception as e:
+                            st.error(f"❌ {e}")
+
+            # Cargar lista
+            if "_docs_lista_cache" not in st.session_state:
+                try:
+                    resp = httpx.get(
+                        f"{ATENA_API_URL}/api/admin/documents",
+                        headers={"X-Admin-Pin": ADMIN_PIN_ENV},
+                        timeout=15.0,
+                    )
+                    if resp.status_code == 200:
+                        st.session_state["_docs_lista_cache"] = resp.json().get("documentos", [])
+                    else:
+                        st.session_state["_docs_lista_cache"] = []
+                except Exception:
+                    st.session_state["_docs_lista_cache"] = []
+
+            docs = st.session_state.get("_docs_lista_cache", [])
+            if docs:
+                for doc in docs:
+                    nombre = doc["nombre"]
+                    nombre_display = nombre_legible(nombre)
+                    col_n, col_d = st.columns([6, 1])
+                    with col_n:
+                        st.markdown(
+                            f"<div style='padding:8px 12px; background:rgba(255,255,255,0.05); "
+                            f"border-radius:8px; border:1px solid rgba(255,255,255,0.1); "
+                            f"font-size:0.87rem; color:#e2e8f0; margin-bottom:6px;'>"
+                            f"📄 {nombre_display}</div>",
+                            unsafe_allow_html=True
+                        )
+                    with col_d:
+                        if st.button("🗑️", key=f"del_main_{nombre}", help=f"Eliminar {nombre}"):
+                            st.session_state["_pending_del_doc"] = nombre
+                # Confirmación eliminación
+                if st.session_state.get("_pending_del_doc"):
+                    pending = st.session_state["_pending_del_doc"]
+                    st.warning(f"⚠️ ¿Eliminar **{nombre_legible(pending)}** del servidor y de la base vectorial?")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button("Sí, eliminar", key="confirm_del_doc", use_container_width=True, type="primary"):
+                            with st.spinner("Eliminando..."):
+                                try:
+                                    resp = httpx.delete(
+                                        f"{ATENA_API_URL}/api/admin/delete/{pending}",
+                                        headers={"X-Admin-Pin": ADMIN_PIN_ENV},
+                                        timeout=30.0,
+                                    )
+                                    if resp.status_code == 200:
+                                        st.success(f"✅ '{pending}' eliminado.")
+                                        st.session_state.pop("_docs_lista_cache", None)
+                                    else:
+                                        st.error(f"Error: {resp.text[:150]}")
+                                except Exception as e:
+                                    st.error(f"❌ {e}")
+                            st.session_state.pop("_pending_del_doc", None)
+                            st.rerun()
+                    with c2:
+                        if st.button("Cancelar", key="cancel_del_doc", use_container_width=True):
+                            st.session_state.pop("_pending_del_doc", None)
+                            st.rerun()
+            else:
+                st.info("No se encontraron documentos o no se pudo conectar al servidor.")
+
+    # ── TAB 2: BANCO DE PREGUNTAS ─────────────────────────────────────────────
+    with tab_preguntas:
+        st.markdown("### 📋 Banco de Preguntas de Evaluación")
+        if not _DB_AVAILABLE:
+            st.error("❌ No se pudo conectar a la base de datos de preguntas.")
+        else:
+            try:
+                niveles_db = obtener_niveles()
+                temas_db = obtener_temas()
+            except Exception as e:
+                st.error(f"Error al conectar con Supabase: {e}")
+                niveles_db, temas_db = [], []
+
+            sub_ver, sub_nueva = st.tabs(["📖 Ver y Editar Preguntas", "➕ Agregar Nueva Pregunta"])
+
+            with sub_ver:
+                col_filtro, col_count = st.columns([2, 1])
+                with col_filtro:
+                    nivel_filtro = st.selectbox("Filtrar por nivel:", ["todos"] + niveles_db, key="crud_nivel")
+                try:
+                    preguntas = obtener_preguntas_por_nivel(
+                        nivel=None if nivel_filtro == "todos" else nivel_filtro,
+                        cantidad=50
+                    )
+                except Exception as e:
+                    st.error(f"Error al cargar preguntas: {e}")
+                    preguntas = []
+                with col_count:
+                    st.metric("Preguntas encontradas", len(preguntas))
+
+                if preguntas:
+                    for p in preguntas:
+                        pid = p["id"]
+                        enunciado_corto = p["enunciado"][:70] + "..." if len(p["enunciado"]) > 70 else p["enunciado"]
+                        respuestas = p.get("respuestas", [])
+                        textos = [r["texto"] for r in respuestas]
+                        while len(textos) < 4: textos.append("")
+                        idx_correcta = next((i for i, r in enumerate(respuestas) if r.get("es_correcta")), 0)
+                        letras = ["A", "B", "C", "D"]
+
+                        with st.expander(f"#{pid} — {enunciado_corto}"):
+                            with st.form(f"edit_{pid}"):
+                                col_e1, col_e2 = st.columns([3, 1])
+                                with col_e1:
+                                    nuevo_enunciado = st.text_area("Enunciado:", value=p["enunciado"], key=f"enun_{pid}", height=80)
+                                with col_e2:
+                                    nuevo_nivel = st.selectbox("Nivel:", niveles_db,
+                                        index=niveles_db.index(p["nivel"]) if p["nivel"] in niveles_db else 0,
+                                        key=f"niv_{pid}")
+                                    nuevo_tema = st.selectbox("Tema:", temas_db,
+                                        index=temas_db.index(p["tema"]) if p["tema"] in temas_db else 0,
+                                        key=f"tem_{pid}")
+                                cols = st.columns(2)
+                                nuevas_opciones = []
+                                for i, letra in enumerate(letras):
+                                    with cols[i % 2]:
+                                        nuevas_opciones.append(st.text_input(f"Opción {letra}:", value=textos[i] if i < len(textos) else "", key=f"op{letra}_{pid}"))
+                                nueva_correcta = st.radio("Respuesta correcta:", letras, index=idx_correcta, horizontal=True, key=f"cor_{pid}")
+                                col_g, col_e = st.columns(2)
+                                with col_g:
+                                    if st.form_submit_button("💾 Guardar cambios", use_container_width=True, type="primary"):
+                                        ok = actualizar_pregunta(pid, nuevo_nivel, nuevo_tema, nuevo_enunciado,
+                                                                  nuevas_opciones[0], nuevas_opciones[1],
+                                                                  nuevas_opciones[2], nuevas_opciones[3], nueva_correcta)
+                                        if ok:
+                                            st.success("✅ Actualizada correctamente.")
+                                            time.sleep(0.5)
+                                            st.rerun()
+                                        else:
+                                            st.error("Error al actualizar.")
+                                with col_e:
+                                    if st.form_submit_button("🗑️ Eliminar", use_container_width=True):
+                                        st.session_state[f"_confirm_del_{pid}"] = True
+                            if st.session_state.get(f"_confirm_del_{pid}"):
+                                st.warning("¿Seguro que quieres eliminar esta pregunta?")
+                                cc1, cc2 = st.columns(2)
+                                with cc1:
+                                    if st.button("Sí, eliminar", key=f"yes_{pid}", use_container_width=True, type="primary"):
+                                        eliminar_pregunta(pid)
+                                        st.session_state.pop(f"_confirm_del_{pid}", None)
+                                        st.success("🗑️ Eliminada.")
+                                        time.sleep(0.5)
+                                        st.rerun()
+                                with cc2:
+                                    if st.button("Cancelar", key=f"no_{pid}", use_container_width=True):
+                                        st.session_state.pop(f"_confirm_del_{pid}", None)
+                                        st.rerun()
+                else:
+                    st.info("No hay preguntas para este nivel.")
+
+            with sub_nueva:
+                st.markdown("#### Crear nueva pregunta")
+                with st.form("nueva_pregunta_main", clear_on_submit=True):
+                    col_a, col_b = st.columns([3, 1])
+                    with col_a:
+                        nuevo_enunciado = st.text_area("Enunciado de la pregunta:", height=100)
+                    with col_b:
+                        nuevo_nivel = st.selectbox("Nivel:", niveles_db, key="nueva_niv_main")
+                        nuevo_tema = st.selectbox("Tema:", temas_db, key="nueva_tem_main")
+                    st.markdown("**Opciones de respuesta:**")
+                    cols2 = st.columns(2)
+                    with cols2[0]:
+                        op_a = st.text_input("Opción A:")
+                        op_c = st.text_input("Opción C:")
+                    with cols2[1]:
+                        op_b = st.text_input("Opción B:")
+                        op_d = st.text_input("Opción D:")
+                    correcta_nueva = st.radio("Respuesta correcta:", ["A", "B", "C", "D"], horizontal=True, key="nueva_cor_main")
+                    if st.form_submit_button("✅ Crear Pregunta", use_container_width=True, type="primary"):
+                        if not nuevo_enunciado.strip():
+                            st.error("El enunciado no puede estar vacío.")
+                        elif not all([op_a, op_b, op_c, op_d]):
+                            st.error("Debes llenar las 4 opciones.")
+                        else:
+                            ok = agregar_pregunta(nuevo_nivel, nuevo_tema, nuevo_enunciado, op_a, op_b, op_c, op_d, correcta_nueva)
+                            if ok:
+                                st.success("✅ Pregunta creada exitosamente.")
+                            else:
+                                st.error("Error al crear. Verifica que el nivel y tema existan en la BD.")
+
+    # ── TAB 3: CONSULTOR IA (chat disponible también para admin) ──────────────
+    with tab_chat:
+        st.markdown("### 💬 Consultor IA de Neuroanatomía")
+        st.caption("Prueba el sistema RAG directamente desde el panel de administración.")
+        _render_chat_interface(nivel="Avanzado", k_chunks=6)
+
+    # ── TAB 4: SISTEMA ─────────────────────────────────────────────────────────
+    with tab_motor:
+        st.markdown("### ⚙️ Estado del Sistema")
+        col_s1, col_s2, col_s3 = st.columns(3)
+        with col_s1:
+            st.markdown("""
+            <div style="background:rgba(255,255,255,0.05); border-radius:12px; padding:16px; border:1px solid rgba(255,255,255,0.1);">
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:4px;">SERVICIO API</div>
+                <div style="font-size:1rem; color:#22c55e; font-weight:600;">🟢 atena-vugz.onrender.com</div>
+            </div>""", unsafe_allow_html=True)
+        with col_s2:
+            groq_model = os.environ.get("GROQ_LLM_MODEL", "openai/gpt-oss-120b")
+            st.markdown(f"""
+            <div style="background:rgba(255,255,255,0.05); border-radius:12px; padding:16px; border:1px solid rgba(255,255,255,0.1);">
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:4px;">MODELO LLM</div>
+                <div style="font-size:0.9rem; color:#e2e8f0; font-weight:600;">🧠 {groq_model}</div>
+            </div>""", unsafe_allow_html=True)
+        with col_s3:
+            embed_model = os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2")
+            st.markdown(f"""
+            <div style="background:rgba(255,255,255,0.05); border-radius:12px; padding:16px; border:1px solid rgba(255,255,255,0.1);">
+                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:4px;">EMBEDDINGS</div>
+                <div style="font-size:0.9rem; color:#e2e8f0; font-weight:600;">🔢 {embed_model}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("#### Verificar estado del API")
+        if st.button("🔍 Ping al API", key="ping_api_btn"):
+            try:
+                resp = httpx.get(f"{ATENA_API_URL}/salud", timeout=10.0)
+                data = resp.json()
+                if data.get("estado") == "ok":
+                    st.success(f"✅ API activo — Vector Store listo: {data.get('vector_store_listo', '?')}")
+                else:
+                    st.warning(f"⚠️ {data}")
+            except Exception as e:
+                st.error(f"❌ No se pudo conectar: {e}")
+
+
+def _render_chat_interface(nivel="Principiante", k_chunks=5):
+    """Renderiza la interfaz de chat (usada tanto por usuarios como por admin desde su tab)."""
+    if "mensajes_admin" not in st.session_state:
+        st.session_state.mensajes_admin = []
+
+    pregunta = st.chat_input("Escribe tu consulta...", key="admin_chat_input")
+
+    for msg in st.session_state.mensajes_admin:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    if pregunta:
+        st.session_state.mensajes_admin.append({"role": "user", "content": pregunta})
+        with st.chat_message("user"):
+            st.markdown(pregunta)
+        with st.chat_message("assistant"):
+            with st.spinner("Consultando fuentes..."):
+                respuesta_texto, fuentes = consultar_via_api(pregunta, nivel=nivel, k=k_chunks)
+            st.markdown(respuesta_texto)
+            if fuentes:
+                with st.expander("Ver fuentes"):
+                    for i, f in enumerate(fuentes, 1):
+                        st.markdown(f"**[{i}] {nombre_legible(f.get('fuente',''))}** — Pág. {f.get('pagina','?')}")
+                        st.caption(f.get("fragmento", "")[:200])
+        st.session_state.mensajes_admin.append({"role": "assistant", "content": respuesta_texto})
+        st.rerun()
+
+
 # ── 4. Renderizar Componentes de UI ──
-# Título minimalista en lugar de un gran header
 
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = []
-
-clase_vacio = "chat-vacio" if len(st.session_state.mensajes) == 0 else "chat-con-mensajes"
-st.markdown(f"<h2 class='main-title {clase_vacio}'>Consultor IA Neuroanatomía</h2>", unsafe_allow_html=True)
 
 with st.sidebar:
     nivel, k_chunks, is_admin, lanzar_evaluacion, vs = render_sidebar(vs, disabled=st.session_state.is_generating)
@@ -232,16 +594,17 @@ with st.sidebar:
 if lanzar_evaluacion:
     mostrar_evaluacion(nivel)
 
-# Panel de administración (no disponible en modo web ligero — usa la consola del API)
+# ── Enrutamiento principal: Admin Dashboard vs Chat ──────────────────────────
 if is_admin:
-    st.info("ℹ️ El panel de administración (carga de PDFs / reconstrucción de VectorDB) se gestiona directamente desde la consola del API en Render.")
+    _render_admin_dashboard()
+else:
 
-# --- 5. Interfaz tipo Chat (Gemini / ChatGPT) ---
-if "mensajes" not in st.session_state:
-    st.session_state.mensajes = []
+    # --- 5. Interfaz tipo Chat ---
+    if "mensajes" not in st.session_state:
+        st.session_state.mensajes = []
 
-# Capturar input del usuario ANTES de renderizar
-pregunta_usuario = st.chat_input("Escribe tu consulta sobre neuroanatomía...", key="chat_query", disabled=st.session_state.is_generating)
+    # Capturar input del usuario ANTES de renderizar
+    pregunta_usuario = st.chat_input("Escribe tu consulta sobre neuroanatomía...", key="chat_query", disabled=st.session_state.is_generating)
 
 # Contenedor principal del chat — todo dentro de un solo container
 chat_container = st.container()
