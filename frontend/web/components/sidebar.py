@@ -157,7 +157,7 @@ def render_sidebar(vs, disabled=False):
                 pin_valido = os.environ.get("ADMIN_PIN", ADMIN_PIN)
                 if pin_input == pin_valido:
                     st.session_state.is_admin = True
-                    st.session_state.adm_pin_activo = True
+                    st.session_state.adm_pin_activo = pin_valido
                     try:
                         st.query_params["adm_ok"] = "1"
                     except Exception:

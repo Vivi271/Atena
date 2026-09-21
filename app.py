@@ -51,15 +51,15 @@ if st.query_params.get("adm_ok") == "1" and not st.session_state.get("is_admin")
 if st.session_state.dark_mode:
     st.markdown("""
     <style>
-    :root {
-        --bg-base: #0d1117 !important;
-        --bg-surface: #161b22 !important;
-        --bg-card: #21262d !important;
-        --bg-hover: rgba(140, 198, 63, 0.12) !important;
-        --text-main: #f0f6fc !important;
-        --text-muted: #8b949e !important;
-        --border: #30363d !important;
-        --border-accent: rgba(140, 198, 63, 0.35) !important;
+    :root, html, body, .stApp {
+        --bg-base: #0d1117;
+        --bg-surface: #161b22;
+        --bg-card: #21262d;
+        --bg-hover: rgba(140, 198, 63, 0.12);
+        --text-main: #f0f6fc;
+        --text-muted: #8b949e;
+        --border: #30363d;
+        --border-accent: rgba(140, 198, 63, 0.35);
     }
     .stApp,
     [data-testid="stAppViewContainer"],
@@ -130,15 +130,81 @@ if st.session_state.dark_mode:
         color: #ffffff !important;
         border-color: #6c3483 !important;
     }
-    /* Inputs, textareas */
+    /* Inputs, textareas, number inputs */
     input, textarea,
     .stTextInput input, .stTextArea textarea,
-    .stNumberInput input,
-    div[data-baseweb="input"] input,
-    div[data-baseweb="textarea"] textarea {
+    .stNumberInput input {
+        background-color: #161b22 !important;
+        color: #e6edf3 !important;
+        -webkit-text-fill-color: #e6edf3 !important;
+        border-color: #30363d !important;
+        caret-color: #8CC63F !important;
+    }
+    /* BaseWeb input wrappers, containers y bloques internos */
+    div[data-baseweb="base-input"],
+    div[data-baseweb="base-input"] *,
+    div[data-baseweb="input"],
+    div[data-baseweb="input"] *,
+    .stTextInput div,
+    .stNumberInput div,
+    .stTextArea div {
+        background-color: #161b22 !important;
+        border-color: #30363d !important;
+        color: #e6edf3 !important;
+        fill: #e6edf3 !important;
+    }
+    /* Date inputs — COBERTURA TOTAL DE TODO ELEMENTO HIJO Y CONTENEDOR */
+    div[data-testid="stDateInput"],
+    div[data-testid="stDateInput"] *,
+    div[data-baseweb="datepicker"],
+    div[data-baseweb="datepicker"] * {
+        background-color: #161b22 !important;
+        color: #e6edf3 !important;
+        -webkit-text-fill-color: #e6edf3 !important;
+        border-color: #30363d !important;
+        fill: #e6edf3 !important;
+    }
+    div[data-testid="stDateInput"] input {
+        background-color: #161b22 !important;
+        color: #e6edf3 !important;
+        -webkit-text-fill-color: #e6edf3 !important;
+    }
+    /* Botones e iconos dentro de inputs (ojo de contraseñas, icono de calendario) */
+    div[data-baseweb="input"] button,
+    div[data-baseweb="base-input"] button,
+    div[data-testid="stDateInput"] button,
+    div[data-testid="stTextInput"] button {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        color: #e6edf3 !important;
+        fill: #e6edf3 !important;
+    }
+    div[data-baseweb="input"] svg,
+    div[data-baseweb="base-input"] svg,
+    div[data-testid="stDateInput"] svg {
+        fill: #e6edf3 !important;
+        color: #e6edf3 !important;
+    }
+    /* Calendario flotante emergente del DateInput */
+    div[data-baseweb="popover"],
+    div[data-baseweb="popover"] *,
+    div[data-baseweb="calendar"],
+    div[data-baseweb="calendar"] *,
+    div[role="dialog"],
+    div[role="dialog"] * {
         background-color: #161b22 !important;
         color: #e6edf3 !important;
         border-color: #30363d !important;
+    }
+    div[data-baseweb="calendar"] [aria-selected="true"],
+    div[data-baseweb="calendar"] button[aria-selected="true"] {
+        background: linear-gradient(135deg, #4a235a, #6c3483) !important;
+        color: #ffffff !important;
+    }
+    div[data-baseweb="calendar"] button:hover {
+        background-color: #30363d !important;
+        color: #8CC63F !important;
     }
     /* Selectbox / Multiselect */
     div[data-baseweb="select"] *,
@@ -154,13 +220,13 @@ if st.session_state.dark_mode:
     div[data-baseweb="select"] [class*="control"] {
         background-color: #161b22 !important;
     }
-    /* Date inputs */
-    div[data-testid="stDateInput"] input,
-    div[data-testid="stDateInput"] > div,
-    div[data-testid="stDateInput"] [data-baseweb="input"] {
+    /* Tarjetas de estado vacío */
+    .empty-state-card {
         background-color: #161b22 !important;
-        color: #e6edf3 !important;
         border-color: #30363d !important;
+    }
+    .empty-state-card p {
+        color: #8b949e !important;
     }
     /* Alertas/info/warning/success/error boxes */
     div[data-testid="stAlert"],
@@ -481,6 +547,20 @@ def _inject_floating_chat():
     """Widget de chat flotante esquina inferior derecha."""
     import streamlit.components.v1 as components
     api_url = ATENA_API_URL
+    _is_d = st.session_state.get("dark_mode", False)
+    _pan_bg = "#161b22" if _is_d else "#fff"
+    _pan_bd = "#30363d" if _is_d else "#e2e8f0"
+    _msgs_bg = "#0d1117" if _is_d else "#f8fafc"
+    _bot_bg = "#21262d" if _is_d else "#fff"
+    _bot_tx = "#f0f6fc" if _is_d else "#1e293b"
+    _bot_bd = "#30363d" if _is_d else "#e2e8f0"
+    _irow_bg = "#161b22" if _is_d else "#fff"
+    _inp_bg = "#21262d" if _is_d else "#f8fafc"
+    _inp_tx = "#f0f6fc" if _is_d else "#1e293b"
+    _inp_bd = "#30363d" if _is_d else "#e2e8f0"
+    _ft_bg = "#161b22" if _is_d else "#fff"
+    _ft_tx = "#8b949e" if _is_d else "#cbd5e1"
+    _ft_bd = "#30363d" if _is_d else "#f1f5f9"
     html = f"""
     <script>
     (function() {{
@@ -501,7 +581,7 @@ def _inject_floating_chat():
             '#atena-cw{{position:fixed;bottom:20px;right:20px;z-index:2147483647;font-family:Inter,-apple-system,sans-serif;}}',
             '#a-fab{{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#4a235a,#6c3483);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(74,35,90,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;transition:transform .2s,box-shadow .2s;outline:none;}}',
             '#a-fab:hover{{transform:scale(1.1);box-shadow:0 6px 28px rgba(74,35,90,.65);}}',
-            '#a-pan{{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.22);border:1px solid #e2e8f0;display:flex;flex-direction:column;overflow:hidden;resize:both;min-width:300px;min-height:400px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);}}',
+            '#a-pan{{background:{_pan_bg};border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);border:1px solid {_pan_bd};display:flex;flex-direction:column;overflow:hidden;resize:both;min-width:300px;min-height:400px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);}}',
             '#a-hdr{{background:linear-gradient(135deg,#4a235a,#6c3483);padding:12px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}}',
             '.a-av{{width:36px;height:36px;border-radius:50%;background:#8CC63F;display:flex;align-items:center;justify-content:center;font-weight:800;color:#4a235a;font-size:1rem;flex-shrink:0;}}',
             '.a-tt{{color:#fff;font-weight:700;font-size:.93rem;margin:0;}}',
@@ -511,21 +591,21 @@ def _inject_floating_chat():
             '.a-hb:hover{{background:rgba(255,255,255,.32);}}',
             '.a-cl{{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .15s;outline:none;}}',
             '.a-cl:hover{{background:rgba(220,50,50,.5);}}',
-            '#a-msgs{{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f8fafc;scroll-behavior:smooth;}}',
+            '#a-msgs{{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:{_msgs_bg};scroll-behavior:smooth;}}',
             '#a-msgs::-webkit-scrollbar{{width:4px;}}',
-            '#a-msgs::-webkit-scrollbar-thumb{{background:#cbd5e1;border-radius:4px;}}',
+            '#a-msgs::-webkit-scrollbar-thumb{{background:#30363d;border-radius:4px;}}',
             '.m-u{{background:linear-gradient(135deg,#4a235a,#6c3483);color:#fff;align-self:flex-end;padding:10px 14px;border-radius:14px 14px 4px 14px;max-width:82%;font-size:.86rem;line-height:1.5;word-break:break-word;}}',
-            '.m-b{{background:#fff;color:#1e293b;align-self:flex-start;padding:10px 14px;border-radius:14px 14px 14px 4px;max-width:86%;font-size:.86rem;line-height:1.5;border:1px solid #e2e8f0;word-break:break-word;}}',
+            '.m-b{{background:{_bot_bg};color:{_bot_tx};align-self:flex-start;padding:10px 14px;border-radius:14px 14px 14px 4px;max-width:86%;font-size:.86rem;line-height:1.5;border:1px solid {_bot_bd};word-break:break-word;}}',
             '.m-b.tk{{color:#94a3b8;border-style:dashed;animation:aBl 1s infinite;}}',
             '@keyframes aBl{{0%,100%{{opacity:1}}50%{{opacity:.3}}}}',
             '.m-w{{text-align:center;color:#94a3b8;font-size:.83rem;padding:24px 10px;line-height:1.6;}}',
-            '#a-irow{{padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:flex-end;background:#fff;flex-shrink:0;}}',
-            '#a-inp{{flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:.87rem;outline:none;font-family:inherit;background:#f8fafc;resize:none;min-height:38px;max-height:100px;line-height:1.4;transition:border-color .15s;}}',
-            '#a-inp:focus{{border-color:#8CC63F;background:#fff;box-shadow:0 0 0 3px rgba(140,198,63,.15);}}',
+            '#a-irow{{padding:10px 12px;border-top:1px solid {_pan_bd};display:flex;gap:8px;align-items:flex-end;background:{_irow_bg};flex-shrink:0;}}',
+            '#a-inp{{flex:1;border:1.5px solid {_inp_bd};border-radius:10px;padding:9px 12px;font-size:.87rem;outline:none;font-family:inherit;background:{_inp_bg};color:{_inp_tx};resize:none;min-height:38px;max-height:100px;line-height:1.4;transition:border-color .15s;}}',
+            '#a-inp:focus{{border-color:#8CC63F;box-shadow:0 0 0 3px rgba(140,198,63,.15);}}',
             '#a-snd{{background:linear-gradient(135deg,#4a235a,#6c3483);color:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.1rem;transition:opacity .15s;outline:none;}}',
             '#a-snd:hover{{opacity:.85;}}',
             '#a-snd:disabled{{opacity:.4;cursor:not-allowed;}}',
-            '#a-ft{{text-align:center;font-size:.63rem;color:#cbd5e1;padding:4px;border-top:1px solid #f1f5f9;flex-shrink:0;background:#fff;}}'
+            '#a-ft{{text-align:center;font-size:.63rem;color:{_ft_tx};padding:4px;border-top:1px solid {_ft_bd};flex-shrink:0;background:{_ft_bg};}}'
         ].join('');
         D.head.appendChild(s);
         var root=D.createElement('div'); root.id='atena-cw';
@@ -712,16 +792,21 @@ def _render_admin_dashboard():
                     ext = os.path.splitext(nombre)[1].upper().replace(".", "") or "DOC"
                     c_card, c_del = st.columns([8, 1])
                     with c_card:
+                        _d_bg = "#161b22" if st.session_state.get("dark_mode", False) else "#ffffff"
+                        _d_bd = "#30363d" if st.session_state.get("dark_mode", False) else "#e2e8f0"
+                        _d_tx = "#f0f6fc" if st.session_state.get("dark_mode", False) else "#1e293b"
+                        _d_badge_bg = "rgba(140,198,63,0.18)" if st.session_state.get("dark_mode", False) else "rgba(74,35,90,.08)"
+                        _d_badge_tx = "#8CC63F" if st.session_state.get("dark_mode", False) else "#4a235a"
                         st.markdown(
                             f"<div style='display:flex;align-items:center;gap:14px;padding:13px 18px;"
-                            f"background:var(--bg-surface,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid #8CC63F;"
+                            f"background:{_d_bg};border:1px solid {_d_bd};border-left:4px solid #8CC63F;"
                             f"border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);'>"
-                            f"<span style='font-size:0.7rem;font-weight:700;background:rgba(74,35,90,.08);"
-                            f"color:#4a235a;padding:4px 8px;border-radius:4px;flex-shrink:0;'>{ext}</span>"
+                            f"<span style='font-size:0.7rem;font-weight:700;background:{_d_badge_bg};"
+                            f"color:{_d_badge_tx};padding:4px 8px;border-radius:4px;flex-shrink:0;'>{ext}</span>"
                             f"<div style='flex:1;overflow:hidden;'>"
-                            f"<div style='font-weight:600;font-size:0.92rem;color:var(--text-main,#1e293b);"
+                            f"<div style='font-weight:600;font-size:0.92rem;color:{_d_tx};"
                             f"text-overflow:ellipsis;overflow:hidden;white-space:nowrap;'>{nombre_legible(nombre)}</div>"
-                            f"<div style='font-size:0.74rem;color:var(--text-muted,#94a3b8);margin-top:2px;'>Indexado en base vectorial RAG</div>"
+                            f"<div style='font-size:0.74rem;color:#8b949e;margin-top:2px;'>Indexado en base vectorial RAG</div>"
                             f"</div></div>",
                             unsafe_allow_html=True
                         )
@@ -1173,15 +1258,18 @@ def _render_admin_dashboard():
             st.markdown("### Sistema y Configuracion")
 
             col_s1, col_s2, col_s3 = st.columns(3)
+            _sis_card_bg = "#161b22" if st.session_state.get("dark_mode", False) else "#f8fafc"
+            _sis_card_bd = "#30363d" if st.session_state.get("dark_mode", False) else "#e2e8f0"
+            _sis_txt_clr = "#f0f6fc" if st.session_state.get("dark_mode", False) else "#1e293b"
             info_cards = [
                 ("Servicio API", "atena-vugz.onrender.com", "#22c55e"),
-                ("Modelo LLM", os.environ.get("GROQ_LLM_MODEL", "N/A"), "#1e293b"),
-                ("Embeddings", os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"), "#1e293b"),
+                ("Modelo LLM", os.environ.get("GROQ_LLM_MODEL", "N/A"), _sis_txt_clr),
+                ("Embeddings", os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"), _sis_txt_clr),
             ]
             for col, (titulo, valor, color) in zip([col_s1, col_s2, col_s3], info_cards):
                 with col:
                     st.markdown(
-                        f"<div style='background:#f8fafc; border-radius:8px; padding:14px 16px; border:1px solid #e2e8f0;'>"
+                        f"<div style='background:{_sis_card_bg}; border-radius:8px; padding:14px 16px; border:1px solid {_sis_card_bd};'>"
                         f"<div style='font-size:0.72rem; color:#94a3b8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em;'>{titulo}</div>"
                         f"<div style='font-size:0.88rem; color:{color}; font-weight:600;'>{valor}</div>"
                         f"</div>",
