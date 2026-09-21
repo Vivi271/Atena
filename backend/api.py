@@ -282,11 +282,17 @@ async def salud():
 @app.get("/info", tags=["Sistema"])
 async def info():
     """Información general del servicio."""
-    from rag_pipeline import GROQ_LLM_MODEL, GROQ_EMBED_MODEL
+    try:
+        from rag_pipeline import GROQ_LLM_MODEL, GROQ_EMBED_MODEL
+        llm_model = GROQ_LLM_MODEL
+        embed_model = GROQ_EMBED_MODEL
+    except ImportError:
+        llm_model = os.environ.get("GROQ_LLM_MODEL", "(no disponible en dev local)")
+        embed_model = os.environ.get("EMBED_MODEL", "(no disponible en dev local)")
     return {
         "nombre": "Atena — Consultor RAG de Neuroanatomía",
-        "modelo_llm": GROQ_LLM_MODEL,
-        "modelo_embeddings": GROQ_EMBED_MODEL,
+        "modelo_llm": llm_model,
+        "modelo_embeddings": embed_model,
         "endpoints": {
             "POST /consultar":                 "Consultar el asistente RAG con una pregunta",
             "GET  /api/evaluacion/preguntas":  "Generar preguntas de autoevaluación neuroanatómica",

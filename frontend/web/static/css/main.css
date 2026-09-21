@@ -366,3 +366,80 @@ tr:hover td { background:var(--bg-hover); }
   .main{margin-left:0;} .chat-input-bar{left:0;}
   .topbar{padding:0 14px;} .chat-wrapper{padding:0 14px;}
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   FIXES MODO CLARO — parches para garantizar legibilidad
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Sidebar en modo claro — texto visible */
+:root .sidebar-logo .brand { color: #1e293b; }
+:root .sidebar-section-title { color: #64748b; }
+:root .sidebar-item { color: #475569; }
+:root .sidebar-item:hover, :root .sidebar-item.active { color: #1e293b; background: rgba(140,198,63,0.08); }
+:root .nivel-label { color: #64748b; }
+:root .nivel-btn { color: #1e293b; border-color: #e2e8f0; background: #f8fafc; }
+:root .nivel-btn.active { background: rgba(140,198,63,0.1); border-color: #8CC63F; color: #5a8a24; font-weight: 700; }
+
+/* Admin panel modo claro — sidebar */
+:root .sidebar { background: #ffffff; border-right-color: #e2e8f0; }
+:root .sidebar-footer a, :root .sidebar-footer button { color: #64748b; }
+
+/* Admin botones de acción rápida en modo claro */
+:root .btn-outline { color: #1e293b; border-color: #e2e8f0; background: #ffffff; }
+:root .btn-outline:hover { background: #f1f5f9; border-color: #cbd5e1; }
+:root .btn-outline svg { color: #1e293b; }
+
+/* Topbar modo claro */
+:root .topbar { background: #ffffff; border-bottom-color: #e2e8f0; }
+:root .topbar-title { color: #1e293b; }
+
+/* Status badge modo claro */
+:root #status-text { color: #64748b; }
+
+/* Burbuja flotante — el status dot siempre se ve */
+.status-dot-live { background: #8CC63F !important; }
+
+/* Panel flotante modo claro */
+:root .chat-panel { background: #ffffff; border-color: #e2e8f0; }
+:root .panel-input { background: #f8fafc; border-color: #e2e8f0; color: #1e293b; }
+:root .panel-input:focus { border-color: #8CC63F; }
+:root .panel-input::placeholder { color: #94a3b8; }
+:root .panel-messages { background: #ffffff; }
+:root .pmsg.bot .pmsg-bubble { background: #f1f5f9; border-color: #e2e8f0; color: #1e293b; }
+:root .pmsg-time { color: #94a3b8; }
+:root .panel-chip { background: #f8fafc; border-color: rgba(140,198,63,0.3); color: #334155; }
+:root .panel-chip:hover { background: rgba(140,198,63,0.08); color: #5a8a24; }
+:root .nivel-tab { color: #64748b; }
+:root .nivel-tab.active { background: #8CC63F; color: #ffffff; }
+:root .panel-input-area { background: #ffffff; border-top-color: #e2e8f0; }
+:root .panel-footer-row .powered-by { color: #94a3b8; }
+:root .panel-quiz-btn { color: #5a8a24; background: rgba(140,198,63,0.06); border-color: rgba(140,198,63,0.2); }
+:root .panel-welcome h3 { color: #1e293b; }
+:root .panel-welcome p { color: #64748b; }
+:root .pmsg-sources { color: #5a8a24; }
+
+/* Modo claro — página de fondo */
+:root .demo-hero h1 { color: #1e293b; }
+:root .demo-hero p { color: #64748b; }
+
+/* Modo claro — cards KPI */
+:root .kpi-card { background: #ffffff; border-color: #e2e8f0; }
+:root .kpi-label { color: #64748b; }
+
+/* Modo claro — tabla */
+:root th { background: #f8fafc; color: #64748b; border-bottom-color: #e2e8f0; }
+:root td { color: #1e293b; border-bottom-color: #f1f5f9; }
+:root tr:hover td { background: rgba(140,198,63,0.04); }
+
+/* Modo claro — modal */
+:root .modal { background: #ffffff; border-color: #e2e8f0; }
+:root .modal-title { color: #1e293b; }
+:root .modal-close { color: #64748b; }
+:root .quiz-question-text { color: #1e293b; }
+:root .quiz-option { background: #f8fafc; border-color: #e2e8f0; color: #1e293b; }
+:root .quiz-explanation { background: #f1f5f9; color: #475569; }
+
+/* Modo claro — cards admin */
+:root .card { background: #ffffff; border-color: #e2e8f0; }
+:root .dropzone { background: #f8fafc; border-color: rgba(140,198,63,0.35); }
+:root .login-card { background: #ffffff; border-color: #e2e8f0; }

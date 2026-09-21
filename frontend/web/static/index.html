@@ -1,124 +1,405 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Atena — Consultor de Neuroanatomía</title>
-  <meta name="description" content="Atena: consultor inteligente de neuroanatomía con IA para estudiantes del laboratorio Konrad Lorenz. Pregunta, aprende y evalúate.">
+  <meta name="description" content="Atena: consultor inteligente de neuroanatomía con IA — Konrad Lorenz.">
   <link rel="stylesheet" href="/css/main.css">
-  <!-- marked.js para renderizar markdown de respuestas RAG -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* ── Página de fondo (demo) ────────────────────────────────────── */
+    body { background: var(--bg-base); }
+
+    .demo-page {
+      max-width: 860px; margin: 0 auto; padding: 60px 24px;
+      font-family: 'Inter', sans-serif;
+    }
+    .demo-hero {
+      text-align: center; padding: 80px 0 40px;
+    }
+    .demo-hero h1 {
+      font-family: 'Outfit', sans-serif; font-size: 2.4rem;
+      font-weight: 800; color: var(--text-main); margin-bottom: 16px;
+    }
+    .demo-hero p { font-size: 1.05rem; color: var(--text-muted); max-width: 520px; margin: 0 auto; }
+
+    /* ── Burbuja flotante ──────────────────────────────────────────── */
+    .bubble-btn {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4a235a, #6c3483);
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(74,35,90,0.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 900;
+      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
+      animation: bubbleAppear 0.5s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .bubble-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 8px 28px rgba(74,35,90,0.55);
+    }
+    .bubble-btn.open { transform: rotate(45deg) scale(0.9); }
+    .bubble-btn svg { transition: opacity 0.2s; }
+
+    @keyframes bubbleAppear {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    /* Notificación sobre la burbuja */
+    .bubble-badge {
+      position: absolute; top: -2px; right: -2px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #8CC63F; border: 2px solid var(--bg-base);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100%{ box-shadow: 0 0 0 0 rgba(140,198,63,0.6); }
+      50%    { box-shadow: 0 0 0 6px rgba(140,198,63,0); }
+    }
+
+    /* ── Panel de chat flotante ────────────────────────────────────── */
+    .chat-panel {
+      position: fixed;
+      bottom: 100px; right: 28px;
+      width: 400px; height: 600px;
+      max-height: calc(100vh - 120px);
+      background: var(--bg-surface);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 16px 64px rgba(0,0,0,0.35);
+      display: flex; flex-direction: column;
+      z-index: 800;
+      overflow: hidden;
+      transform: scale(0.85) translateY(24px);
+      transform-origin: bottom right;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), opacity 0.25s ease;
+    }
+    .chat-panel.open {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* Header del panel */
+    .panel-header {
+      background: linear-gradient(135deg, #4a235a 0%, #6c3483 100%);
+      padding: 16px 18px 14px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    .panel-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1rem; color: white;
+    }
+    .panel-info { flex: 1; }
+    .panel-name {
+      font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1rem; color: white;
+    }
+    .panel-status {
+      font-size: 0.72rem; color: rgba(255,255,255,0.75);
+      display: flex; align-items: center; gap: 5px; margin-top: 2px;
+    }
+    .status-dot-live {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #8CC63F; flex-shrink: 0;
+      animation: pulse 2s infinite;
+    }
+    .panel-actions {
+      display: flex; gap: 6px; align-items: center;
+    }
+    .panel-action-btn {
+      background: rgba(255,255,255,0.15); border: none; cursor: pointer;
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; transition: background 0.2s;
+    }
+    .panel-action-btn:hover { background: rgba(255,255,255,0.25); }
+
+    /* Tabs nivel */
+    .nivel-tabs {
+      display: flex; padding: 10px 14px 0;
+      gap: 4px; flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .nivel-tab {
+      padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; border: none; background: none; color: var(--text-muted);
+      transition: all 0.2s; margin-bottom: -1px;
+    }
+    .nivel-tab.active { background: var(--accent); color: white; }
+
+    /* Mensajes */
+    .panel-messages {
+      flex: 1; overflow-y: auto; padding: 14px 14px 8px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* Welcome */
+    .panel-welcome {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; gap: 10px; padding: 20px 10px;
+    }
+    .panel-welcome-logo {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: linear-gradient(135deg, #4a235a, #6c3483);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.4rem; color: white;
+      box-shadow: 0 4px 16px rgba(74,35,90,0.35);
+    }
+    .panel-welcome h3 {
+      font-size: 0.95rem; color: var(--text-main); margin: 0;
+    }
+    .panel-welcome p {
+      font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.5;
+    }
+    .panel-chips {
+      display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 4px;
+    }
+    .panel-chip {
+      padding: 5px 12px; border-radius: 16px;
+      border: 1px solid var(--border-accent); background: var(--bg-card);
+      color: var(--text-main); font-size: 0.76rem; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .panel-chip:hover { background: rgba(140,198,63,0.12); border-color: var(--accent); color: var(--accent-dark); }
+
+    /* Burbujas */
+    .pmsg { display: flex; gap: 8px; animation: fadeSlideIn 0.2s ease; }
+    .pmsg.user { flex-direction: row-reverse; }
+    @keyframes fadeSlideIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+
+    .pmsg-avatar {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; align-self: flex-end;
+    }
+    .pmsg.bot .pmsg-avatar {
+      background: linear-gradient(135deg, #4a235a, #6c3483); color: white;
+      font-family: 'Outfit', sans-serif;
+    }
+    .pmsg.user .pmsg-avatar {
+      background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border);
+    }
+
+    .pmsg-body { max-width: 78%; display: flex; flex-direction: column; gap: 4px; }
+    .pmsg-bubble {
+      padding: 9px 13px; border-radius: 16px;
+      font-size: 0.85rem; line-height: 1.6;
+    }
+    .pmsg.user .pmsg-bubble {
+      background: linear-gradient(135deg, #4a235a, #6c3483);
+      color: white; border-bottom-right-radius: 4px;
+    }
+    .pmsg.bot .pmsg-bubble {
+      background: var(--bg-card); color: var(--text-main);
+      border: 1px solid var(--border); border-bottom-left-radius: 4px;
+    }
+    .pmsg-bubble p { margin: 0; color: inherit; }
+    .pmsg-bubble ul,.pmsg-bubble ol { padding-left: 16px; margin: 4px 0; }
+    .pmsg-bubble li { margin-bottom: 3px; }
+    .pmsg-bubble strong { font-weight: 600; }
+    .pmsg-bubble code { background: rgba(0,0,0,0.1); border-radius: 3px; padding: 1px 4px; font-size: 0.82em; }
+
+    .pmsg-time {
+      font-size: 0.67rem; color: var(--text-muted); padding: 0 4px;
+    }
+    .pmsg.user .pmsg-time { text-align: right; }
+
+    /* Fuentes */
+    .pmsg-sources {
+      font-size: 0.72rem; color: var(--accent); cursor: pointer; padding: 2px 4px;
+      background: none; border: none; display: flex; align-items: center; gap: 3px;
+      transition: opacity 0.2s;
+    }
+    .pmsg-sources:hover { opacity: 0.75; }
+    .pmsg-sources-list {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 10px;
+      display: none; flex-direction: column; gap: 4px;
+    }
+    .pmsg-sources-list.open { display: flex; }
+    .pmsg-source-item {
+      font-size: 0.73rem; color: var(--text-muted);
+      padding: 4px 8px; border-left: 2px solid var(--accent);
+      background: var(--bg-card); border-radius: 0 6px 6px 0;
+    }
+
+    /* Typing */
+    .pmsg-typing .pmsg-bubble {
+      display: flex; gap: 4px; align-items: center; padding: 12px 16px;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
+      animation: typingBounce 1.2s infinite;
+    }
+    .dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
+    @keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
+
+    /* Input del panel */
+    .panel-input-area {
+      padding: 10px 14px 14px; border-top: 1px solid var(--border); flex-shrink: 0;
+      background: var(--bg-surface);
+    }
+    .panel-input-row {
+      display: flex; gap: 8px; align-items: flex-end;
+    }
+    .panel-input {
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 10px 14px; font-size: 0.87rem;
+      color: var(--text-main); font-family: 'Inter', sans-serif;
+      resize: none; min-height: 42px; max-height: 100px; outline: none;
+      transition: border-color 0.2s; line-height: 1.4;
+    }
+    .panel-input:focus { border-color: var(--accent); }
+    .panel-input::placeholder { color: var(--text-muted); }
+
+    .panel-send {
+      width: 38px; height: 38px; border-radius: 12px;
+      background: linear-gradient(135deg, #4a235a, #6c3483);
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .panel-send:hover { transform: scale(1.08); box-shadow: 0 4px 12px rgba(74,35,90,0.4); }
+    .panel-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .panel-footer-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 7px;
+    }
+    .panel-quiz-btn {
+      font-size: 0.72rem; font-weight: 600; color: var(--accent-dark);
+      background: rgba(140,198,63,0.08); border: 1px solid rgba(140,198,63,0.25);
+      border-radius: 20px; padding: 3px 10px; cursor: pointer; transition: all 0.2s;
+    }
+    .panel-quiz-btn:hover { background: rgba(140,198,63,0.16); border-color: var(--accent); }
+    .powered-by {
+      margin-left: auto; font-size: 0.66rem; color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    /* Mobile */
+    @media(max-width: 480px){
+      .chat-panel { width: calc(100vw - 24px); right: 12px; bottom: 90px; border-radius: 16px; }
+      .bubble-btn { right: 16px; bottom: 16px; }
+    }
+  </style>
 </head>
 <body>
 
-<div class="layout">
-  <!-- ═══ SIDEBAR ═══ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <div>
-        <span class="brand" translate="no">Atena</span>
-        <span class="brand-sub">Konrad Lorenz · Neuroanatomía</span>
+<!-- Página de fondo (el consultor flotante funciona sobre cualquier página) -->
+<div class="demo-page">
+  <div class="demo-hero">
+    <h1>🧠 Laboratorio de Neuroanatomía</h1>
+    <p>Consultor Atena disponible en la esquina inferior derecha. Haz clic en la burbuja para comenzar.</p>
+  </div>
+</div>
+
+<!-- ═══ BURBUJA FLOTANTE ═══ -->
+<button class="bubble-btn" id="bubble-btn" onclick="toggleChat()" aria-label="Abrir consultor Atena" title="Consultor Atena">
+  <div class="bubble-badge" id="bubble-badge"></div>
+  <!-- Ícono cerebro (abierto) -->
+  <svg id="icon-open" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+    <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+    <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
+    <path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/>
+    <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/>
+    <path d="M3.477 10.896a4 4 0 0 1 .585-.396"/>
+    <path d="M19.938 10.5a4 4 0 0 1 .585.396"/>
+    <path d="M6 18a4 4 0 0 1-1.967-.516"/>
+    <path d="M19.967 17.484A4 4 0 0 1 18 18"/>
+  </svg>
+  <!-- Ícono X (cerrar) -->
+  <svg id="icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" style="display:none">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+</button>
+
+<!-- ═══ PANEL FLOTANTE ═══ -->
+<div class="chat-panel" id="chat-panel" role="dialog" aria-label="Consultor Atena">
+
+  <!-- Header -->
+  <div class="panel-header">
+    <div class="panel-avatar">A</div>
+    <div class="panel-info">
+      <div class="panel-name" translate="no">Atena</div>
+      <div class="panel-status">
+        <div class="status-dot-live" id="status-dot"></div>
+        <span id="status-text">Consultora IA activa</span>
       </div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Conversación</div>
-      <button class="sidebar-item active" id="btn-nueva-conv" onclick="nuevaConversacion()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nueva conversación
+    <div class="panel-actions">
+      <button class="panel-action-btn" onclick="nuevaConversacion()" title="Nueva conversación" aria-label="Nueva conversación">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="panel-action-btn" onclick="toggleTheme()" title="Modo oscuro" aria-label="Modo oscuro">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <button class="panel-action-btn" onclick="toggleChat()" title="Cerrar" aria-label="Cerrar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
+  </div>
 
-    <div class="sidebar-section" style="flex:1; overflow-y:auto;">
-      <div class="sidebar-section-title">Historial</div>
-      <div id="historial-lista"></div>
+  <!-- Selector de nivel -->
+  <div class="nivel-tabs">
+    <button class="nivel-tab active" data-nivel="Principiante" onclick="setNivel(this)">🌱 Principiante</button>
+    <button class="nivel-tab" data-nivel="Avanzado" onclick="setNivel(this)">🧠 Avanzado</button>
+    <button class="nivel-tab" data-nivel="General" onclick="setNivel(this)">📚 General</button>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="panel-messages" id="panel-messages">
+    <div class="panel-welcome" id="panel-welcome">
+      <div class="panel-welcome-logo">A</div>
+      <h3>Hola, soy Atena</h3>
+      <p>Tu consultora especializada en neuroanatomía. Pregúntame sobre el sistema nervioso, estructuras cerebrales y más.</p>
+      <div class="panel-chips">
+        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">¿Qué es el hipocampo?</button>
+        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Lóbulos cerebrales</button>
+        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Vías del dolor</button>
+        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">¿Qué hace el cerebelo?</button>
+      </div>
     </div>
+  </div>
 
-    <div class="nivel-selector">
-      <span class="nivel-label">Nivel de conocimiento</span>
-      <button class="nivel-btn active" data-nivel="Principiante" onclick="setNivel(this)">🌱 Principiante</button>
-      <button class="nivel-btn" data-nivel="Avanzado" onclick="setNivel(this)">🧠 Avanzado</button>
-      <button class="nivel-btn" data-nivel="General" onclick="setNivel(this)">📚 General</button>
-    </div>
-
-    <div class="sidebar-footer">
-      <a href="/admin.html" style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:6px; text-decoration:none; transition:color 0.2s;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Panel Admin
-      </a>
-    </div>
-  </aside>
-
-  <!-- ═══ MAIN ═══ -->
-  <div class="main">
-    <!-- Topbar -->
-    <header class="topbar">
-      <!-- Burger mobile -->
-      <button id="burger" onclick="toggleSidebar()" style="background:none;border:none;cursor:pointer;display:none;padding:4px;" aria-label="Menú">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  <!-- Input -->
+  <div class="panel-input-area">
+    <div class="panel-input-row">
+      <textarea
+        id="panel-input"
+        class="panel-input"
+        placeholder="Escribe tu pregunta…"
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+        aria-label="Pregunta"
+      ></textarea>
+      <button class="panel-send" id="panel-send" onclick="enviarPregunta()" aria-label="Enviar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
-      <span class="topbar-title">Consultor IA · Neuroanatomía</span>
-      <div class="topbar-spacer"></div>
-      <!-- Estado API -->
-      <div id="api-status" style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text-muted);">
-        <span id="status-dot" style="width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;"></span>
-        <span id="status-text">Conectando…</span>
-      </div>
-      <!-- Dark mode toggle -->
-      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Alternar modo oscuro" title="Modo oscuro"></button>
-    </header>
-
-    <!-- Chat area -->
-    <div class="chat-wrapper">
-      <div class="chat-messages" id="chat-messages">
-        <!-- Pantalla de bienvenida -->
-        <div class="welcome-screen" id="welcome-screen">
-          <div class="welcome-logo" translate="no">Atena</div>
-          <p class="welcome-sub">Tu consultor especializado en neuroanatomía. Hazme cualquier pregunta sobre el sistema nervioso, estructuras cerebrales o temas del laboratorio.</p>
-          <div class="welcome-chips">
-            <button class="chip" onclick="hacerPregunta(this.textContent)">¿Qué es el hipocampo?</button>
-            <button class="chip" onclick="hacerPregunta(this.textContent)">Explica las vías del dolor</button>
-            <button class="chip" onclick="hacerPregunta(this.textContent)">¿Cuáles son los lóbulos cerebrales?</button>
-            <button class="chip" onclick="hacerPregunta(this.textContent)">Diferencias entre SNC y SNP</button>
-            <button class="chip" onclick="hacerPregunta(this.textContent)">¿Qué hace el cerebelo?</button>
-          </div>
-        </div>
-      </div>
     </div>
-
-    <!-- Input bar fijo -->
-    <div class="chat-input-bar">
-      <div class="chat-input-inner">
-        <textarea
-          id="chat-input"
-          class="chat-input"
-          placeholder="Pregunta sobre neuroanatomía…"
-          rows="1"
-          onkeydown="handleInputKey(event)"
-          oninput="autoResize(this)"
-          aria-label="Pregunta al consultor"
-        ></textarea>
-        <button class="send-btn" id="send-btn" onclick="enviarPregunta()" title="Enviar" aria-label="Enviar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
-      </div>
-      <div class="input-actions">
-        <button class="quiz-btn" id="btn-quiz" onclick="abrirQuiz()">
-          📝 Autoevaluación
-        </button>
-        <span style="font-size:0.73rem; color:var(--text-muted); margin-left:auto;">
-          Nivel: <strong id="nivel-display" style="color:var(--text-main);">Principiante</strong>
-        </span>
-      </div>
+    <div class="panel-footer-row">
+      <button class="panel-quiz-btn" onclick="abrirQuiz()">📝 Autoevaluación</button>
+      <span class="powered-by">Konrad Lorenz · IA</span>
     </div>
   </div>
 </div>
 
 <!-- ═══ MODAL QUIZ ═══ -->
-<div class="modal-overlay" id="quiz-modal" role="dialog" aria-modal="true" aria-label="Autoevaluación">
+<div class="modal-overlay" id="quiz-modal" role="dialog" aria-modal="true">
   <div class="modal">
     <div class="modal-header">
-      <h2 class="modal-title">📝 Autoevaluación de Neuroanatomía</h2>
+      <h2 class="modal-title">📝 Autoevaluación</h2>
       <button class="modal-close" onclick="cerrarQuiz()" aria-label="Cerrar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -130,6 +411,11 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Enlace al admin -->
+<div style="position:fixed;bottom:100px;right:28px;z-index:700;" id="admin-link-wrap">
+  <a href="/admin.html" style="font-size:0.7rem;color:var(--text-muted);opacity:0.5;display:block;text-align:right;text-decoration:none;transition:opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">Admin</a>
 </div>
 
 <script src="/js/app.js"></script>
