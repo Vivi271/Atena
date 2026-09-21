@@ -278,8 +278,8 @@ def _render_admin_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
-    # Fila: navegacion + toggle modo
-    nav_c1, nav_c2, nav_c3, nav_c4, nav_toggle = st.columns([2, 2, 2, 2, 1])
+    # Fila: navegacion + acciones
+    nav_c1, nav_c2, nav_c3, nav_c4, nav_chat, nav_toggle = st.columns([2, 2, 2, 2, 1, 1])
     secciones = [
         ("documentos",   "Documentos",       nav_c1),
         ("preguntas",    "Banco de Preguntas",nav_c2),
@@ -296,6 +296,30 @@ def _render_admin_dashboard():
         if st.button(modo_icon, key="adm_toggle_dark", use_container_width=True):
             st.session_state.dark_mode = not st.session_state.dark_mode
             st.rerun()
+    with nav_chat:
+        with st.popover("Consultor IA", use_container_width=True):
+            st.markdown("**Consultor de Neuroanatomia**")
+            st.caption("Nivel Avanzado — conectado al sistema RAG")
+            if "adm_chat_msgs" not in st.session_state:
+                st.session_state.adm_chat_msgs = []
+            # Mostrar historial
+            chat_box = st.container(height=320)
+            with chat_box:
+                for _m in st.session_state.adm_chat_msgs:
+                    with st.chat_message(_m["role"]):
+                        st.markdown(_m["content"])
+            # Input
+            _q = st.chat_input("Escribe tu consulta...", key="adm_pop_input")
+            if _q:
+                st.session_state.adm_chat_msgs.append({"role": "user", "content": _q})
+                with st.spinner("Consultando..."):
+                    _resp, _fuentes = consultar_via_api(_q, nivel="Avanzado", k=5)
+                st.session_state.adm_chat_msgs.append({"role": "assistant", "content": _resp})
+                if _fuentes:
+                    with st.expander("Fuentes"):
+                        for _i, _f in enumerate(_fuentes, 1):
+                            st.caption(f"[{_i}] {nombre_legible(_f.get('fuente',''))} — Pag. {_f.get('pagina','?')}")
+                st.rerun()
 
     st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
     seccion = st.session_state.adm_seccion
@@ -813,6 +837,25 @@ if lanzar_evaluacion:
 
 # ── Enrutamiento principal: Admin vs Chat ────────────────────────────────────
 if is_admin:
+    # Colapsar sidebar con CSS (metodo confiable en Streamlit)
+    st.markdown("""
+    <style>
+    section[data-testid="stSidebar"] {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+    }
+    section[data-testid="stSidebar"] + div[class] {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+    .block-container {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        max-width: 100% !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     _render_admin_dashboard()
 
 else:
