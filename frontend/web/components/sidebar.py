@@ -72,7 +72,15 @@ def render_sidebar(vs, disabled=False):
         st.markdown("---")
         modo_txt = "Modo claro" if st.session_state.get("dark_mode", False) else "Modo oscuro"
         if st.button(modo_txt, key="sidebar_dark_toggle_admin", use_container_width=True):
-            st.session_state.dark_mode = not st.session_state.get("dark_mode", False)
+            nuevo_dark = not st.session_state.get("dark_mode", False)
+            st.session_state.dark_mode = nuevo_dark
+            try:
+                if nuevo_dark:
+                    st.query_params["dark"] = "1"
+                else:
+                    st.query_params.pop("dark", None)
+            except Exception:
+                pass
             st.rerun()
 
         k_chunks = 5
@@ -162,7 +170,15 @@ def render_sidebar(vs, disabled=False):
     st.markdown("---")
     modo_txt = "Modo claro" if st.session_state.get("dark_mode", False) else "Modo oscuro"
     if st.button(modo_txt, key="sidebar_dark_toggle_user", use_container_width=True):
-        st.session_state.dark_mode = not st.session_state.get("dark_mode", False)
+        nuevo_dark = not st.session_state.get("dark_mode", False)
+        st.session_state.dark_mode = nuevo_dark
+        try:
+            if nuevo_dark:
+                st.query_params["dark"] = "1"
+            else:
+                st.query_params.pop("dark", None)
+        except Exception:
+            pass
         st.rerun()
 
     k_chunks = 5

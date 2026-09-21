@@ -37,7 +37,8 @@ if os.path.exists(CSS_PATH):
 
 # ── Modo oscuro / claro ──
 if "dark_mode" not in st.session_state:
-    st.session_state.dark_mode = False
+    # Restaurar modo oscuro desde query_param al recargar la página
+    st.session_state.dark_mode = (st.query_params.get("dark") == "1")
 
 # ── Persistencia de sesión admin entre recargas de página ──
 if st.query_params.get("adm_ok") == "1" and not st.session_state.get("is_admin"):
