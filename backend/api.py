@@ -48,11 +48,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — permite llamadas desde Unity (cualquier origen)
+# CORS — permite llamadas desde el frontend web y Unity
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -570,3 +570,76 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run("api:app", host="0.0.0.0", port=port, reload=False)
 
+
+# ── Endpoints de Métricas y Registro (para frontend web) ──────────────────────
+
+class RegistrarEvaluacionRequest(BaseModel):
+    pregunta: str
+    respuesta_usuario: str
+    respuesta_correcta: str
+    es_correcta: bool
+    explicacion: str
+
+
+@app.get("/api/admin/metricas", tags=["Admin"])
+async def obtener_metricas_panel(
+    dias: int = Query(30, description="Días de historial para volumen y tendencia"),
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """
+    Devuelve todas las métricas del panel de administración en un solo request:
+    KPIs generales, volumen diario, distribución por nivel, preguntas frecuentes,
+    consultas recientes y tendencia de aciertos.
+    """
+    _verificar_pin(x_admin_pin)
+    try:
+        from db_metrics import (
+            obtener_metricas,
+            obtener_consultas_recientes,
+            obtener_preguntas_frecuentes,
+            obtener_volumen_diario,
+            obtener_distribucion_niveles,
+            obtener_precision_evaluaciones,
+            obtener_tendencia_aciertos_diaria,
+        )
+        return {
+            "kpis":              obtener_metricas(),
+            "volumen_diario":    obtener_volumen_diario(dias),
+            "distribucion":      obtener_distribucion_niveles(),
+            "frecuentes":        obtener_preguntas_frecuentes(10),
+            "recientes":         obtener_consultas_recientes(20),
+            "tendencia":         obtener_tendencia_aciertos_diaria(dias),
+            "precision":         obtener_precision_evaluaciones(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener métricas: {e}")
+
+
+@app.post("/api/admin/evaluacion/registrar", tags=["Admin"])
+async def registrar_respuesta_evaluacion(
+    body: RegistrarEvaluacionRequest,
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Registra la respuesta de un usuario a una pregunta del quiz de autoevaluación."""
+    _verificar_pin(x_admin_pin)
+    try:
+        from db_metrics import registrar_evaluacion
+        registrar_evaluacion(
+            pregunta=body.pregunta,
+            respuesta_usuario=body.respuesta_usuario,
+            respuesta_correcta=body.respuesta_correcta,
+            es_correcta=body.es_correcta,
+            explicacion=body.explicacion,
+        )
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al registrar evaluación: {e}")
+
+
+# ── Frontend estático (debe ir al final, después de todos los endpoints API) ───
+# Sirve la carpeta frontend/web/static/ como raíz del sitio web.
+# Render/Docker: la ruta es relativa al WORKDIR=/app, los archivos quedan en /app/frontend/web/static/
+from fastapi.staticfiles import StaticFiles
+_STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "web", "static")
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="frontend")

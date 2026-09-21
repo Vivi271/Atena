@@ -29,6 +29,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copiar backend completo (código, persistencia y base vectorial) y documentos
 COPY backend/ ./backend/
 COPY Docs/ ./Docs/
+# Copiar frontend web estático (servido por FastAPI en /)
+COPY frontend/web/static/ ./frontend/web/static/
 
 # Exponer puerto por defecto
 EXPOSE 8080

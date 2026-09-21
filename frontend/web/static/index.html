@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Atena — Consultor de Neuroanatomía</title>
+  <meta name="description" content="Atena: consultor inteligente de neuroanatomía con IA para estudiantes del laboratorio Konrad Lorenz. Pregunta, aprende y evalúate.">
+  <link rel="stylesheet" href="/css/main.css">
+  <!-- marked.js para renderizar markdown de respuestas RAG -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+<div class="layout">
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div>
+        <span class="brand" translate="no">Atena</span>
+        <span class="brand-sub">Konrad Lorenz · Neuroanatomía</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Conversación</div>
+      <button class="sidebar-item active" id="btn-nueva-conv" onclick="nuevaConversacion()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nueva conversación
+      </button>
+    </div>
+
+    <div class="sidebar-section" style="flex:1; overflow-y:auto;">
+      <div class="sidebar-section-title">Historial</div>
+      <div id="historial-lista"></div>
+    </div>
+
+    <div class="nivel-selector">
+      <span class="nivel-label">Nivel de conocimiento</span>
+      <button class="nivel-btn active" data-nivel="Principiante" onclick="setNivel(this)">🌱 Principiante</button>
+      <button class="nivel-btn" data-nivel="Avanzado" onclick="setNivel(this)">🧠 Avanzado</button>
+      <button class="nivel-btn" data-nivel="General" onclick="setNivel(this)">📚 General</button>
+    </div>
+
+    <div class="sidebar-footer">
+      <a href="/admin.html" style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:6px; text-decoration:none; transition:color 0.2s;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Panel Admin
+      </a>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <!-- Burger mobile -->
+      <button id="burger" onclick="toggleSidebar()" style="background:none;border:none;cursor:pointer;display:none;padding:4px;" aria-label="Menú">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="topbar-title">Consultor IA · Neuroanatomía</span>
+      <div class="topbar-spacer"></div>
+      <!-- Estado API -->
+      <div id="api-status" style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text-muted);">
+        <span id="status-dot" style="width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;"></span>
+        <span id="status-text">Conectando…</span>
+      </div>
+      <!-- Dark mode toggle -->
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Alternar modo oscuro" title="Modo oscuro"></button>
+    </header>
+
+    <!-- Chat area -->
+    <div class="chat-wrapper">
+      <div class="chat-messages" id="chat-messages">
+        <!-- Pantalla de bienvenida -->
+        <div class="welcome-screen" id="welcome-screen">
+          <div class="welcome-logo" translate="no">Atena</div>
+          <p class="welcome-sub">Tu consultor especializado en neuroanatomía. Hazme cualquier pregunta sobre el sistema nervioso, estructuras cerebrales o temas del laboratorio.</p>
+          <div class="welcome-chips">
+            <button class="chip" onclick="hacerPregunta(this.textContent)">¿Qué es el hipocampo?</button>
+            <button class="chip" onclick="hacerPregunta(this.textContent)">Explica las vías del dolor</button>
+            <button class="chip" onclick="hacerPregunta(this.textContent)">¿Cuáles son los lóbulos cerebrales?</button>
+            <button class="chip" onclick="hacerPregunta(this.textContent)">Diferencias entre SNC y SNP</button>
+            <button class="chip" onclick="hacerPregunta(this.textContent)">¿Qué hace el cerebelo?</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input bar fijo -->
+    <div class="chat-input-bar">
+      <div class="chat-input-inner">
+        <textarea
+          id="chat-input"
+          class="chat-input"
+          placeholder="Pregunta sobre neuroanatomía…"
+          rows="1"
+          onkeydown="handleInputKey(event)"
+          oninput="autoResize(this)"
+          aria-label="Pregunta al consultor"
+        ></textarea>
+        <button class="send-btn" id="send-btn" onclick="enviarPregunta()" title="Enviar" aria-label="Enviar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="input-actions">
+        <button class="quiz-btn" id="btn-quiz" onclick="abrirQuiz()">
+          📝 Autoevaluación
+        </button>
+        <span style="font-size:0.73rem; color:var(--text-muted); margin-left:auto;">
+          Nivel: <strong id="nivel-display" style="color:var(--text-main);">Principiante</strong>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL QUIZ ═══ -->
+<div class="modal-overlay" id="quiz-modal" role="dialog" aria-modal="true" aria-label="Autoevaluación">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">📝 Autoevaluación de Neuroanatomía</h2>
+      <button class="modal-close" onclick="cerrarQuiz()" aria-label="Cerrar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="quiz-content">
+      <div style="text-align:center;padding:40px;color:var(--text-muted);">
+        <div class="spinner" style="border-top-color:var(--accent);margin:0 auto 16px;width:28px;height:28px;border-width:3px;"></div>
+        Cargando preguntas…
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
