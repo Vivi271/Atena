@@ -42,7 +42,9 @@ if "dark_mode" not in st.session_state:
 # ── Persistencia de sesión admin entre recargas de página ──
 if st.query_params.get("adm_ok") == "1" and not st.session_state.get("is_admin"):
     st.session_state.is_admin = True
-    st.session_state.adm_pin_activo = True
+    # Guardar el PIN REAL (string), no un booleano
+    _pin_real = os.environ.get("ADMIN_PIN", "12345")
+    st.session_state.adm_pin_activo = _pin_real
 
 # Inyección de estilos de modo oscuro (puro CSS, confiable y directo)
 if st.session_state.dark_mode:
@@ -66,15 +68,48 @@ if st.session_state.dark_mode:
         background-color: #0d1117 !important;
         color: #f0f6fc !important;
     }
+    /* Contenedores principales */
+    .block-container,
+    [data-testid="stMainBlockContainer"],
+    [data-testid="stVerticalBlock"],
+    [data-testid="stHorizontalBlock"] {
+        background-color: transparent !important;
+        color: #f0f6fc !important;
+    }
+    /* Topbar */
     .atena-topbar {
         background: #161b22 !important;
         border-bottom: 1px solid #30363d !important;
     }
-    /* ── Todos los botones en modo oscuro ────────────────────────────── */
+    /* Tabs nativos de Streamlit */
+    div[data-testid="stTabs"],
+    div[data-testid="stTabPanel"],
+    div[role="tabpanel"] {
+        background-color: transparent !important;
+        color: #f0f6fc !important;
+    }
+    div[data-testid="stTabList"] {
+        background-color: #161b22 !important;
+        border-bottom: 2px solid #30363d !important;
+    }
+    button[data-baseweb="tab"] {
+        color: #8b949e !important;
+        background-color: transparent !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #4a235a, #6c3483) !important;
+    }
+    button[data-baseweb="tab"]:hover {
+        background-color: #21262d !important;
+        color: #f0f6fc !important;
+    }
+    /* Todos los botones */
     button,
     .stButton > button,
     div[data-testid="stFormSubmitButton"] > button,
     div[data-testid="stDownloadButton"] > button,
+    div[data-testid="stBaseButton-secondary"] > button,
     div[data-testid="stBaseButton-secondary"] {
         background-color: #21262d !important;
         color: #e6edf3 !important;
@@ -94,66 +129,123 @@ if st.session_state.dark_mode:
         color: #ffffff !important;
         border-color: #6c3483 !important;
     }
-    /* ── Inputs, textareas, selects ───────────────────────────────────── */
+    /* Inputs, textareas */
     input, textarea,
     .stTextInput input, .stTextArea textarea,
     .stNumberInput input,
-    div[data-baseweb="select"] *, div[data-baseweb="input"] * {
+    div[data-baseweb="input"] input,
+    div[data-baseweb="textarea"] textarea {
         background-color: #161b22 !important;
         color: #e6edf3 !important;
         border-color: #30363d !important;
     }
-    /* ── Cards, containers ────────────────────────────────────────────── */
-    div[data-testid="stMarkdown"] div[style*="background"] {
-        filter: brightness(0.85);
+    /* Selectbox / Multiselect */
+    div[data-baseweb="select"] *,
+    div[data-testid="stSelectbox"] *,
+    div[data-testid="stMultiSelect"] *,
+    [data-baseweb="menu"],
+    [data-baseweb="menu"] li {
+        background-color: #21262d !important;
+        color: #e6edf3 !important;
+        border-color: #30363d !important;
     }
+    div[data-baseweb="select"] [class*="ValueContainer"],
+    div[data-baseweb="select"] [class*="control"] {
+        background-color: #161b22 !important;
+    }
+    /* Date inputs */
+    div[data-testid="stDateInput"] input,
+    div[data-testid="stDateInput"] > div,
+    div[data-testid="stDateInput"] [data-baseweb="input"] {
+        background-color: #161b22 !important;
+        color: #e6edf3 !important;
+        border-color: #30363d !important;
+    }
+    /* Alertas/info/warning/success/error boxes */
+    div[data-testid="stAlert"],
+    div[data-testid="stInfo"],
+    div[data-testid="stWarning"],
+    div[data-testid="stSuccess"],
+    div[data-testid="stError"],
+    div[role="alert"],
+    .stAlert {
+        background-color: #21262d !important;
+        border-color: #30363d !important;
+        color: #e6edf3 !important;
+    }
+    /* Expanders */
+    div[data-testid="stExpander"],
     div[data-testid="stExpander"] > details {
         background-color: #161b22 !important;
         border-color: #30363d !important;
     }
-    div[data-testid="stExpander"] summary {
+    div[data-testid="stExpander"] summary,
+    div[data-testid="stExpander"] summary p {
         color: #e6edf3 !important;
     }
-    /* ── Radio, checkboxes ────────────────────────────────────────────── */
+    div[data-testid="stExpander"] details > div {
+        background-color: #161b22 !important;
+    }
+    /* Radio, checkboxes */
     div[data-testid="stRadio"] label,
-    div[data-testid="stCheckbox"] label {
+    div[data-testid="stCheckbox"] label,
+    div[data-testid="stRadio"] p,
+    div[data-testid="stCheckbox"] p {
         color: #e6edf3 !important;
     }
-    /* ── Dataframe ────────────────────────────────────────────────────── */
+    /* Dataframe */
+    div[data-testid="stDataFrame"],
     div[data-testid="stDataFrame"] * {
         background-color: #161b22 !important;
         color: #e6edf3 !important;
         border-color: #30363d !important;
     }
+    /* Metricas */
     div[data-testid="stMetric"] {
         background-color: #161b22 !important;
         border: 1px solid #30363d !important;
     }
-    div[data-testid="stMetricValue"], div[data-testid="stMetricLabel"] {
+    div[data-testid="stMetricValue"],
+    div[data-testid="stMetricLabel"],
+    div[data-testid="stMetricDelta"] {
         color: #f0f6fc !important;
     }
-    .stTextInput input, .stTextArea textarea, .stSelectbox div {
-        background-color: #161b22 !important;
-        color: #f0f6fc !important;
-        border-color: #30363d !important;
-    }
-    div[data-testid="stExpander"] {
-        background-color: #161b22 !important;
-        border-color: #30363d !important;
-    }
+    /* Chat messages */
     div[data-testid="stChatMessage"] {
         background-color: #161b22 !important;
         border: 1px solid #30363d !important;
     }
-    #atena-loader {
-        background: #0d1117 !important;
-    }
-    #atena-loader .loader-logo {
+    div[data-testid="stChatMessage"] p,
+    div[data-testid="stChatMessage"] span {
         color: #f0f6fc !important;
     }
-    #atena-loader .loader-sub {
-        color: #8b949e !important;
+    /* Forms */
+    div[data-testid="stForm"],
+    div[data-testid="stForm"] > div {
+        background-color: #161b22 !important;
+        border-color: #30363d !important;
     }
+    /* Markdown y texto general */
+    p, span, label, li, td, th, h1, h2, h3, h4, h5, h6 {
+        color: #f0f6fc !important;
+    }
+    /* Caption */
+    div[data-testid="stCaptionContainer"] p,
+    small { color: #8b949e !important; }
+    /* Tooltips / popover */
+    div[data-baseweb="popover"],
+    div[data-baseweb="tooltip"] {
+        background-color: #21262d !important;
+        border-color: #30363d !important;
+        color: #e6edf3 !important;
+    }
+    /* Loading screen */
+    #atena-loader { background: #0d1117 !important; }
+    #atena-loader .loader-logo { color: #f0f6fc !important; }
+    #atena-loader .loader-sub { color: #8b949e !important; }
+    /* Scrollbar */
+    ::-webkit-scrollbar-track { background: #0d1117 !important; }
+    ::-webkit-scrollbar-thumb { background: #30363d !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -518,7 +610,9 @@ def _inject_floating_chat():
 def _render_admin_dashboard():
     """Panel de administración. Secciones: Documentos | Preguntas | Estadísticas | Sistema."""
     ATENA_API_URL = os.environ.get("ATENA_API_URL", "https://atena-vugz.onrender.com").rstrip("/")
-    ADMIN_PIN_ENV = st.session_state.get("adm_pin_activo", os.environ.get("ADMIN_PIN", "12345"))
+    # Obtener siempre el PIN como string (evita bug de adm_pin_activo=True booleano)
+    _raw_pin = st.session_state.get("adm_pin_activo", os.environ.get("ADMIN_PIN", "12345"))
+    ADMIN_PIN_ENV = _raw_pin if isinstance(_raw_pin, str) else os.environ.get("ADMIN_PIN", "12345")
 
     try:
         from db_preguntas import (
