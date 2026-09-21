@@ -524,557 +524,568 @@ def _render_admin_dashboard():
         "</style>", unsafe_allow_html=True
     )
     st.markdown("<hr style='margin:10px 0 18px; opacity:0.15;'>", unsafe_allow_html=True)
+    # ─── Arreglo bleeding: mostrar placeholder mientras carga sección nueva ─────
+    _prev_sec = st.session_state.get("_adm_last_sec")
     seccion = st.session_state.adm_seccion
+    if _prev_sec != seccion:
+        st.session_state["_adm_last_sec"] = seccion
 
 
     # ── DOCUMENTOS ──────────────────────────────────────────────────────────
-    if seccion == "documentos":
-        st.markdown("### Documentos del sistema")
-        st.caption("Biblioteca de literatura indexada. Sube PDF o DOCX para ampliar el conocimiento de Atena.")
+    # ── Contenedor atómico: evita módulo anterior visible durante carga ─────
+    _section_slot = st.empty()
+    with _section_slot.container():
+        if seccion == "documentos":
+            st.markdown("### Documentos del sistema")
+            st.caption("Biblioteca de literatura indexada. Sube PDF o DOCX para ampliar el conocimiento de Atena.")
 
-        ab1, ab2, _sp = st.columns([1.2, 1.2, 7])
-        with ab1:
-            if st.button("Actualizar", key="adm_refresh_docs", use_container_width=True):
-                st.session_state.pop("adm_docs_cache", None)
-                st.rerun()
-        with ab2:
-            if st.button("Reindexar todo", key="adm_rebuild", use_container_width=True):
-                with st.spinner("Reconstruyendo base vectorial..."):
-                    try:
-                        resp = httpx.post(f"{ATENA_API_URL}/api/admin/rebuild",
-                                          headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=120.0)
-                        if resp.status_code == 200:
-                            st.success(f"{resp.json().get('total_vectores','?')} vectores reconstruidos")
-                        else:
-                            st.error(resp.text[:120])
-                    except Exception as e:
-                        st.error(str(e))
-
-        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-
-        if "adm_docs_cache" not in st.session_state:
-            try:
-                resp = httpx.get(f"{ATENA_API_URL}/api/admin/documents",
-                                 headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=15.0)
-                st.session_state["adm_docs_cache"] = resp.json().get("documentos", []) if resp.status_code == 200 else []
-            except Exception:
-                st.session_state["adm_docs_cache"] = []
-
-        docs = st.session_state.get("adm_docs_cache", [])
-        if docs:
-            st.markdown(
-                f"<p style='font-size:0.8rem;color:#94a3b8;margin-bottom:10px;'>"
-                f"{len(docs)} documento{'s' if len(docs)>1 else ''} indexado{'s' if len(docs)>1 else ''}</p>",
-                unsafe_allow_html=True
-            )
-            for doc in docs:
-                nombre = doc["nombre"]
-                ext = os.path.splitext(nombre)[1].upper().replace(".", "") or "DOC"
-                c_card, c_del = st.columns([8, 1])
-                with c_card:
-                    st.markdown(
-                        f"<div style='display:flex;align-items:center;gap:14px;padding:13px 18px;"
-                        f"background:#fff;border:1px solid #e2e8f0;border-left:4px solid #8CC63F;"
-                        f"border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);'>"
-                        f"<span style='font-size:0.7rem;font-weight:700;background:rgba(74,35,90,.08);"
-                        f"color:#4a235a;padding:4px 8px;border-radius:4px;flex-shrink:0;'>{ext}</span>"
-                        f"<div style='flex:1;overflow:hidden;'>"
-                        f"<div style='font-weight:600;font-size:0.92rem;color:#1e293b;"
-                        f"text-overflow:ellipsis;overflow:hidden;white-space:nowrap;'>{nombre_legible(nombre)}</div>"
-                        f"<div style='font-size:0.74rem;color:#94a3b8;margin-top:2px;'>Indexado en base vectorial RAG</div>"
-                        f"</div></div>",
-                        unsafe_allow_html=True
-                    )
-                with c_del:
-                    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-                    if st.button("Eliminar", key=f"adm_del_{nombre}", use_container_width=True):
-                        st.session_state["adm_pending_del"] = nombre
-
-            if st.session_state.get("adm_pending_del"):
-                pending = st.session_state["adm_pending_del"]
-                st.warning(f"Confirmar: eliminar '{nombre_legible(pending)}' del servidor.")
-                cc1, cc2 = st.columns(2)
-                with cc1:
-                    if st.button("Si, eliminar", key="adm_confirm_del", use_container_width=True, type="primary"):
-                        with st.spinner("Eliminando..."):
-                            try:
-                                resp = httpx.delete(f"{ATENA_API_URL}/api/admin/delete/{pending}",
-                                                    headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=30.0)
-                                if resp.status_code == 200:
-                                    st.success("Documento eliminado.")
-                                    st.session_state.pop("adm_docs_cache", None)
-                                else:
-                                    st.error(resp.text[:120])
-                            except Exception as e:
-                                st.error(str(e))
-                        st.session_state.pop("adm_pending_del", None)
-                        st.rerun()
-                with cc2:
-                    if st.button("Cancelar", key="adm_cancel_del", use_container_width=True):
-                        st.session_state.pop("adm_pending_del", None)
-                        st.rerun()
-        else:
-            st.info("No hay documentos registrados o no se pudo conectar al servidor.")
-
-        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-        with st.expander("Subir nuevo material", expanded=False):
-            st.caption("Arrastra archivos PDF o DOCX. El sistema los fragmenta y vectoriza automaticamente.")
-            archivos = st.file_uploader(
-                "Selecciona archivos:", type=["pdf", "docx"],
-                accept_multiple_files=True, key="adm_uploader"
-            )
-            if archivos:
-                ya_subidos = st.session_state.get("adm_uploads_ok", set())
-                nuevos = [f for f in archivos if f.name not in ya_subidos]
-                if nuevos:
-                    if st.button(
-                        f"Subir e indexar ({len(nuevos)} archivo{'s' if len(nuevos) > 1 else ''})",
-                        key="adm_btn_upload", use_container_width=True, type="primary"
-                    ):
-                        for archivo in nuevos:
-                            with st.spinner(f"Indexando {archivo.name}..."):
-                                try:
-                                    resp = httpx.post(
-                                        f"{ATENA_API_URL}/api/admin/upload",
-                                        headers={"X-Admin-Pin": ADMIN_PIN_ENV},
-                                        files={"file": (archivo.name, archivo.getvalue(), "application/octet-stream")},
-                                        timeout=180.0,
-                                    )
-                                    if resp.status_code == 200:
-                                        data = resp.json()
-                                        st.success(f"{archivo.name} indexado - {data.get('fragmentos_indexados','?')} fragmentos")
-                                        ya_subidos.add(archivo.name)
-                                        st.session_state.pop("adm_docs_cache", None)
-                                    else:
-                                        st.error(f"Error: {resp.text[:120]}")
-                                except Exception as e:
-                                    st.error(f"Sin conexion: {e}")
-                        st.session_state["adm_uploads_ok"] = ya_subidos
-                        st.rerun()
-
-
-    # ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
-    elif seccion == "preguntas":
-        st.markdown("### Banco de Preguntas")
-        # Fix visual "do" en radio horizontal (Streamlit label truncation)
-        st.markdown("""<style>
-        div[data-testid="stRadio"] > div { gap: 20px !important; }
-        div[data-testid="stRadio"] label > div { white-space: nowrap !important; }
-        </style>""", unsafe_allow_html=True)
-
-        if not _DB_AVAILABLE:
-            st.error("No se pudo conectar a la base de datos.")
-            return
-
-        try:
-            niveles_db = obtener_niveles()
-            temas_db = obtener_temas()
-        except Exception as e:
-            st.error(f"Error Supabase: {e}")
-            return
-
-        _modo_forzar = st.session_state.pop("adm_modo_q_forzar", None)
-        if _modo_forzar:
-            st.session_state["adm_modo_q"] = _modo_forzar
-        modo_q = st.radio("", ["Ver y editar", "Nueva pregunta"],
-                          horizontal=True, key="adm_modo_q", label_visibility="collapsed")
-        st.markdown("---")
-
-        if modo_q == "Ver y editar":
-            col_f, col_c = st.columns([2, 1])
-            with col_f:
-                nivel_filtro = st.selectbox("Filtrar por nivel:", ["Todos"] + niveles_db, key="adm_filtro_nivel")
-            try:
-                preguntas = obtener_preguntas_por_nivel(
-                    nivel=None if nivel_filtro == "Todos" else nivel_filtro, cantidad=50)
-            except Exception as e:
-                st.error(str(e)); preguntas = []
-            with col_c:
-                st.metric("Total encontradas", len(preguntas))
-
-            for p in preguntas:
-                pid = p["id"]
-                resumen = p["enunciado"][:65] + "..." if len(p["enunciado"]) > 65 else p["enunciado"]
-                respuestas = p.get("respuestas", [])
-                textos = [r["texto"] for r in respuestas]
-                while len(textos) < 4:
-                    textos.append("")
-                idx_cor = next((i for i, r in enumerate(respuestas) if r.get("es_correcta")), 0)
-                letras = ["A", "B", "C", "D"]
-
-                with st.expander(f"#{pid} — {resumen}"):
-                    with st.form(f"adm_form_{pid}"):
-                        c1, c2 = st.columns([3, 1])
-                        with c1:
-                            n_enun = st.text_area("Enunciado:", value=p["enunciado"],
-                                                   key=f"adm_enun_{pid}", height=75)
-                        with c2:
-                            n_niv = st.selectbox("Nivel:", niveles_db, key=f"adm_niv_{pid}",
-                                index=niveles_db.index(p["nivel"]) if p["nivel"] in niveles_db else 0)
-                            n_tem = st.selectbox("Tema:", temas_db, key=f"adm_tem_{pid}",
-                                index=temas_db.index(p["tema"]) if p["tema"] in temas_db else 0)
-                        c_op = st.columns(2)
-                        opciones = []
-                        for i, l in enumerate(letras):
-                            with c_op[i % 2]:
-                                opciones.append(st.text_input(f"Opcion {l}:", value=textos[i],
-                                                               key=f"adm_op{l}_{pid}"))
-                        n_cor = st.radio("Respuesta correcta:", letras, index=idx_cor,
-                                          horizontal=True, key=f"adm_cor_{pid}")
-                        cg, ce = st.columns(2)
-                        with cg:
-                            if st.form_submit_button("Guardar cambios", use_container_width=True, type="primary"):
-                                ok = actualizar_pregunta(pid, n_niv, n_tem, n_enun,
-                                                          opciones[0], opciones[1], opciones[2], opciones[3], n_cor)
-                                if ok:
-                                    st.success("Guardado.")
-                                    time.sleep(0.5); st.rerun()
-                                else:
-                                    st.error("Error al guardar.")
-                        with ce:
-                            if st.form_submit_button("Eliminar", use_container_width=True):
-                                st.session_state[f"adm_cdel_{pid}"] = True
-
-                    if st.session_state.get(f"adm_cdel_{pid}"):
-                        st.warning("Confirma que deseas eliminar esta pregunta.")
-                        cy, cn = st.columns(2)
-                        with cy:
-                            if st.button("Si, eliminar", key=f"adm_yes_{pid}", use_container_width=True, type="primary"):
-                                eliminar_pregunta(pid)
-                                st.session_state.pop(f"adm_cdel_{pid}", None)
-                                time.sleep(0.5); st.rerun()
-                        with cn:
-                            if st.button("Cancelar", key=f"adm_no_{pid}", use_container_width=True):
-                                st.session_state.pop(f"adm_cdel_{pid}", None)
-                                st.rerun()
-        else:
-            st.markdown("**Nueva pregunta**")
-            with st.form("adm_nueva_form", clear_on_submit=True):
-                ca, cb = st.columns([3, 1])
-                with ca:
-                    n_enun = st.text_area("Enunciado:", height=90, key="adm_nueva_enun")
-                with cb:
-                    n_niv = st.selectbox("Nivel:", niveles_db, key="adm_nueva_niv")
-                    n_tem = st.selectbox("Tema:", temas_db, key="adm_nueva_tem")
-                c_op = st.columns(2)
-                with c_op[0]:
-                    op_a = st.text_input("Opcion A:", key="adm_nop_a")
-                    op_c = st.text_input("Opcion C:", key="adm_nop_c")
-                with c_op[1]:
-                    op_b = st.text_input("Opcion B:", key="adm_nop_b")
-                    op_d = st.text_input("Opcion D:", key="adm_nop_d")
-                n_cor = st.radio("Respuesta correcta:", ["A", "B", "C", "D"],
-                                  horizontal=True, key="adm_nueva_cor")
-                if st.form_submit_button("Crear pregunta", use_container_width=True, type="primary"):
-                    if not n_enun.strip():
-                        st.error("El enunciado no puede estar vacio.")
-                    elif not all([op_a, op_b, op_c, op_d]):
-                        st.error("Completa las 4 opciones.")
-                    else:
-                        ok = agregar_pregunta(n_niv, n_tem, n_enun, op_a, op_b, op_c, op_d, n_cor)
-                        if ok:
-                            st.session_state["adm_pregunta_creada"] = True
-                            st.rerun()
-                        else:
-                            st.error("Error al crear la pregunta.")
-
-        # Flujo post-creación
-        if st.session_state.get("adm_pregunta_creada"):
-            st.session_state.pop("adm_pregunta_creada", None)
-            st.markdown(
-                "<div style='background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;"
-                "border-left:4px solid #22c55e;border-radius:10px;padding:20px 24px;margin:12px 0;'>"
-                "<div style='font-weight:700;font-size:1rem;color:#166534;margin-bottom:6px;'>Pregunta creada</div>"
-                "<div style='font-size:0.85rem;color:#16a34a;'>¿Desea agregar otra pregunta?</div>"
-                "</div>", unsafe_allow_html=True
-            )
-            _ca, _cb = st.columns(2)
-            with _ca:
-                if st.button("Si, agregar otra", key="adm_otra_si", use_container_width=True, type="primary"):
-                    pass  # permanece en modo Nueva pregunta
-            with _cb:
-                if st.button("No, ver lista", key="adm_otra_no", use_container_width=True):
-                    st.session_state["adm_modo_q_forzar"] = "Ver y editar"
+            ab1, ab2, _sp = st.columns([1.2, 1.2, 7])
+            with ab1:
+                if st.button("Actualizar", key="adm_refresh_docs", use_container_width=True):
+                    st.session_state.pop("adm_docs_cache", None)
                     st.rerun()
+            with ab2:
+                if st.button("Reindexar todo", key="adm_rebuild", use_container_width=True):
+                    with st.spinner("Reconstruyendo base vectorial..."):
+                        try:
+                            resp = httpx.post(f"{ATENA_API_URL}/api/admin/rebuild",
+                                              headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=120.0)
+                            if resp.status_code == 200:
+                                st.success(f"{resp.json().get('total_vectores','?')} vectores reconstruidos")
+                            else:
+                                st.error(resp.text[:120])
+                        except Exception as e:
+                            st.error(str(e))
 
-    # ── ESTADISTICAS ─────────────────────────────────────────────────────────
-    elif seccion == "estadisticas":
-        import pandas as pd
-        import plotly.express as px
-        import plotly.graph_objects as go
-        from datetime import date, timedelta
+            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
-        st.markdown("### Estadisticas de uso")
+            if "adm_docs_cache" not in st.session_state:
+                try:
+                    resp = httpx.get(f"{ATENA_API_URL}/api/admin/documents",
+                                     headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=15.0)
+                    st.session_state["adm_docs_cache"] = resp.json().get("documentos", []) if resp.status_code == 200 else []
+                except Exception:
+                    st.session_state["adm_docs_cache"] = []
 
-        try:
-            from db_metrics import (
-                obtener_metricas, obtener_preguntas_frecuentes,
-                obtener_volumen_diario, obtener_distribucion_niveles,
-                obtener_precision_evaluaciones, obtener_tendencia_aciertos_diaria,
-                obtener_consultas_recientes,
-            )
-            _METRICS_OK = True
-        except ImportError:
-            _METRICS_OK = False
-
-        if not _METRICS_OK:
-            st.error("No se pudo conectar al modulo de metricas.")
-        else:
-            # ── Filtros de fecha ────────────────────────────────────────────
-            fc1, fc2, fc3 = st.columns([1, 1, 1])
-            with fc1:
-                fecha_desde = st.date_input("Desde:", value=date.today() - timedelta(days=30), key="adm_f_desde")
-            with fc2:
-                fecha_hasta = st.date_input("Hasta:", value=date.today(), key="adm_f_hasta")
-            with fc3:
-                acceso_rapido = st.selectbox("Acceso rapido:", ["Personalizado", "Ultima semana", "Ultimo mes", "Ultimos 3 meses", "Todo el historial"], key="adm_rapido")
-                if acceso_rapido != "Personalizado":
-                    deltas = {"Ultima semana": 7, "Ultimo mes": 30, "Ultimos 3 meses": 90, "Todo el historial": 3650}
-                    fecha_desde = date.today() - timedelta(days=deltas[acceso_rapido])
-                    fecha_hasta = date.today()
-
-            dias = max(1, (fecha_hasta - fecha_desde).days + 1)
-            st.markdown("---")
-
-            try:
-                stats        = obtener_metricas()
-                volumen      = obtener_volumen_diario(dias)
-                frecuentes   = obtener_preguntas_frecuentes(10)
-                dist_niveles = obtener_distribucion_niveles()
-                precision    = obtener_precision_evaluaciones()
-                tend_aciertos= obtener_tendencia_aciertos_diaria(dias)
-                recientes    = obtener_consultas_recientes(20)
-            except Exception as e:
-                st.error(f"Error al cargar estadisticas: {e}")
-                st.stop()
-
-            # ── KPIs ────────────────────────────────────────────────────────
-            k1, k2, k3, k4, k5 = st.columns(5)
-            _kpis = [
-                ("Consultas totales", str(stats["total_consultas"]), "#4a235a", "📬"),
-                ("Latencia prom.", f"{stats['latencia_promedio']} s" if stats["latencia_promedio"] else "—", "#1e3a5f", "⚡"),
-                ("Evaluaciones", str(stats["total_evaluaciones"]), "#14532d", "📝"),
-                ("Precision global", f"{stats['porcentaje_aciertos']} %" if stats["total_evaluaciones"] else "—", "#7c2d12", "🎯"),
-                ("Resp. correctas", str(stats.get("evaluaciones_correctas", 0)), "#1e3a5f", "✅"),
-            ]
-            for _c, (_l, _v, _bg, _ic) in zip([k1,k2,k3,k4,k5], _kpis):
-                with _c:
-                    st.markdown(
-                        f"<div style='background:linear-gradient(135deg,{_bg}18,{_bg}05);"
-                        f"border:1px solid {_bg}22;border-top:3px solid {_bg};"
-                        f"border-radius:10px;padding:16px 12px;text-align:center;'>"
-                        f"<div style='font-size:1.3rem;margin-bottom:4px;'>{_ic}</div>"
-                        f"<div style='font-size:0.65rem;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:6px;'>{_l}</div>"
-                        f"<div style='font-size:1.5rem;font-weight:800;color:{_bg};'>{_v}</div>"
-                        f"</div>", unsafe_allow_html=True
-                    )
-            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
-
-            # ── FILA 1: Volumen + Torta niveles ─────────────────────────────
-            col_v, col_p = st.columns([3, 2], gap="large")
-
-            with col_v:
-                if volumen:
-                    df_vol = pd.DataFrame(volumen)
-                    df_vol["dia"] = pd.to_datetime(df_vol["dia"])
-                    df_vol["latencia_avg"] = df_vol["latencia_avg"].apply(lambda x: round(float(x), 2) if x else 0)
-                    fig_vol = px.bar(
-                        df_vol, x="dia", y="total",
-                        labels={"dia": "Fecha", "total": "Consultas"},
-                        title="Consultas por dia",
-                        color_discrete_sequence=["#8CC63F"],
-                        custom_data=["latencia_avg"],
-                    )
-                    fig_vol.update_traces(
-                        hovertemplate="<b>%{x|%d %b}</b><br>Consultas: %{y}<br>Latencia prom: %{customdata[0]} s<extra></extra>"
-                    )
-                    fig_vol.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                        font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
-                        height=280, title_font_size=14,
-                        xaxis=dict(showgrid=False), yaxis=dict(gridcolor="rgba(0,0,0,0.06)"),
-                    )
-                    st.plotly_chart(fig_vol, use_container_width=True)
-                else:
-                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>📊</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin consultas en este periodo</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Las consultas aparecerán aquí al registrarse</p></div>", unsafe_allow_html=True)
-
-            with col_p:
-                if dist_niveles:
-                    labels = list(dist_niveles.keys())
-                    values = list(dist_niveles.values())
-                    fig_pie = go.Figure(go.Pie(
-                        labels=labels, values=values, hole=0.5,
-                        marker=dict(colors=["#4a235a", "#8CC63F", "#7ab332", "#6c3483"]),
-                        textinfo="percent+label",
-                    ))
-                    fig_pie.update_layout(
-                        title="Distribucion por nivel",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        font=dict(family="Inter"),
-                        margin=dict(l=0, r=0, t=40, b=0),
-                        height=280, showlegend=False, title_font_size=14,
-                    )
-                    st.plotly_chart(fig_pie, use_container_width=True)
-                else:
-                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>🎓</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin datos por nivel</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá al completar evaluaciones</p></div>", unsafe_allow_html=True)
-
-            st.markdown("---")
-
-            # ── FILA 2: Barras frecuentes + Barras precision ─────────────────
-            col_f, col_pr = st.columns([1, 1], gap="large")
-
-            with col_f:
-                if frecuentes:
-                    df_freq = pd.DataFrame(frecuentes)
-                    df_freq["pregunta_corta"] = df_freq["pregunta"].apply(lambda x: x[:55] + "..." if len(x) > 55 else x)
-                    df_freq["lat_r"] = df_freq["latencia_avg"].apply(lambda x: round(float(x), 2) if x else 0)
-                    fig_freq = px.bar(
-                        df_freq, x="veces", y="pregunta_corta",
-                        orientation="h",
-                        labels={"veces": "Veces consultada", "pregunta_corta": ""},
-                        title="Temas mas consultados",
-                        color="veces",
-                        color_continuous_scale=["#c7e8a0", "#4a235a"],
-                        custom_data=["lat_r"],
-                    )
-                    fig_freq.update_traces(
-                        hovertemplate="<b>%{y}</b><br>Consultas: %{x}<br>Latencia: %{customdata[0]} s<extra></extra>"
-                    )
-                    fig_freq.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                        font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
-                        height=340, coloraxis_showscale=False, title_font_size=14,
-                        yaxis=dict(tickfont=dict(size=10)), xaxis=dict(gridcolor="rgba(0,0,0,0.06)"),
-                    )
-                    st.plotly_chart(fig_freq, use_container_width=True)
-                else:
-                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>🔍</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin temas frecuentes aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Los temas más consultados aparecerán aquí</p></div>", unsafe_allow_html=True)
-
-            with col_pr:
-                if precision:
-                    df_prec = pd.DataFrame(precision)
-                    df_prec["preg_c"] = df_prec["pregunta"].apply(lambda x: x[:50] + "..." if len(x) > 50 else x)
-                    df_prec["porcentaje"] = df_prec["porcentaje"].apply(float)
-                    fig_prec = px.bar(
-                        df_prec, x="porcentaje", y="preg_c",
-                        orientation="h",
-                        labels={"porcentaje": "% Aciertos", "preg_c": ""},
-                        title="Precision por pregunta",
-                        color="porcentaje",
-                        color_continuous_scale=["#ef4444", "#f59e0b", "#22c55e"],
-                        range_color=[0, 100],
-                        custom_data=["intentos"],
-                    )
-                    fig_prec.update_traces(
-                        hovertemplate="<b>%{y}</b><br>Aciertos: %{x}%<br>Intentos: %{customdata[0]}<extra></extra>"
-                    )
-                    fig_prec.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                        font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
-                        height=340, coloraxis_showscale=False, title_font_size=14,
-                        yaxis=dict(tickfont=dict(size=10)), xaxis=dict(gridcolor="rgba(0,0,0,0.06)", range=[0, 100]),
-                    )
-                    st.plotly_chart(fig_prec, use_container_width=True)
-                else:
-                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>🎯</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin evaluaciones aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>La precisión aparecerá al evaluar respuestas</p></div>", unsafe_allow_html=True)
-
-            # ── FILA 3: Tendencia de aciertos ───────────────────────────────
-            if tend_aciertos:
-                st.markdown("---")
-                df_tend = pd.DataFrame(tend_aciertos)
-                df_tend["dia"] = pd.to_datetime(df_tend["dia"])
-                df_tend["pct_aciertos"] = df_tend["pct_aciertos"].apply(float)
-                fig_tend = px.line(
-                    df_tend, x="dia", y="pct_aciertos",
-                    labels={"dia": "Fecha", "pct_aciertos": "% Aciertos"},
-                    title="Tendencia de precision en evaluaciones",
-                    markers=True,
-                    color_discrete_sequence=["#4a235a"],
-                )
-                fig_tend.add_hline(y=70, line_dash="dash", line_color="#f59e0b", annotation_text="Meta 70%")
-                fig_tend.update_layout(
-                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                    font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
-                    height=260, title_font_size=14,
-                    yaxis=dict(range=[0, 105], gridcolor="rgba(0,0,0,0.06)"),
-                    xaxis=dict(showgrid=False),
-                )
-                st.plotly_chart(fig_tend, use_container_width=True)
-
-            # ── FILA 4: Log de consultas recientes ───────────────────────────
-            st.markdown("---")
-            st.markdown("**Registro de consultas recientes**")
-            if recientes:
-                df_rec = pd.DataFrame(recientes)
-                df_rec["pregunta"] = df_rec["pregunta"].apply(lambda x: x[:90] + "..." if len(x) > 90 else x)
-                df_rec["fecha"] = pd.to_datetime(df_rec["fecha"]).dt.strftime("%d/%m/%Y %H:%M")
-                df_rec["latencia"] = df_rec["latencia"].apply(lambda x: f"{round(float(x),2)} s" if x else "—")
-                df_rec = df_rec.rename(columns={"fecha": "Fecha", "pregunta": "Consulta", "nivel": "Nivel", "latencia": "Latencia"})
-                st.dataframe(
-                    df_rec,
-                    hide_index=True,
-                    use_container_width=True,
-                    column_config={
-                        "Fecha":    st.column_config.TextColumn("Fecha", width="small"),
-                        "Nivel":    st.column_config.TextColumn("Nivel", width="small"),
-                        "Latencia": st.column_config.TextColumn("Latencia", width="small"),
-                        "Consulta": st.column_config.TextColumn("Consulta"),
-                    }
-                )
-            else:
-                st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:10px;padding:30px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><div style='font-size:1.8rem;color:#d1d5db;margin-bottom:8px;'>📋</div><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin historial de consultas</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá cuando los usuarios interactúen con Atena</p></div>", unsafe_allow_html=True)
-
-    # ── SISTEMA ──────────────────────────────────────────────────────────────
-    elif seccion == "sistema":
-        st.markdown("### Sistema y Configuracion")
-
-        col_s1, col_s2, col_s3 = st.columns(3)
-        info_cards = [
-            ("Servicio API", "atena-vugz.onrender.com", "#22c55e"),
-            ("Modelo LLM", os.environ.get("GROQ_LLM_MODEL", "N/A"), "#1e293b"),
-            ("Embeddings", os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"), "#1e293b"),
-        ]
-        for col, (titulo, valor, color) in zip([col_s1, col_s2, col_s3], info_cards):
-            with col:
+            docs = st.session_state.get("adm_docs_cache", [])
+            if docs:
                 st.markdown(
-                    f"<div style='background:#f8fafc; border-radius:8px; padding:14px 16px; border:1px solid #e2e8f0;'>"
-                    f"<div style='font-size:0.72rem; color:#94a3b8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em;'>{titulo}</div>"
-                    f"<div style='font-size:0.88rem; color:{color}; font-weight:600;'>{valor}</div>"
-                    f"</div>",
+                    f"<p style='font-size:0.8rem;color:#94a3b8;margin-bottom:10px;'>"
+                    f"{len(docs)} documento{'s' if len(docs)>1 else ''} indexado{'s' if len(docs)>1 else ''}</p>",
                     unsafe_allow_html=True
                 )
+                for doc in docs:
+                    nombre = doc["nombre"]
+                    ext = os.path.splitext(nombre)[1].upper().replace(".", "") or "DOC"
+                    c_card, c_del = st.columns([8, 1])
+                    with c_card:
+                        st.markdown(
+                            f"<div style='display:flex;align-items:center;gap:14px;padding:13px 18px;"
+                            f"background:#fff;border:1px solid #e2e8f0;border-left:4px solid #8CC63F;"
+                            f"border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);'>"
+                            f"<span style='font-size:0.7rem;font-weight:700;background:rgba(74,35,90,.08);"
+                            f"color:#4a235a;padding:4px 8px;border-radius:4px;flex-shrink:0;'>{ext}</span>"
+                            f"<div style='flex:1;overflow:hidden;'>"
+                            f"<div style='font-weight:600;font-size:0.92rem;color:#1e293b;"
+                            f"text-overflow:ellipsis;overflow:hidden;white-space:nowrap;'>{nombre_legible(nombre)}</div>"
+                            f"<div style='font-size:0.74rem;color:#94a3b8;margin-top:2px;'>Indexado en base vectorial RAG</div>"
+                            f"</div></div>",
+                            unsafe_allow_html=True
+                        )
+                    with c_del:
+                        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+                        if st.button("Eliminar", key=f"adm_del_{nombre}", use_container_width=True):
+                            st.session_state["adm_pending_del"] = nombre
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Verificar conexion con el API", key="adm_ping"):
+                if st.session_state.get("adm_pending_del"):
+                    pending = st.session_state["adm_pending_del"]
+                    st.warning(f"Confirmar: eliminar '{nombre_legible(pending)}' del servidor.")
+                    cc1, cc2 = st.columns(2)
+                    with cc1:
+                        if st.button("Si, eliminar", key="adm_confirm_del", use_container_width=True, type="primary"):
+                            with st.spinner("Eliminando..."):
+                                try:
+                                    resp = httpx.delete(f"{ATENA_API_URL}/api/admin/delete/{pending}",
+                                                        headers={"X-Admin-Pin": ADMIN_PIN_ENV}, timeout=30.0)
+                                    if resp.status_code == 200:
+                                        st.success("Documento eliminado.")
+                                        st.session_state.pop("adm_docs_cache", None)
+                                    else:
+                                        st.error(resp.text[:120])
+                                except Exception as e:
+                                    st.error(str(e))
+                            st.session_state.pop("adm_pending_del", None)
+                            st.rerun()
+                    with cc2:
+                        if st.button("Cancelar", key="adm_cancel_del", use_container_width=True):
+                            st.session_state.pop("adm_pending_del", None)
+                            st.rerun()
+            else:
+                st.info("No hay documentos registrados o no se pudo conectar al servidor.")
+
+            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+            with st.expander("Subir nuevo material", expanded=False):
+                st.caption("Arrastra archivos PDF o DOCX. El sistema los fragmenta y vectoriza automaticamente.")
+                archivos = st.file_uploader(
+                    "Selecciona archivos:", type=["pdf", "docx"],
+                    accept_multiple_files=True, key="adm_uploader"
+                )
+                if archivos:
+                    ya_subidos = st.session_state.get("adm_uploads_ok", set())
+                    nuevos = [f for f in archivos if f.name not in ya_subidos]
+                    if nuevos:
+                        if st.button(
+                            f"Subir e indexar ({len(nuevos)} archivo{'s' if len(nuevos) > 1 else ''})",
+                            key="adm_btn_upload", use_container_width=True, type="primary"
+                        ):
+                            for archivo in nuevos:
+                                with st.spinner(f"Indexando {archivo.name}..."):
+                                    try:
+                                        resp = httpx.post(
+                                            f"{ATENA_API_URL}/api/admin/upload",
+                                            headers={"X-Admin-Pin": ADMIN_PIN_ENV},
+                                            files={"file": (archivo.name, archivo.getvalue(), "application/octet-stream")},
+                                            timeout=180.0,
+                                        )
+                                        if resp.status_code == 200:
+                                            data = resp.json()
+                                            st.success(f"{archivo.name} indexado - {data.get('fragmentos_indexados','?')} fragmentos")
+                                            ya_subidos.add(archivo.name)
+                                            st.session_state.pop("adm_docs_cache", None)
+                                        else:
+                                            st.error(f"Error: {resp.text[:120]}")
+                                    except Exception as e:
+                                        st.error(f"Sin conexion: {e}")
+                            st.session_state["adm_uploads_ok"] = ya_subidos
+                            st.rerun()
+
+
+        # ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
+        elif seccion == "preguntas":
+            st.markdown("### Banco de Preguntas")
+            # Fix visual "do" en radio horizontal (Streamlit label truncation)
+            st.markdown("""<style>
+            div[data-testid="stRadio"] > div { gap: 20px !important; }
+            div[data-testid="stRadio"] label > div { white-space: nowrap !important; }
+            </style>""", unsafe_allow_html=True)
+
+            if not _DB_AVAILABLE:
+                st.error("No se pudo conectar a la base de datos.")
+                return
+
             try:
-                resp = httpx.get(f"{ATENA_API_URL}/salud", timeout=10.0)
-                data = resp.json()
-                if data.get("estado") == "ok":
-                    vs_ok = data.get("vector_store_listo", False)
-                    st.success(f"API activo. Vector Store: {'listo' if vs_ok else 'no disponible'}")
-                else:
-                    st.warning(str(data))
+                niveles_db = obtener_niveles()
+                temas_db = obtener_temas()
             except Exception as e:
-                st.error(f"Sin conexion: {e}")
+                st.error(f"Error Supabase: {e}")
+                return
 
-        st.markdown("---")
-        st.markdown("**Cambiar PIN de administrador**")
-        st.caption("El cambio aplica para esta sesion. Para hacerlo permanente, actualiza ADMIN_PIN en las variables de entorno de Render.")
-        with st.form("adm_cambiar_pin", clear_on_submit=True):
-            col_p1, col_p2 = st.columns(2)
-            with col_p1:
-                pin_actual = st.text_input("PIN actual:", type="password", key="adm_pin_actual")
-            with col_p2:
-                pin_nuevo = st.text_input("PIN nuevo:", type="password", key="adm_pin_nuevo")
-            if st.form_submit_button("Cambiar PIN", use_container_width=True, type="primary"):
-                pin_real = st.session_state.get("adm_pin_activo", os.environ.get("ADMIN_PIN", "12345"))
-                if pin_actual != pin_real:
-                    st.error("El PIN actual es incorrecto.")
-                elif len(pin_nuevo) < 4:
-                    st.error("El PIN nuevo debe tener al menos 4 caracteres.")
+            _modo_forzar = st.session_state.pop("adm_modo_q_forzar", None)
+            if _modo_forzar:
+                st.session_state["adm_modo_q"] = _modo_forzar
+            modo_q = st.radio("", ["Ver y editar", "Nueva pregunta"],
+                              horizontal=True, key="adm_modo_q", label_visibility="collapsed")
+            st.markdown("---")
+
+            if modo_q == "Ver y editar":
+                col_f, col_c = st.columns([2, 1])
+                with col_f:
+                    nivel_filtro = st.selectbox("Filtrar por nivel:", ["Todos"] + niveles_db, key="adm_filtro_nivel")
+                try:
+                    preguntas = obtener_preguntas_por_nivel(
+                        nivel=None if nivel_filtro == "Todos" else nivel_filtro, cantidad=50)
+                except Exception as e:
+                    st.error(str(e)); preguntas = []
+                with col_c:
+                    st.metric("Total encontradas", len(preguntas))
+
+                for p in preguntas:
+                    pid = p["id"]
+                    resumen = p["enunciado"][:65] + "..." if len(p["enunciado"]) > 65 else p["enunciado"]
+                    respuestas = p.get("respuestas", [])
+                    textos = [r["texto"] for r in respuestas]
+                    while len(textos) < 4:
+                        textos.append("")
+                    idx_cor = next((i for i, r in enumerate(respuestas) if r.get("es_correcta")), 0)
+                    letras = ["A", "B", "C", "D"]
+
+                    with st.expander(f"#{pid} — {resumen}"):
+                        with st.form(f"adm_form_{pid}"):
+                            c1, c2 = st.columns([3, 1])
+                            with c1:
+                                n_enun = st.text_area("Enunciado:", value=p["enunciado"],
+                                                       key=f"adm_enun_{pid}", height=75)
+                            with c2:
+                                n_niv = st.selectbox("Nivel:", niveles_db, key=f"adm_niv_{pid}",
+                                    index=niveles_db.index(p["nivel"]) if p["nivel"] in niveles_db else 0)
+                                n_tem = st.selectbox("Tema:", temas_db, key=f"adm_tem_{pid}",
+                                    index=temas_db.index(p["tema"]) if p["tema"] in temas_db else 0)
+                            c_op = st.columns(2)
+                            opciones = []
+                            for i, l in enumerate(letras):
+                                with c_op[i % 2]:
+                                    opciones.append(st.text_input(f"Opcion {l}:", value=textos[i],
+                                                                   key=f"adm_op{l}_{pid}"))
+                            n_cor = st.radio("Respuesta correcta:", letras, index=idx_cor,
+                                              horizontal=True, key=f"adm_cor_{pid}")
+                            cg, ce = st.columns(2)
+                            with cg:
+                                if st.form_submit_button("Guardar cambios", use_container_width=True, type="primary"):
+                                    ok = actualizar_pregunta(pid, n_niv, n_tem, n_enun,
+                                                              opciones[0], opciones[1], opciones[2], opciones[3], n_cor)
+                                    if ok:
+                                        st.success("Guardado.")
+                                        time.sleep(0.5); st.rerun()
+                                    else:
+                                        st.error("Error al guardar.")
+                            with ce:
+                                if st.form_submit_button("Eliminar", use_container_width=True):
+                                    st.session_state[f"adm_cdel_{pid}"] = True
+
+                        if st.session_state.get(f"adm_cdel_{pid}"):
+                            st.warning("Confirma que deseas eliminar esta pregunta.")
+                            cy, cn = st.columns(2)
+                            with cy:
+                                if st.button("Si, eliminar", key=f"adm_yes_{pid}", use_container_width=True, type="primary"):
+                                    eliminar_pregunta(pid)
+                                    st.session_state.pop(f"adm_cdel_{pid}", None)
+                                    time.sleep(0.5); st.rerun()
+                            with cn:
+                                if st.button("Cancelar", key=f"adm_no_{pid}", use_container_width=True):
+                                    st.session_state.pop(f"adm_cdel_{pid}", None)
+                                    st.rerun()
+            else:
+                st.markdown("**Nueva pregunta**")
+                with st.form("adm_nueva_form", clear_on_submit=True):
+                    ca, cb = st.columns([3, 1])
+                    with ca:
+                        n_enun = st.text_area("Enunciado:", height=90, key="adm_nueva_enun")
+                    with cb:
+                        n_niv = st.selectbox("Nivel:", niveles_db, key="adm_nueva_niv")
+                        n_tem = st.selectbox("Tema:", temas_db, key="adm_nueva_tem")
+                    c_op = st.columns(2)
+                    with c_op[0]:
+                        op_a = st.text_input("Opcion A:", key="adm_nop_a")
+                        op_c = st.text_input("Opcion C:", key="adm_nop_c")
+                    with c_op[1]:
+                        op_b = st.text_input("Opcion B:", key="adm_nop_b")
+                        op_d = st.text_input("Opcion D:", key="adm_nop_d")
+                    n_cor = st.radio("Respuesta correcta:", ["A", "B", "C", "D"],
+                                      horizontal=True, key="adm_nueva_cor")
+                    if st.form_submit_button("Crear pregunta", use_container_width=True, type="primary"):
+                        if not n_enun.strip():
+                            st.error("El enunciado no puede estar vacio.")
+                        elif not all([op_a, op_b, op_c, op_d]):
+                            st.error("Completa las 4 opciones.")
+                        else:
+                            ok = agregar_pregunta(n_niv, n_tem, n_enun, op_a, op_b, op_c, op_d, n_cor)
+                            if ok:
+                                st.session_state["adm_pregunta_creada"] = True
+                                st.rerun()
+                            else:
+                                st.error("Error al crear la pregunta.")
+
+            # Flujo post-creación
+            if st.session_state.get("adm_pregunta_creada"):
+                st.session_state.pop("adm_pregunta_creada", None)
+                st.markdown(
+                    "<div style='background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;"
+                    "border-left:4px solid #22c55e;border-radius:10px;padding:20px 24px;margin:12px 0;'>"
+                    "<div style='font-weight:700;font-size:1rem;color:#166534;margin-bottom:6px;'>Pregunta creada</div>"
+                    "<div style='font-size:0.85rem;color:#16a34a;'>¿Desea agregar otra pregunta?</div>"
+                    "</div>", unsafe_allow_html=True
+                )
+                _ca, _cb = st.columns(2)
+                with _ca:
+                    if st.button("Si, agregar otra", key="adm_otra_si", use_container_width=True, type="primary"):
+                        pass  # permanece en modo Nueva pregunta
+                with _cb:
+                    if st.button("No, ver lista", key="adm_otra_no", use_container_width=True):
+                        st.session_state["adm_modo_q_forzar"] = "Ver y editar"
+                        st.rerun()
+
+        # ── ESTADISTICAS ─────────────────────────────────────────────────────────
+        elif seccion == "estadisticas":
+            import pandas as pd
+            import plotly.express as px
+            import plotly.graph_objects as go
+            from datetime import date, timedelta
+
+            st.markdown("### Estadisticas de uso")
+
+            try:
+                from db_metrics import (
+                    obtener_metricas, obtener_preguntas_frecuentes,
+                    obtener_volumen_diario, obtener_distribucion_niveles,
+                    obtener_precision_evaluaciones, obtener_tendencia_aciertos_diaria,
+                    obtener_consultas_recientes,
+                )
+                _METRICS_OK = True
+            except ImportError:
+                _METRICS_OK = False
+
+            if not _METRICS_OK:
+                st.error("No se pudo conectar al modulo de metricas.")
+            else:
+                # ── Filtros de fecha ────────────────────────────────────────────
+                fc1, fc2, fc3 = st.columns([1, 1, 1])
+                with fc1:
+                    fecha_desde = st.date_input("Desde:", value=date.today() - timedelta(days=30), key="adm_f_desde")
+                with fc2:
+                    fecha_hasta = st.date_input("Hasta:", value=date.today(), key="adm_f_hasta")
+                with fc3:
+                    acceso_rapido = st.selectbox("Acceso rapido:", ["Personalizado", "Ultima semana", "Ultimo mes", "Ultimos 3 meses", "Todo el historial"], key="adm_rapido")
+                    if acceso_rapido != "Personalizado":
+                        deltas = {"Ultima semana": 7, "Ultimo mes": 30, "Ultimos 3 meses": 90, "Todo el historial": 3650}
+                        fecha_desde = date.today() - timedelta(days=deltas[acceso_rapido])
+                        fecha_hasta = date.today()
+
+                dias = max(1, (fecha_hasta - fecha_desde).days + 1)
+                st.markdown("---")
+
+                try:
+                    stats        = obtener_metricas()
+                    volumen      = obtener_volumen_diario(dias)
+                    frecuentes   = obtener_preguntas_frecuentes(10)
+                    dist_niveles = obtener_distribucion_niveles()
+                    precision    = obtener_precision_evaluaciones()
+                    tend_aciertos= obtener_tendencia_aciertos_diaria(dias)
+                    _top_n = st.session_state.get("adm_top_n", 20)
+                    recientes    = obtener_consultas_recientes(_top_n)
+                except Exception as e:
+                    st.error(f"Error al cargar estadisticas: {e}")
+                    st.stop()
+
+                # ── KPIs ────────────────────────────────────────────────────────
+                k1, k2, k3, k4, k5 = st.columns(5)
+                _kpis = [
+                    ("Consultas totales", str(stats["total_consultas"]), "#4a235a"),
+                    ("Latencia prom.", f"{stats['latencia_promedio']} s" if stats["latencia_promedio"] else "—", "#1e3a5f"),
+                    ("Evaluaciones", str(stats["total_evaluaciones"]), "#14532d"),
+                    ("Precision global", f"{stats['porcentaje_aciertos']} %" if stats["total_evaluaciones"] else "—", "#7c2d12"),
+                    ("Resp. correctas", str(stats.get("evaluaciones_correctas", 0)), "#1e3a5f"),
+                ]
+                for _c, (_l, _v, _bg) in zip([k1,k2,k3,k4,k5], _kpis):
+                    with _c:
+                        st.markdown(
+                            f"<div style='background:linear-gradient(135deg,{_bg}18,{_bg}05);"
+                            f"border:1px solid {_bg}22;border-top:3px solid {_bg};"
+                            f"border-radius:10px;padding:18px 12px;text-align:center;'>"
+                            f"<div style='font-size:0.63rem;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:8px;'>{_l}</div>"
+                            f"<div style='font-size:1.8rem;font-weight:800;color:{_bg};line-height:1;'>{_v}</div>"
+                            f"</div>", unsafe_allow_html=True
+                        )
+                st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+                # ── FILA 1: Volumen + Torta niveles ─────────────────────────────
+                col_v, col_p = st.columns([3, 2], gap="large")
+
+                with col_v:
+                    if volumen:
+                        df_vol = pd.DataFrame(volumen)
+                        df_vol["dia"] = pd.to_datetime(df_vol["dia"])
+                        df_vol["latencia_avg"] = df_vol["latencia_avg"].apply(lambda x: round(float(x), 2) if x else 0)
+                        fig_vol = px.bar(
+                            df_vol, x="dia", y="total",
+                            labels={"dia": "Fecha", "total": "Consultas"},
+                            title="Consultas por dia",
+                            color_discrete_sequence=["#8CC63F"],
+                            custom_data=["latencia_avg"],
+                        )
+                        fig_vol.update_traces(
+                            hovertemplate="<b>%{x|%d %b}</b><br>Consultas: %{y}<br>Latencia prom: %{customdata[0]} s<extra></extra>"
+                        )
+                        fig_vol.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                            font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                            height=280, title_font_size=14,
+                            xaxis=dict(showgrid=False), yaxis=dict(gridcolor="rgba(0,0,0,0.06)"),
+                        )
+                        st.plotly_chart(fig_vol, use_container_width=True)
+                    else:
+                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin consultas en este periodo</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Las consultas aparecerán aquí al registrarse</p></div>", unsafe_allow_html=True)
+
+                with col_p:
+                    if dist_niveles:
+                        labels = list(dist_niveles.keys())
+                        values = list(dist_niveles.values())
+                        fig_pie = go.Figure(go.Pie(
+                            labels=labels, values=values, hole=0.5,
+                            marker=dict(colors=["#4a235a", "#8CC63F", "#7ab332", "#6c3483"]),
+                            textinfo="percent+label",
+                        ))
+                        fig_pie.update_layout(
+                            title="Distribucion por nivel",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(family="Inter"),
+                            margin=dict(l=0, r=0, t=40, b=0),
+                            height=280, showlegend=False, title_font_size=14,
+                        )
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                    else:
+                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin datos por nivel</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá al completar evaluaciones</p></div>", unsafe_allow_html=True)
+
+                st.markdown("---")
+
+                # ── FILA 2: Barras frecuentes + Barras precision ─────────────────
+                col_f, col_pr = st.columns([1, 1], gap="large")
+
+                with col_f:
+                    if frecuentes:
+                        df_freq = pd.DataFrame(frecuentes)
+                        df_freq["pregunta_corta"] = df_freq["pregunta"].apply(lambda x: x[:55] + "..." if len(x) > 55 else x)
+                        df_freq["lat_r"] = df_freq["latencia_avg"].apply(lambda x: round(float(x), 2) if x else 0)
+                        fig_freq = px.bar(
+                            df_freq, x="veces", y="pregunta_corta",
+                            orientation="h",
+                            labels={"veces": "Veces consultada", "pregunta_corta": ""},
+                            title="Temas mas consultados",
+                            color="veces",
+                            color_continuous_scale=["#c7e8a0", "#4a235a"],
+                            custom_data=["lat_r"],
+                        )
+                        fig_freq.update_traces(
+                            hovertemplate="<b>%{y}</b><br>Consultas: %{x}<br>Latencia: %{customdata[0]} s<extra></extra>"
+                        )
+                        fig_freq.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                            font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                            height=340, coloraxis_showscale=False, title_font_size=14,
+                            yaxis=dict(tickfont=dict(size=10)), xaxis=dict(gridcolor="rgba(0,0,0,0.06)"),
+                        )
+                        st.plotly_chart(fig_freq, use_container_width=True)
+                    else:
+                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin temas frecuentes aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Los temas más consultados aparecerán aquí</p></div>", unsafe_allow_html=True)
+
+                with col_pr:
+                    if precision:
+                        df_prec = pd.DataFrame(precision)
+                        df_prec["preg_c"] = df_prec["pregunta"].apply(lambda x: x[:50] + "..." if len(x) > 50 else x)
+                        df_prec["porcentaje"] = df_prec["porcentaje"].apply(float)
+                        fig_prec = px.bar(
+                            df_prec, x="porcentaje", y="preg_c",
+                            orientation="h",
+                            labels={"porcentaje": "% Aciertos", "preg_c": ""},
+                            title="Precision por pregunta",
+                            color="porcentaje",
+                            color_continuous_scale=["#ef4444", "#f59e0b", "#22c55e"],
+                            range_color=[0, 100],
+                            custom_data=["intentos"],
+                        )
+                        fig_prec.update_traces(
+                            hovertemplate="<b>%{y}</b><br>Aciertos: %{x}%<br>Intentos: %{customdata[0]}<extra></extra>"
+                        )
+                        fig_prec.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                            font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                            height=340, coloraxis_showscale=False, title_font_size=14,
+                            yaxis=dict(tickfont=dict(size=10)), xaxis=dict(gridcolor="rgba(0,0,0,0.06)", range=[0, 100]),
+                        )
+                        st.plotly_chart(fig_prec, use_container_width=True)
+                    else:
+                        st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:12px;padding:36px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin evaluaciones aún</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>La precisión aparecerá al evaluar respuestas</p></div>", unsafe_allow_html=True)
+
+                # ── FILA 3: Tendencia de aciertos ───────────────────────────────
+                if tend_aciertos:
+                    st.markdown("---")
+                    df_tend = pd.DataFrame(tend_aciertos)
+                    df_tend["dia"] = pd.to_datetime(df_tend["dia"])
+                    df_tend["pct_aciertos"] = df_tend["pct_aciertos"].apply(float)
+                    fig_tend = px.line(
+                        df_tend, x="dia", y="pct_aciertos",
+                        labels={"dia": "Fecha", "pct_aciertos": "% Aciertos"},
+                        title="Tendencia de precision en evaluaciones",
+                        markers=True,
+                        color_discrete_sequence=["#4a235a"],
+                    )
+                    fig_tend.add_hline(y=70, line_dash="dash", line_color="#f59e0b", annotation_text="Meta 70%")
+                    fig_tend.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Inter"), margin=dict(l=0, r=0, t=40, b=0),
+                        height=260, title_font_size=14,
+                        yaxis=dict(range=[0, 105], gridcolor="rgba(0,0,0,0.06)"),
+                        xaxis=dict(showgrid=False),
+                    )
+                    st.plotly_chart(fig_tend, use_container_width=True)
+
+                # ── FILA 4: Log de consultas recientes ───────────────────────────
+                st.markdown("---")
+                _rc1, _rc2 = st.columns([3, 1])
+                with _rc1:
+                    st.markdown("**Registro de consultas recientes**")
+                with _rc2:
+                    _top_n = st.selectbox("Mostrar:", [10, 20, 50, 100], index=1, key="adm_top_n", label_visibility="collapsed")
+                if recientes:
+                    df_rec = pd.DataFrame(recientes)
+                    df_rec["pregunta"] = df_rec["pregunta"].apply(lambda x: x[:90] + "..." if len(x) > 90 else x)
+                    df_rec["fecha"] = pd.to_datetime(df_rec["fecha"]).dt.strftime("%d/%m/%Y %H:%M")
+                    df_rec["latencia"] = df_rec["latencia"].apply(lambda x: f"{round(float(x),2)} s" if x else "—")
+                    df_rec = df_rec.rename(columns={"fecha": "Fecha", "pregunta": "Consulta", "nivel": "Nivel", "latencia": "Latencia"})
+                    st.dataframe(
+                        df_rec,
+                        hide_index=True,
+                        use_container_width=True,
+                        column_config={
+                            "Fecha":    st.column_config.TextColumn("Fecha", width="small"),
+                            "Nivel":    st.column_config.TextColumn("Nivel", width="small"),
+                            "Latencia": st.column_config.TextColumn("Latencia", width="small"),
+                            "Consulta": st.column_config.TextColumn("Consulta"),
+                        }
+                    )
                 else:
-                    st.session_state["adm_pin_activo"] = pin_nuevo
-                    st.success("PIN actualizado para esta sesion.")
+                    st.markdown("<div style='border:2px dashed #e2e8f0;border-radius:10px;padding:30px 20px;text-align:center;background:#fafbfc;margin:8px 0;'><p style='font-weight:600;color:#6b7280;margin:0;font-size:.88rem;'>Sin historial de consultas</p><p style='font-size:.75rem;color:#9ca3af;margin:4px 0 0;'>Aparecerá cuando los usuarios interactúen con Atena</p></div>", unsafe_allow_html=True)
+
+        # ── SISTEMA ──────────────────────────────────────────────────────────────
+        elif seccion == "sistema":
+            st.markdown("### Sistema y Configuracion")
+
+            col_s1, col_s2, col_s3 = st.columns(3)
+            info_cards = [
+                ("Servicio API", "atena-vugz.onrender.com", "#22c55e"),
+                ("Modelo LLM", os.environ.get("GROQ_LLM_MODEL", "N/A"), "#1e293b"),
+                ("Embeddings", os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"), "#1e293b"),
+            ]
+            for col, (titulo, valor, color) in zip([col_s1, col_s2, col_s3], info_cards):
+                with col:
+                    st.markdown(
+                        f"<div style='background:#f8fafc; border-radius:8px; padding:14px 16px; border:1px solid #e2e8f0;'>"
+                        f"<div style='font-size:0.72rem; color:#94a3b8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em;'>{titulo}</div>"
+                        f"<div style='font-size:0.88rem; color:{color}; font-weight:600;'>{valor}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Verificar conexion con el API", key="adm_ping"):
+                try:
+                    resp = httpx.get(f"{ATENA_API_URL}/salud", timeout=10.0)
+                    data = resp.json()
+                    if data.get("estado") == "ok":
+                        vs_ok = data.get("vector_store_listo", False)
+                        st.success(f"API activo. Vector Store: {'listo' if vs_ok else 'no disponible'}")
+                    else:
+                        st.warning(str(data))
+                except Exception as e:
+                    st.error(f"Sin conexion: {e}")
+
+            st.markdown("---")
+            st.markdown("**Cambiar PIN de administrador**")
+            st.caption("El cambio aplica para esta sesion. Para hacerlo permanente, actualiza ADMIN_PIN en las variables de entorno de Render.")
+            with st.form("adm_cambiar_pin", clear_on_submit=True):
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    pin_actual = st.text_input("PIN actual:", type="password", key="adm_pin_actual")
+                with col_p2:
+                    pin_nuevo = st.text_input("PIN nuevo:", type="password", key="adm_pin_nuevo")
+                if st.form_submit_button("Cambiar PIN", use_container_width=True, type="primary"):
+                    pin_real = st.session_state.get("adm_pin_activo", os.environ.get("ADMIN_PIN", "12345"))
+                    if pin_actual != pin_real:
+                        st.error("El PIN actual es incorrecto.")
+                    elif len(pin_nuevo) < 4:
+                        st.error("El PIN nuevo debe tener al menos 4 caracteres.")
+                    else:
+                        st.session_state["adm_pin_activo"] = pin_nuevo
+                        st.success("PIN actualizado para esta sesion.")
 
 
 
