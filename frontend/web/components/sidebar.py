@@ -61,6 +61,11 @@ def render_sidebar(vs, disabled=False):
 
         if st.button("Cerrar sesión de Admin", key="logout_admin_sidebar", use_container_width=True):
             st.session_state.is_admin = False
+            st.session_state.adm_pin_activo = False
+            try:
+                st.query_params.pop("adm_ok", None)
+            except Exception:
+                pass
             st.rerun()
 
         # Separador y controles inferiores
@@ -144,6 +149,11 @@ def render_sidebar(vs, disabled=False):
                 pin_valido = os.environ.get("ADMIN_PIN", ADMIN_PIN)
                 if pin_input == pin_valido:
                     st.session_state.is_admin = True
+                    st.session_state.adm_pin_activo = True
+                    try:
+                        st.query_params["adm_ok"] = "1"
+                    except Exception:
+                        pass
                     st.rerun()
                 else:
                     st.error("PIN incorrecto")

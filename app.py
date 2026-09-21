@@ -39,6 +39,11 @@ if os.path.exists(CSS_PATH):
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
 
+# ── Persistencia de sesión admin entre recargas de página ──
+if st.query_params.get("adm_ok") == "1" and not st.session_state.get("is_admin"):
+    st.session_state.is_admin = True
+    st.session_state.adm_pin_activo = True
+
 # Inyección de estilos de modo oscuro (puro CSS, confiable y directo)
 if st.session_state.dark_mode:
     st.markdown("""
@@ -65,21 +70,60 @@ if st.session_state.dark_mode:
         background: #161b22 !important;
         border-bottom: 1px solid #30363d !important;
     }
-    .stButton > button {
+    /* ── Todos los botones en modo oscuro ────────────────────────────── */
+    button,
+    .stButton > button,
+    div[data-testid="stFormSubmitButton"] > button,
+    div[data-testid="stDownloadButton"] > button,
+    div[data-testid="stBaseButton-secondary"] {
         background-color: #21262d !important;
-        color: #f0f6fc !important;
-        border-color: #30363d !important;
+        color: #e6edf3 !important;
+        border: 1px solid #30363d !important;
     }
+    button:hover,
     .stButton > button:hover {
         background-color: #30363d !important;
         border-color: #8CC63F !important;
         color: #8CC63F !important;
     }
+    button[kind="primary"],
     .stButton > button[kind="primary"],
-    button[data-testid*="primary"] {
-        background-color: #4a235a !important;
+    div[data-testid="stBaseButton-primary"] > button,
+    div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
+        background: linear-gradient(135deg, #4a235a, #6c3483) !important;
         color: #ffffff !important;
         border-color: #6c3483 !important;
+    }
+    /* ── Inputs, textareas, selects ───────────────────────────────────── */
+    input, textarea,
+    .stTextInput input, .stTextArea textarea,
+    .stNumberInput input,
+    div[data-baseweb="select"] *, div[data-baseweb="input"] * {
+        background-color: #161b22 !important;
+        color: #e6edf3 !important;
+        border-color: #30363d !important;
+    }
+    /* ── Cards, containers ────────────────────────────────────────────── */
+    div[data-testid="stMarkdown"] div[style*="background"] {
+        filter: brightness(0.85);
+    }
+    div[data-testid="stExpander"] > details {
+        background-color: #161b22 !important;
+        border-color: #30363d !important;
+    }
+    div[data-testid="stExpander"] summary {
+        color: #e6edf3 !important;
+    }
+    /* ── Radio, checkboxes ────────────────────────────────────────────── */
+    div[data-testid="stRadio"] label,
+    div[data-testid="stCheckbox"] label {
+        color: #e6edf3 !important;
+    }
+    /* ── Dataframe ────────────────────────────────────────────────────── */
+    div[data-testid="stDataFrame"] * {
+        background-color: #161b22 !important;
+        color: #e6edf3 !important;
+        border-color: #30363d !important;
     }
     div[data-testid="stMetric"] {
         background-color: #161b22 !important;
@@ -402,9 +446,13 @@ def _inject_floating_chat():
         var mH=msgs.length===0
             ? '<div class="m-w">Hola, soy Atena.<br>Escribe tu consulta.</div>'
             : msgs.map(function(m){{var e=m.c.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');return '<div class="m-'+(m.r==='u'?'u':'b')+'">'+e+'</div>';}}).join('');
-        pan.innerHTML='<div id="a-hdr"><div class="a-av">A</div><div><p class="a-tt" translate="no">Atena IA</p><p class="a-sub">Consultor de Neuroanatomia</p></div><div class="a-act"><button class="a-hb" id="a-sz" onclick="W._atenaCW.sz()">'+sz.lbl+'</button><button class="a-cl" onclick="W._atenaCW.close()">&#x2715;</button></div></div><div id="a-msgs">'+mH+'</div><div id="a-irow"><textarea id="a-inp" placeholder="Escribe tu consulta..." rows="1"></textarea><button id="a-snd">&#x27A4;</button></div><div id="a-ft">Atena RAG &middot; Konrad Lorenz</div>';
+        pan.innerHTML='<div id="a-hdr"><div class="a-av">A</div><div><p class="a-tt" translate="no">Atena IA</p><p class="a-sub">Consultor de Neuroanatomia</p></div><div class="a-act"><button class="a-hb" id="a-sz">'+sz.lbl+'</button><button class="a-cl" id="a-cl-btn">&#x2715;</button></div></div><div id="a-msgs">'+mH+'</div><div id="a-irow"><textarea id="a-inp" placeholder="Escribe tu consulta..." rows="1"></textarea><button id="a-snd">&#x27A4;</button></div><div id="a-ft">Atena RAG &middot; Konrad Lorenz</div>';
         root.appendChild(pan); D.body.appendChild(root);
         var m=D.getElementById('a-msgs'); if(m) m.scrollTop=m.scrollHeight;
+        // Bind header buttons via addEventListener (more reliable than inline onclick)
+        var _szBtn=D.getElementById('a-sz'), _clBtn=D.getElementById('a-cl-btn');
+        if(_szBtn) _szBtn.addEventListener('click',function(){{W._atenaCW.sz();}});
+        if(_clBtn) _clBtn.addEventListener('click',function(){{W._atenaCW.close();}});
         var inp=D.getElementById('a-inp'), sb=D.getElementById('a-snd');
         if(inp){{
             inp.addEventListener('keydown',function(e){{if(e.key==='Enter'&&!e.shiftKey){{e.preventDefault();W._atenaCW.send();}}}});
