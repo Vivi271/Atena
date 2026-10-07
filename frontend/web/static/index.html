@@ -422,6 +422,76 @@
  .chat-panel { width: calc(100vw - 16px); right: 8px; bottom: 86px; border-radius: 16px; }
  .bubble-btn { right: 16px; bottom: 16px; }
  }
+
+  /* ── SLIDER FULLPAGE ──────────────────────────────────────────── */
+  body { overflow: hidden; height: 100vh; }
+
+  .hero, .slide-section {
+   position: fixed; inset: 0;
+   opacity: 0; pointer-events: none;
+   transition: opacity 0.55s cubic-bezier(0.4,0,0.2,1);
+  }
+  .hero.slide-active { opacity: 1; pointer-events: all; }
+  .slide-section.slide-active { opacity: 1; pointer-events: all; display: flex !important; }
+  .slide-section {
+   display: flex; align-items: center; justify-content: center;
+   background: linear-gradient(135deg, #0d0514 0%, #130a1e 40%, #0a1020 100%);
+   padding-top: 60px;
+  }
+  [data-theme="light"] .slide-section {
+   background: linear-gradient(135deg, #f0ebf8 0%, #e8f0fb 50%, #f5f0ff 100%);
+  }
+  .slide-inner {
+   width: 100%; max-width: 1100px; padding: 0 40px;
+   overflow-y: auto; max-height: calc(100vh - 100px);
+  }
+  .slide-header { text-align: center; margin-bottom: 40px; }
+  .slide-section .section-title { color: #f0eaf8; }
+  [data-theme="light"] .slide-section .section-title { color: #1a0d2e; }
+  .slide-section .section-sub { color: rgba(200,185,215,0.8); }
+  [data-theme="light"] .slide-section .section-sub { color: #5a4570; }
+
+  .slide-nav {
+   position: fixed; top: 50%; transform: translateY(-50%);
+   z-index: 200; background: rgba(255,255,255,0.08);
+   border: 1px solid rgba(255,255,255,0.15); border-radius: 50%;
+   width: 48px; height: 48px; cursor: pointer; color: rgba(255,255,255,0.8);
+   backdrop-filter: blur(8px);
+   transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+  }
+  [data-theme="light"] .slide-nav { background: rgba(74,35,90,0.1); border-color: rgba(74,35,90,0.2); color: #4a235a; }
+  .slide-nav:hover { background: rgba(74,35,90,0.5); color: white; transform: translateY(-50%) scale(1.08); }
+  .slide-prev { left: 20px; }
+  .slide-next { right: 20px; }
+
+  .slide-dots {
+   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+   z-index: 200; display: flex; gap: 8px; align-items: center;
+  }
+  .slide-dot {
+   width: 8px; height: 8px; border-radius: 50%;
+   background: rgba(255,255,255,0.25); cursor: pointer; transition: all 0.3s;
+  }
+  [data-theme="light"] .slide-dot { background: rgba(74,35,90,0.2); }
+  .slide-dot.active { background: #8CC63F; width: 24px; border-radius: 4px; }
+
+  .slide-section .feature-card {
+   background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1);
+  }
+  .slide-section .feature-title { color: #f0eaf8; }
+  .slide-section .feature-desc { color: rgba(200,185,215,0.75); }
+  .slide-section .feature-card:hover { background: rgba(255,255,255,0.08); }
+  .slide-section .step-title { color: #f0eaf8; }
+  .slide-section .step-desc { color: rgba(200,185,215,0.75); }
+  .slide-section .step:not(:last-child)::after { color: rgba(200,185,215,0.3); }
+
+  @media(max-width: 600px) {
+   .slide-nav { width: 36px; height: 36px; }
+   .slide-prev { left: 8px; }
+   .slide-next { right: 8px; }
+   .slide-inner { padding: 0 16px; }
+  }
+
  </style>
 </head>
 <body>
@@ -550,80 +620,108 @@
  </div>
 </section>
 
-<!-- ═══ FEATURES ═══ -->
-<section class="section" id="features">
- <h2 class="section-title">¿Qué puede hacer Atena?</h2>
- <p class="section-sub">Diseñada para estudiantes del programa de Psicología que cursan el módulo de Neuroanatomía.</p>
- <div class="features-grid">
- <div class="feature-card">
- <div class="feature-icon" style="background:rgba(74,35,90,0.12);"></div>
- <div class="feature-title">Consulta RAG inteligente</div>
- <div class="feature-desc">Busca en los documentos del laboratorio y genera respuestas precisas, citando las fuentes bibliográficas originales.</div>
- </div>
- <div class="feature-card">
- <div class="feature-icon" style="background:rgba(140,198,63,0.12);"></div>
- <div class="feature-title">Autoevaluación por nivel</div>
- <div class="feature-desc">Quiz dinámico con preguntas de selección múltiple en niveles Principiante, Avanzado y General. Retroalimentación inmediata.</div>
- </div>
- <div class="feature-card">
- <div class="feature-icon" style="background:rgba(59,130,246,0.12);"></div>
- <div class="feature-title">Adaptado al nivel</div>
- <div class="feature-desc">Elige entre Principiante, Avanzado o General para obtener respuestas ajustadas al nivel de conocimiento del estudiante.</div>
- </div>
- <div class="feature-card">
- <div class="feature-icon" style="background:rgba(239,68,68,0.1);"></div>
- <div class="feature-title">Bibliografía científica</div>
- <div class="feature-desc">Cada respuesta incluye las referencias exactas (capítulo, página) de los textos indexados en la base de conocimiento.</div>
- </div>
- <div class="feature-card">
- <div class="feature-icon" style="background:rgba(245,158,11,0.1);"></div>
- <div class="feature-title">Respuestas rápidas</div>
- <div class="feature-desc">Tiempo de respuesta típico menor a 8 segundos. Disponible en cualquier momento, sin necesidad de esperar a un docente.</div>
- </div>
- <div class="feature-card">
- <div class="feature-icon" style="background:rgba(16,185,129,0.1);"></div>
- <div class="feature-title">Panel de administración</div>
- <div class="feature-desc">Los docentes pueden gestionar documentos, el banco de preguntas y ver métricas de uso del laboratorio.</div>
- </div>
- </div>
-</section>
-
-<!-- ═══ CÓMO FUNCIONA ═══ -->
-<section class="section" id="como-funciona" style="padding-top:40px;">
- <h2 class="section-title">¿Cómo funciona?</h2>
- <p class="section-sub">Tres pasos para obtener la respuesta que necesitas.</p>
- <div class="steps">
- <div class="step">
- <div class="step-num">1</div>
- <div class="step-title">Haz tu pregunta</div>
- <div class="step-desc">Escribe tu duda sobre neuroanatomía en lenguaje natural, como le preguntarías a un experto.</div>
- </div>
- <div class="step">
- <div class="step-num">2</div>
- <div class="step-title">Búsqueda semántica</div>
- <div class="step-desc">Atena busca en la bibliografía indexada los fragmentos más relevantes para tu pregunta.</div>
- </div>
- <div class="step">
- <div class="step-num">3</div>
- <div class="step-title">Respuesta fundamentada</div>
- <div class="step-desc">Recibe una respuesta clara, adaptada a tu nivel, con las fuentes originales citadas.</div>
- </div>
- </div>
- <div style="text-align:center;margin-top:48px;">
- <button class="btn-hero btn-hero-primary" onclick="toggleChat()" style="margin:0 auto;">
- Comenzar ahora
- </button>
+<!-- ═══ SLIDE 2: CARACTERÍSTICAS ═══ -->
+<section class="slide-section" id="features" style="display:none;">
+ <div class="slide-inner">
+  <div class="slide-header">
+   <h2 class="section-title">¿Qué puede hacer Atena?</h2>
+   <p class="section-sub">Diseñada para estudiantes de Psicología que cursan el módulo de Neuroanatomía.</p>
+  </div>
+  <div class="features-grid">
+   <div class="feature-card">
+    <div class="feature-icon" style="background:rgba(74,35,90,0.18);">
+     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.44-1.16Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.44-1.16Z"/></svg>
+    </div>
+    <div class="feature-title">Consulta RAG inteligente</div>
+    <div class="feature-desc">Busca en los documentos del laboratorio y genera respuestas precisas, citando las fuentes bibliográficas originales.</div>
+   </div>
+   <div class="feature-card">
+    <div class="feature-icon" style="background:rgba(140,198,63,0.15);">
+     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8CC63F" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+    <div class="feature-title">Autoevaluación por nivel</div>
+    <div class="feature-desc">Quiz dinámico con preguntas de selección múltiple en niveles Principiante, General y Avanzado. Retroalimentación inmediata.</div>
+   </div>
+   <div class="feature-card">
+    <div class="feature-icon" style="background:rgba(59,130,246,0.12);">
+     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    </div>
+    <div class="feature-title">Respuestas adaptadas al nivel</div>
+    <div class="feature-desc">Elige entre Principiante, General o Avanzado para obtener respuestas ajustadas a tu conocimiento actual.</div>
+   </div>
+   <div class="feature-card">
+    <div class="feature-icon" style="background:rgba(239,68,68,0.1);">
+     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    </div>
+    <div class="feature-title">Bibliografía científica citada</div>
+    <div class="feature-desc">Cada respuesta incluye la referencia exacta (obra, capítulo, página) de los textos indexados en la base de conocimiento.</div>
+   </div>
+   <div class="feature-card">
+    <div class="feature-icon" style="background:rgba(245,158,11,0.1);">
+     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <div class="feature-title">Respuestas en segundos</div>
+    <div class="feature-desc">Latencia típica menor a 2 segundos gracias a Groq LPU. Disponible 24/7 sin necesidad de esperar a un docente.</div>
+   </div>
+   <div class="feature-card">
+    <div class="feature-icon" style="background:rgba(16,185,129,0.1);">
+     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+    </div>
+    <div class="feature-title">Panel de administración</div>
+    <div class="feature-desc">Los docentes pueden gestionar documentos, el banco de preguntas y consultar métricas de uso del laboratorio.</div>
+   </div>
+  </div>
  </div>
 </section>
 
-<!-- ═══ FOOTER ═══ -->
-<footer class="footer">
- <p>© 2026 <strong translate="no">Atena</strong> · Universidad Konrad Lorenz · Programa de Psicología</p>
- <p style="margin-top:6px;">
- <a href="/admin.html">Panel Administración</a> ·
- <a href="/docs" target="_blank">API Docs</a>
- </p>
-</footer>
+<!-- ═══ SLIDE 3: CÓMO FUNCIONA ═══ -->
+<section class="slide-section" id="como-funciona" style="display:none;">
+ <div class="slide-inner" style="max-width:860px;">
+  <div class="slide-header">
+   <h2 class="section-title">¿Cómo funciona?</h2>
+   <p class="section-sub">Tres pasos para obtener la respuesta que necesitas.</p>
+  </div>
+  <div class="steps">
+   <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-title">Haz tu pregunta</div>
+    <div class="step-desc">Escribe tu duda sobre neuroanatomía en lenguaje natural, como le preguntarías a un experto.</div>
+   </div>
+   <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-title">Búsqueda semántica</div>
+    <div class="step-desc">Atena busca en la bibliografía indexada los fragmentos más relevantes para tu consulta.</div>
+   </div>
+   <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-title">Respuesta fundamentada</div>
+    <div class="step-desc">Recibe una respuesta clara, adaptada a tu nivel, con las fuentes originales citadas.</div>
+   </div>
+  </div>
+  <div style="text-align:center;margin-top:52px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+   <button class="btn-hero btn-hero-primary" onclick="toggleChat()">Comenzar ahora</button>
+   <button class="btn-hero btn-hero-secondary" onclick="abrirQuiz()" style="color:rgba(240,234,248,0.9);">Hacer una autoevaluación</button>
+  </div>
+  <p style="text-align:center;margin-top:32px;font-size:0.78rem;color:rgba(180,160,200,0.5);">
+   © 2026 Atena · Universidad Konrad Lorenz · Programa de Psicología ·
+   <a href="/admin.html" style="color:rgba(180,160,200,0.5);text-decoration:none;">Admin</a> ·
+   <a href="/docs" target="_blank" style="color:rgba(180,160,200,0.5);text-decoration:none;">API Docs</a>
+  </p>
+ </div>
+</section>
+
+<!-- ═══ NAVEGACIÓN SLIDER ═══ -->
+<button class="slide-nav slide-prev" id="slide-prev" onclick="cambiarSlide(-1)" aria-label="Anterior" style="display:none;">
+ <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
+<button class="slide-nav slide-next" id="slide-next" onclick="cambiarSlide(1)" aria-label="Siguiente">
+ <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+</button>
+<div class="slide-dots" id="slide-dots">
+ <div class="slide-dot active" onclick="irSlide(0)"></div>
+ <div class="slide-dot" onclick="irSlide(1)"></div>
+ <div class="slide-dot" onclick="irSlide(2)"></div>
+</div>
 
 <!-- ═══ BURBUJA FLOTANTE ═══ -->
 <button class="bubble-btn" id="bubble-btn" onclick="toggleChat()" aria-label="Abrir Atena" title="Consultar a Atena">
@@ -717,6 +815,69 @@
 <script src="/js/app.js"></script>
 
 <script>
+// ── Slider fullpage ──────────────────────────────────────────────────
+let slideActual = 0;
+const SLIDES = ['hero-slide', 'features', 'como-funciona'];
+
+// Inicializar: activar el hero
+(function initSlider() {
+  const hero = document.querySelector('.hero');
+  if (hero) {
+    hero.id = 'hero-slide';
+    hero.classList.add('slide-active');
+  }
+  actualizarNavSlider();
+})();
+
+function irSlide(idx) {
+  if (idx < 0 || idx >= SLIDES.length) return;
+  // Ocultar slide actual
+  const actEl = document.getElementById(SLIDES[slideActual]);
+  if (actEl) actEl.classList.remove('slide-active');
+  slideActual = idx;
+  // Mostrar nuevo slide
+  const newEl = document.getElementById(SLIDES[slideActual]);
+  if (newEl) {
+    newEl.style.display = newEl.classList.contains('hero') ? 'grid' : 'flex';
+    newEl.classList.add('slide-active');
+  }
+  actualizarNavSlider();
+}
+
+function cambiarSlide(dir) { irSlide(slideActual + dir); }
+
+function actualizarNavSlider() {
+  const prev = document.getElementById('slide-prev');
+  const next = document.getElementById('slide-next');
+  const dots = document.querySelectorAll('.slide-dot');
+  if (prev) prev.style.display = slideActual > 0 ? 'flex' : 'none';
+  if (next) next.style.display = slideActual < SLIDES.length - 1 ? 'flex' : 'none';
+  dots.forEach((d, i) => d.classList.toggle('active', i === slideActual));
+}
+
+// Teclas de flecha
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') cambiarSlide(1);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') cambiarSlide(-1);
+});
+
+// Swipe táctil
+let touchX = 0;
+document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 50) cambiarSlide(dx < 0 ? 1 : -1);
+});
+
+// Links del navbar → ir al slide correcto
+document.querySelectorAll('a[href="#features"]').forEach(a => {
+  a.addEventListener('click', e => { e.preventDefault(); irSlide(1); });
+});
+document.querySelectorAll('a[href="#como-funciona"]').forEach(a => {
+  a.addEventListener('click', e => { e.preventDefault(); irSlide(2); });
+});
+
+
 // ── Animación red neuronal en canvas ────────────────────────────────
 (function() {
   const canvas = document.getElementById('neural-canvas');
