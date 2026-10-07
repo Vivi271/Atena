@@ -387,7 +387,7 @@
  <div class="nav-links">
  <a href="#features" class="nav-link">Características</a>
  <a href="#como-funciona" class="nav-link">Cómo funciona</a>
- <button class="nav-link" onclick="document.getElementById('quiz-modal').classList.add('open'); document.body.style.overflow='hidden'; cargarPreguntas()" style="cursor:pointer;">Autoevaluación</button>
+ <button class="nav-link" onclick="abrirQuiz()" style="cursor:pointer;">Autoevaluación</button>
  <a href="/admin.html" class="nav-link">Admin</a>
  <button class="nav-cta" onclick="toggleChat()">Consultar</button>
  <button class="nav-link" onclick="toggleTheme()" title="Modo oscuro" style="padding:6px 10px;"></button>
@@ -407,7 +407,7 @@
  <button class="btn-hero btn-hero-primary" onclick="toggleChat()">
  Hacer una pregunta
  </button>
- <button class="btn-hero btn-hero-secondary" onclick="document.getElementById('quiz-modal').classList.add('open'); cargarPreguntas()">
+ <button class="btn-hero btn-hero-secondary" onclick="abrirQuiz()">
  Autoevaluación
  </button>
  </div>
