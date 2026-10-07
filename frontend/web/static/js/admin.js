@@ -199,21 +199,53 @@ async function publicarEnNube() {
   const msg = document.getElementById('publicar-msg');
 
   function setMsg(text, ok) {
-    msg.textContent = text;
     msg.style.display = 'block';
+    msg.textContent   = text;
     msg.style.background = ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
-    msg.style.color   = ok ? '#22c55e' : '#ef4444';
-    msg.style.border  = '1px solid ' + (ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)');
+    msg.style.color      = ok ? '#22c55e' : '#ef4444';
+    msg.style.border     = '1px solid ' + (ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)');
   }
 
-  if (!confirm(
-    'Se publicarán los documentos y vectores actuales en GitHub.\n' +
-    'Render redesplegará automáticamente en ~2 minutos.\n\n¿Continuar?'
-  )) return;
+  // Paso 1: consultar la lista actual de documentos en el servidor
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verificando…';
 
+  let docsEnServidor = [];
+  try {
+    const r = await fetch(`${API_BASE}/api/admin/documents`, {
+      headers: { 'X-Admin-Pin': adminPin },
+    });
+    if (r.ok) {
+      const data = await r.json();
+      docsEnServidor = (data.documentos || data.documents || []).map(d =>
+        typeof d === 'string' ? d : (d.nombre || d.name || String(d))
+      );
+    }
+  } catch(_) {}
+
+  btn.disabled = false;
+  btn.textContent = 'Publicar en la nube';
+
+  if (docsEnServidor.length === 0) {
+    setMsg('No se encontraron documentos para publicar.', false);
+    return;
+  }
+
+  // Paso 2: confirmar mostrando la lista exacta de lo que se enviará a GitHub
+  const lista = docsEnServidor.map(n => '  • ' + n).join('\n');
+  const ok = confirm(
+    'Los siguientes documentos se publicarán PERMANENTEMENTE en GitHub:\n\n' +
+    lista +
+    '\n\nSi alguno está equivocado, cancela y elimínalo primero desde la lista.\n\n¿Confirmar publicación?'
+  );
+  if (!ok) {
+    setMsg('Publicación cancelada. Elimina los documentos incorrectos y vuelve a intentarlo.', false);
+    return;
+  }
+
+  // Paso 3: publicar
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Publicando…';
-
   try {
     const r = await fetch(`${API_BASE}/api/admin/publicar`, {
       method: 'POST',
@@ -222,10 +254,10 @@ async function publicarEnNube() {
     const data = await r.json();
     if (r.ok) {
       setMsg(data.mensaje, true);
-      marcarCambiosPendientes(false);  // desactivar: ya no hay cambios pendientes
+      marcarCambiosPendientes(false);
     } else {
       setMsg(data.detail || 'Error al publicar.', false);
-      btn.disabled = false;  // permitir reintentar
+      btn.disabled = false;
     }
   } catch(e) {
     setMsg('Error de red: ' + e.message, false);
