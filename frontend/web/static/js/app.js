@@ -66,6 +66,18 @@ function setNivel(btn) {
  });
 })();
 
+// ── Restaurar historial de chat al volver a la página ────────────────
+(function restaurarChat() {
+  const saved = sessionStorage.getItem('atena_chat_html');
+  if (!saved) return;
+  const wrap = document.getElementById('panel-messages');
+  const welcome = document.getElementById('panel-welcome');
+  if (!wrap) return;
+  if (welcome) welcome.remove();
+  wrap.innerHTML = saved;
+  wrap.scrollTop = wrap.scrollHeight;
+})();
+
 // ── Estado API ───────────────────────────────────────────────────────
 async function checkApiStatus() {
  try {
@@ -193,6 +205,7 @@ function agregarMensaje(rol, texto, fuentes) {
 
  wrap.appendChild(div);
  wrap.scrollTop = wrap.scrollHeight;
+ sessionStorage.setItem('atena_chat_html', wrap.innerHTML);
  return div;
 }
 
