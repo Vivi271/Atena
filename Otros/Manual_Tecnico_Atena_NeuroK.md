@@ -1,22 +1,22 @@
-# 📋 Manual Técnico de Infraestructura en la Nube
+# Manual Técnico de Infraestructura en la Nube
 ## Proyecto Atena — NeuroK AR (Fundación Universitaria Konrad Lorenz)
 
 ---
 
-> **Documento preparado para entrega institucional al Laboratorio de Neurociencias Aplicadas – NeuroK**  
-> Fecha: Septiembre 2026 (Versión 3.0 — Consolidación Cloud Native Groq LPU + ONNX Runtime)  
-> **Autores:** Viviana Marcela García Valderrama — Braian Felipe Ramirez Ortiz  
+> **Documento preparado para entrega institucional al Laboratorio de Neurociencias Aplicadas – NeuroK**
+> Fecha: Octubre 2026 (Versión 4.0 — Arquitectura FastAPI + Web Nativa + Supabase)
+> **Autores:** Viviana Marcela García Valderrama — Braian Felipe Ramirez Ortiz
 
 ---
 
-## 🗂️ Tabla de Contenidos
+## Tabla de Contenidos
 
 1. [Resumen del Ecosistema](#1-resumen-del-ecosistema)
-2. [Evolución Arquitectónica: De Docker Local (Ollama) a Cloud Gemini y la Arquitectura Definitiva (Groq LPU + ONNX)](#2-evolución-arquitectónica-de-docker-local-ollama-a-cloud-gemini-y-la-arquitectura-definitiva-groq-lpu--onnx)
+2. [Evolución Arquitectónica Completa](#2-evolución-arquitectónica-completa)
 3. [Cuenta Institucional del Proyecto](#3-cuenta-institucional-del-proyecto)
 4. [Repositorio de Código — GitHub](#4-repositorio-de-código--github)
 5. [Backend en la Nube — Render.com](#5-backend-en-la-nube--rendercom)
-6. [Base de Datos NoSQL — Firebase Firestore (Conexión y Flujo de Datos)](#6-base-de-datos-nosql--firebase-firestore-conexión-y-flujo-de-datos)
+6. [Base de Datos — Supabase (PostgreSQL)](#6-base-de-datos--supabase-postgresql)
 7. [Modelos de IA — Inferencia Groq LPU y Embeddings ONNX Runtime](#7-modelos-de-ia--inferencia-groq-lpu-y-embeddings-onnx-runtime)
 8. [API REST — Endpoints y Funcionamiento](#8-api-rest--endpoints-y-funcionamiento)
 9. [Script para Unity — AtenaClient.cs](#9-script-para-unity--atenaclientcs)
@@ -29,79 +29,161 @@
 
 ## 1. Resumen del Ecosistema
 
-El proyecto está compuesto por **cuatro capas desacopladas** que trabajan juntas de forma integrada y en tiempo real:
+El proyecto está compuesto por capas desacopladas que trabajan juntas en tiempo real:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                         APLICACIÓN UNITY — NeuroK AR                        │
 │                     (APK Android que usa el estudiante)                      │
-└───────────────────────┬─────────────────────────┬────────────────────────────┘
-                        │                         │
-                        ▼                         ▼
-         ┌──────────────────────┐     ┌────────────────────────────────────────┐
-         │  FIREBASE (Google)   │     │        RENDER.COM (API Atena)          │
-         │  ─────────────────── │     │   ──────────────────────────────────   │
-         │  Base NoSQL en Nube: │     │  POST /consultar                       │
-         │  • Evaluaciones      │     │  → rag_pipeline.py (Búsqueda Híbrida)  │
-         │  • Puntajes Quizzes  │     │  → ChromaDB Nativo (ONNX all-MiniLM)   │
-         │  • Historial chat    │     │  → Tolerancia Léxica (Fuzzy Matching)  │
-         │  • Métricas de uso   │     │  → Groq LPU API (openai/gpt-oss-120b)  │
-         │  (SDK gRPC/HTTPS)    │     │  ← Respuesta Estructurada + Fuentes    │
-         │                      │     │   GET /salud, /info, /docs             │
-         └──────────────────────┘     └────────────────────────────────────────┘
-                        │                         │
-                        └──────────┬──────────────┘
-                                   ▼
-                        ┌────────────────────────────────────────┐
-                        │            GROQ CLOUD LPU              │
-                        │  Unidad de Procesamiento de Lenguaje   │
-                        │  Inferencia de alta fidelidad:         │
-                        │  >350 tokens/s | Latencia < 0.9s       │
-                        └────────────────────────────────────────┘
+└───────────────────────┬──────────────────────────────────────────────────────┘
+                        │
+                        ▼
+         ┌──────────────────────────────────────────────────────┐
+         │              RENDER.COM — Atena API                  │
+         │  ─────────────────────────────────────────────────── │
+         │  POST /consultar                                      │
+         │  → rag_pipeline.py (Búsqueda Híbrida + Fuzzy)        │
+         │  → ChromaDB (ONNX all-MiniLM-L6-v2, <140 MB RAM)    │
+         │  → Groq LPU (openai/gpt-oss-120b, >350 tok/s)        │
+         │  ← Respuesta Estructurada + Fuentes bibliográficas   │
+         │                                                       │
+         │  GET  /  → Chat web (index.html)                     │
+         │  GET  /admin.html → Panel de administración          │
+         │  GET  /docs → Swagger UI interactivo                 │
+         │  GET  /salud → Health Check                          │
+         └───────────────────────────────────────────────────────┘
+                        │
+                        ▼
+         ┌──────────────────────────────────────────────────────┐
+         │        SUPABASE — PostgreSQL en la Nube              │
+         │  • consultas: historial de preguntas y respuestas    │
+         │  • evaluaciones: resultados de quizzes               │
+         │  • configuracion: PIN de administrador               │
+         └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Evolución Arquitectónica: De Docker Local (Ollama) a Cloud Gemini y la Arquitectura Definitiva (Groq LPU + ONNX)
+## 2. Evolución Arquitectónica Completa
 
-El sistema atravesó un riguroso proceso de maduración de ingeniería en tres etapas sucesivas:
+El sistema atravesó un riguroso proceso de maduración en **cinco etapas sucesivas**:
 
-1. **Fase 1 (Prototipo Local con Ollama y Docker):**  
-   Ejecutaba modelos locales (Llama 3.2 3B/8B) en una laptop de desarrollo. Presentó cuellos de botella severos: latencias de 25 a 55 segundos, sobrecarga térmica de CPU (88-95% sostenido a 92°C), saturación de memoria RAM (14.8 GB sobre 16 GB) y caídas de cuadros en Unity 3D a menos de 12 FPS.
+### Fase 1 — Prototipo Local con Ollama y Docker
 
-2. **Fase 2 (Prueba Piloto Cloud con Google Gemini API):**  
-   Descargó el procesamiento local hacia la nube de Google AI Studio, reduciendo el tiempo de respuesta a 1.8 segundos. No obstante, al someter el sistema a pruebas de concurrencia e integración con Unity, surgieron bloqueos por límites de cuota gratuita (**HTTP 429 Too Many Requests / ResourceExhausted** limitado a 15 peticiones por minuto) y fluctuaciones de latencia en horas pico.
+Ejecutaba modelos locales (Llama 3.2 3B/8B) en una laptop de desarrollo dentro de contenedores Docker.
 
-3. **Fase 3 (Arquitectura Definitiva: Groq LPU + ChromaDB ONNX Runtime en Render):**  
-   - **Inferencia LLM:** Migración a Groq Cloud con tecnología LPU (*Language Processing Unit*). Generación ultra-veloz (>350 tokens/segundo) y latencia sub-segundo (< 0.9s).
-   - **Embeddings y Memoria del Servidor:** Reemplazo de PyTorch por ONNX Runtime (`ONNXMiniLM_L6_V2`). El consumo de RAM en reposo del servidor cayó de 520 MB a menos de 140 MB (-73%), resolviendo de manera definitiva las caídas por falta de memoria (**Out Of Memory - 512Mi limit**) en el plan gratuito de Render.
-   - **Robustez RAG:** Búsqueda híbrida y *Fuzzy Matching* que corrige automáticamente errores ortográficos comunes en neuroanatomía (`hipicampo` $\rightarrow$ `hipocampo`) y genera citas bibliográficas exactas (`[Fuente X, pág. Y]`).
+**Problemas críticos:**
+- Latencias de 25 a 55 segundos por respuesta.
+- Saturación térmica de CPU (88–95% sostenido a 92°C).
+- Consumo de RAM de 14.8 GB sobre 16 GB disponibles.
+- Congelamiento de Unity 3D (< 12 FPS durante inferencia).
+- Imposibilidad de servir múltiples usuarios simultáneos.
 
-### Comparativa Técnica Integral de las Tres Fases
+### Fase 2 — Prueba Piloto Cloud con Google Gemini API
 
-| Criterio | Fase 1: Ollama (Local) | Fase 2: Gemini API (Cloud Piloto) | Fase 3: Groq LPU + ONNX (Actual / Definitiva) |
+Migración al procesamiento en la nube (Google AI Studio), reduciendo el tiempo de respuesta a 1.8 segundos.
+
+**Problemas encontrados:**
+- Límite de 15 peticiones por minuto (HTTP 429 — ResourceExhausted).
+- Fluctuaciones de latencia en horas pico (1.5 a 3.5 s, inestable).
+- Dependencia exclusiva de cuota gratuita de Google.
+
+### Fase 3 — Arquitectura Groq LPU + ChromaDB ONNX en Render
+
+**Mejoras definitivas:**
+- Inferencia LLM: Groq Cloud LPU → > 350 tokens/segundo, latencia < 0.9 s.
+- Embeddings: ONNX Runtime (sin PyTorch/CUDA) → RAM del servidor < 140 MB (−73%).
+- Búsqueda híbrida + Fuzzy Matching automático.
+- Citas bibliográficas exactas `[Fuente X, pág. Y]`.
+
+### Fase 4 — Migración de Interfaz: Streamlit → FastAPI + Web Nativa (HTML/CSS/JS)
+
+En la etapa inicial de la interfaz web, se evaluó **Streamlit** como framework de prototipado rápido.
+
+#### ¿Por qué se utilizó Streamlit inicialmente?
+
+| Ventaja | Descripción |
+|---|---|
+| Velocidad de prototipado | Interfaz funcional en pocas líneas de Python |
+| Sin conocimientos web | No requiere HTML/CSS/JS |
+| Integración con pandas/plotly | Gráficas estadísticas nativas |
+
+#### ¿Por qué se abandonó Streamlit?
+
+| Problema | Impacto |
+|---|---|
+| **Mezcla de backend y frontend** | Streamlit corre en el mismo proceso Python del servidor; cualquier fallo de UI tumba el API |
+| **Consumo de RAM adicional** | +180 MB por el runtime de Streamlit sobre los 512 MB del plan gratuito de Render |
+| **Personalización visual limitada** | Imposible lograr modo oscuro/claro, diseño institucional o animaciones sin hacks |
+| **Incompatible con Unity** | Unity consume el API REST directamente; Streamlit no aporta nada al cliente C# |
+| **Sin control de rutas** | No se pueden tener múltiples páginas (chat, panel admin) sin `streamlit-multipage`, que añade más complejidad |
+| **Dependencias pesadas** | Streamlit requiere pandas, plotly y otras librerías (+200 MB en imagen Docker) |
+| **No es producción** | Streamlit está diseñado para dashboards de datos, no para sistemas de producción multi-usuario |
+
+#### Solución adoptada: FastAPI sirve el frontend web nativo
+
+Se eliminó Streamlit completamente y FastAPI sirve directamente los archivos estáticos (`StaticFiles`):
+
+```
+frontend/web/static/
+├── index.html      → Chat principal para estudiantes
+├── admin.html      → Panel de administración del laboratorio
+├── css/main.css    → Sistema de diseño (light/dark mode, variables CSS)
+└── js/
+    ├── app.js      → Lógica del chat, quiz y nivel pedagógico
+    └── admin.js    → Gestión de documentos, preguntas y estadísticas
+```
+
+**Resultado:**
+- Un solo proceso, un solo puerto (8080), cero dependencias de Streamlit.
+- Reducción de 5,996 líneas de código a 2,623 líneas (+107 archivos eliminados).
+- Modo claro/oscuro con variables CSS, diseño institucional completo.
+- Panel admin con drag & drop, estadísticas gráficas y publicación en un clic.
+
+### Comparativa Técnica Integral — Todas las Fases
+
+| Criterio | Fase 1: Ollama (Local) | Fase 2: Gemini API | Fase 3+4: Groq LPU + FastAPI (Actual) |
 |---|---|---|---|
-| **¿Dónde corre?** | En la laptop local (Docker) | Nube Google AI Studio + Render | **Nube Groq Cloud (LPU) + Render** |
-| **Tiempo de Respuesta** | 25 a 55 segundos (Hiper lento) | 1.5 a 3.5 segundos (Inestable en horas pico) | **0.6 a 0.9 segundos (Casi instantáneo)** |
-| **Velocidad (Tokens/s)** | 4 - 6 tokens/segundo | 60 - 95 tokens/segundo | **> 380 tokens/segundo** |
-| **Memoria RAM Servidor** | Satura la laptop (14.8 GB) | 520 MB (Tumbaba el servidor de Render) | **< 140 MB (Súper liviano y estable)** |
-| **Límite de Peticiones** | Ilimitado pero congelaba la PC | Máximo 15 preguntas/minuto (Error 429) | **Sin bloqueos ni caídas de cuota** |
-| **Integración con Unity** | Congelaba la escena (< 12 FPS) | Fluido, pero a veces fallaba el JSON | **60 FPS estables y JSON perfecto** |
-| **Citas y Fuentes** | Genéricas / Sin página | Mencionaba el libro sin página exacta | **Exactas: `[Fuente X, pág. Y]`** |
-| **Tolerancia Tipográfica** | Nula (falla si hay errores tipográficos) | Baja (dependencia exclusiva de similitud vectorial) | **Alta (Fuzzy Matching automático con `difflib`)** |
-| **Costo Mensual** | $0 (pero exigía PC de $2,500 USD) | $0 (con cuota muy restringida) | **$0 USD permanente** |
+| **Dónde corre** | Laptop local (Docker) | Nube Google + Render | Nube Groq + Render |
+| **Tiempo de respuesta** | 25–55 segundos | 1.5–3.5 s (inestable) | **0.6–0.9 s** |
+| **Velocidad (tokens/s)** | 4–6 | 60–95 | **> 380** |
+| **RAM servidor** | 14.8 GB (laptop) | 520 MB (caía Render) | **< 140 MB** |
+| **Límite peticiones** | Sin límite (congelaba PC) | 15/min (Error 429) | **Sin bloqueos** |
+| **Integración Unity** | Congelaba (< 12 FPS) | Fluido con fallos JSON | **60 FPS estables** |
+| **Interfaz web** | Streamlit (1 proceso) | Streamlit (1 proceso) | **FastAPI + HTML nativo** |
+| **RAM de la interfaz** | +180 MB (Streamlit) | +180 MB (Streamlit) | **~0 MB adicional** |
+| **Personalización UI** | Muy limitada | Muy limitada | **Total (CSS/JS propio)** |
+| **Costo mensual** | $0 (pero PC de $2,500) | $0 (cuota restringida) | **$0 USD permanente** |
+
+### Fase 5 — Migración de Base de Datos: Firebase Firestore → Supabase (PostgreSQL)
+
+**¿Por qué se usó Firebase inicialmente?**
+
+Firebase Firestore era el almacenamiento estándar del proyecto NeuroK AR (Unity ya lo usaba para puntajes de quizzes). Se integró también en Atena para guardar métricas de uso.
+
+**¿Por qué se migró a Supabase?**
+
+| Problema con Firebase | Solución con Supabase |
+|---|---|
+| SDK JavaScript/Python pesado (+60 MB) | Conexión directa PostgreSQL (psycopg2, <1 MB) |
+| Consultas limitadas sin índices manuales | SQL estándar con JOINs, GROUP BY, INTERVAL |
+| No soporta consultas analíticas complejas | Permite calcular latencia promedio, tendencias, distribuciones |
+| Precio escala rápido en producción | Plan gratuito con 500 MB y sin límite de peticiones |
+| No hay tablas relacionales | Relaciones, restricciones, UPSERT nativo |
+
+**Resultado:** Las estadísticas de uso (total de consultas, latencia, distribución por nivel, palabras clave más frecuentes) ahora se calculan directamente en SQL sobre Supabase y son **persistentes entre reinicios** del servidor.
 
 ---
 
 ## 3. Cuenta Institucional del Proyecto
 
-Para asegurar la **soberanía tecnológica** y la transferencia ordenada al Laboratorio NeuroK, todos los servicios están centralizados bajo la cuenta oficial:
+Para asegurar la **soberanía tecnológica** y la transferencia ordenada al Laboratorio NeuroK, todos los servicios están bajo la cuenta oficial:
 
 | Campo | Valor |
 |-------|-------|
 | **Correo Institucional** | `atena.unikonrad@gmail.com` |
 | **Contraseña** | *Se entrega en el acta privada de recepción técnica* |
-| **Plataformas Vinculadas** | Render.com (Servidor API), Groq Cloud Console (Motor LLM), Firebase Console (Firestore NoSQL), GitHub (Código Fuente) |
+| **Plataformas vinculadas** | Render.com, Groq Cloud Console, Supabase, GitHub |
 
 ---
 
@@ -109,238 +191,267 @@ Para asegurar la **soberanía tecnológica** y la transferencia ordenada al Labo
 
 | Campo | Valor |
 |-------|-------|
-| **URL del Repositorio** | [https://github.com/Vivi271/Atena](https://github.com/Vivi271/Atena) |
-| **Tipo de Repositorio** | Público (Acceso abierto para auditoría y compilación) |
+| **URL** | [https://github.com/Vivi271/Atena](https://github.com/Vivi271/Atena) |
+| **Tipo** | Público |
 | **Rama principal** | `main` |
-| **Despliegue Continuo (CI/CD)** | Vinculado automáticamente con Render via GitHub Webhook |
+| **CI/CD** | Vinculado con Render vía GitHub Webhook (redeploy automático en cada push) |
 
 ---
 
 ## 5. Backend en la Nube — Render.com
 
-### Configuración del Servicio en Producción
-
-El servicio web está configurado como contenedor Docker en Render:
-
-| Parámetro | Valor Configurado |
-|-----------|-------------------|
+| Parámetro | Valor |
+|-----------|-------|
 | **Service Name** | `Atena` |
-| **Region** | `Oregon (US West)` |
-| **Runtime** | `Docker` |
-| **Instance Type** | **`Free`** (512 MiB RAM / 0.1 CPU compartida — $0 USD/mes) |
+| **Region** | Oregon (US West) |
+| **Runtime** | Docker |
+| **Instance Type** | Free (512 MiB RAM / 0.1 CPU — $0/mes) |
 | **Health Check Path** | `/salud` |
-| **URL Oficial de Producción** | `https://atena-vugz.onrender.com` |
+| **URL de Producción** | `https://atena-vugz.onrender.com` |
 
-### Variables de Entorno en Render
+### Variables de entorno en Render
 
-Configuradas de forma segura en el panel de Render (*Environment Variables*):
-
-- `GROQ_API_KEY`: Clave secreta para la inferencia de lenguaje en Groq Cloud.
-- `CHROMA_DB_DIR`: Ruta relativa al almacén vectorial (`chroma_neuro_db`).
-- `SECRET_PIN`: Clave de seguridad (`1234`) para acceder al panel de administración.
-- `PORT`: `8000` (puerto estándar expuesto por el contenedor Docker).
+| Variable | Descripción | Configuración |
+|---|---|---|
+| `GROQ_API_KEY` | Clave de Groq Cloud para inferencia LLM | Manual en el panel |
+| `SUPABASE_DB_URL` | URL PostgreSQL de Supabase | Manual en el panel |
+| `ADMIN_PIN` | PIN de respaldo si Supabase no está disponible | Manual en el panel |
+| `GITHUB_TOKEN` | Token de acceso personal para el botón "Publicar" | Manual en el panel |
+| `GITHUB_REPO_URL` | URL del repositorio GitHub (`https://github.com/Vivi271/Atena.git`) | Manual en el panel |
 
 ---
 
-## 6. Base de Datos NoSQL — Firebase Firestore (Conexión y Flujo de Datos)
+## 6. Base de Datos — Supabase (PostgreSQL)
 
-### ¿Qué almacena Firestore en el Proyecto?
-Cloud Firestore almacena de forma independiente los datos transaccionales de los estudiantes:
-- **Colección `evaluaciones`:** Puntajes de quizzes y progreso pedagógico en AR.
-- **Colección `sesiones_chat`:** Historial de interacción para analítica académica del laboratorio.
-- **Colección `metricas_sistema`:** Tiempos de respuesta y estructuras cerebrales más consultadas.
+### Tablas del sistema
 
-### Flujo de Comunicación
+Ejecutar una sola vez en el SQL Editor de Supabase:
+
+```sql
+-- Historial de consultas al RAG
+CREATE TABLE IF NOT EXISTS consultas (
+    id BIGSERIAL PRIMARY KEY,
+    fecha TIMESTAMPTZ DEFAULT NOW(),
+    pregunta TEXT NOT NULL,
+    respuesta TEXT NOT NULL,
+    nivel TEXT NOT NULL,
+    latencia REAL
+);
+
+-- Resultados de evaluaciones (quiz pedagógico)
+CREATE TABLE IF NOT EXISTS evaluaciones (
+    id BIGSERIAL PRIMARY KEY,
+    fecha TIMESTAMPTZ DEFAULT NOW(),
+    pregunta TEXT NOT NULL,
+    respuesta_usuario TEXT NOT NULL,
+    respuesta_correcta TEXT NOT NULL,
+    es_correcta BOOLEAN NOT NULL,
+    explicacion TEXT NOT NULL
+);
+
+-- Configuración del sistema (PIN de admin)
+CREATE TABLE IF NOT EXISTS configuracion (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+);
+INSERT INTO configuracion (clave, valor) VALUES ('admin_pin', '12345')
+    ON CONFLICT (clave) DO NOTHING;
 ```
-Unity (NeuroK AR Móvil)
-  ├──► Firebase Firestore (gRPC seguro / TLS 1.3) → Guarda métricas y quizzes
-  └──► Render.com (HTTPS REST /consultar)        → Inferencia y consulta RAG
-```
+
+### ¿Qué almacena cada tabla?
+
+- **`consultas`:** Cada pregunta que hace un estudiante, la respuesta generada, el nivel (Básico/Avanzado) y el tiempo de respuesta en segundos. Se usa para estadísticas de uso en el panel admin.
+- **`evaluaciones`:** Cada respuesta de un estudiante en el quiz de autoevaluación, con indicación de si fue correcta y la explicación correcta.
+- **`configuracion`:** Almacena el PIN de acceso al panel admin. El personal del laboratorio puede cambiarlo desde el panel sin necesidad de acceder a Render.
 
 ---
 
 ## 7. Modelos de IA — Inferencia Groq LPU y Embeddings ONNX Runtime
 
-### Componentes de Inteligencia Artificial
-
-| Función | Tecnología / Modelo | Justificación Técnica |
+| Función | Tecnología | Justificación |
 |---|---|---|
-| **Generación de Respuestas RAG** | **Groq Cloud LPU — `openai/gpt-oss-120b`** | Inferencia ultra-rápida (>350 tok/s), seguimiento riguroso de contexto científico, cero alucinaciones y adaptación a niveles básico/avanzado. |
-| **Vectorización Semántica** | **ChromaDB Nativo — `all-MiniLM-L6-v2` (ONNX)** | Generación de embeddings de 384 dimensiones sin requerir PyTorch ni CUDA. Reduce el consumo de RAM a <140 MB, garantizando estabilidad en contenedores de 512 MiB. |
-| **Corrección Fonética / Léxica** | **Fuzzy Matching (`difflib`)** | Intercepta términos anatómicos mal digitados en la pantalla táctil móvil antes de consultar la base de datos. |
-| **Estrategia de Cita** | **Citas Documentales Forzadas** | Inyecta metadatos obligatorios en el prompt del sistema: `[Fuente X, pág. Y]`. |
+| **Generación de respuestas RAG** | Groq Cloud LPU — `openai/gpt-oss-120b` | Inferencia > 350 tok/s, latencia < 0.9 s, cero alucinaciones |
+| **Vectorización semántica** | ChromaDB — `all-MiniLM-L6-v2` (ONNX) | 384 dimensiones sin PyTorch/CUDA. RAM < 140 MB |
+| **Corrección léxica** | Fuzzy Matching (`difflib`) | Corrige términos mal escritos en pantalla táctil móvil |
+| **Citas documentales** | Metadatos forzados en prompt | Formato `[Fuente X, pág. Y]` en todas las respuestas |
 
 ---
 
 ## 8. API REST — Endpoints y Funcionamiento
 
-### URL Base de Producción
-```
-https://atena-vugz.onrender.com
-```
+**URL base de producción:** `https://atena-vugz.onrender.com`
 
-### Endpoints Disponibles
+### Endpoints principales
 
-#### 1. `POST /consultar` (Principal para Unity 3D)
-Recibe la consulta del estudiante y devuelve la síntesis RAG con fuentes y páginas verificadas.
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/consultar` | Consulta RAG con fuentes bibliográficas |
+| `GET` | `/salud` | Health check del servidor |
+| `GET` | `/info` | Metadatos técnicos y modelos activos |
+| `GET` | `/docs` | Swagger UI interactivo |
 
-- **Request Payload:**
-```json
-{
-  "pregunta": "¿Qué función cumple el hipocampo?",
-  "nivel": "avanzado",
-  "k": 5
-}
-```
+### Endpoints del panel admin (requieren header `X-Admin-Pin`)
 
-- **Response Payload:**
-```json
-{
-  "respuesta": "El hipocampo es una estructura crítica del sistema límbico vinculada a la consolidación de la memoria a largo plazo y la navegación espacial [Neuroanatomia clinica 26va Edición - Lange.pdf, pág. 214]. Recibe aferencias de la corteza entorrinal a través de la vía perforante...",
-  "fuentes": [
-    {
-      "fuente": "Neuroanatomia clinica  26va Edición - Lange.pdf",
-      "pagina": 214,
-      "fragmento": "El hipocampo forma parte del arquicórtex y desempeña un papel central en la consolidación..."
-    }
-  ],
-  "nivel": "avanzado"
-}
-```
-
-#### 2. `GET /salud`
-Endpoint de comprobación de salud (*health-check*). Devuelve el estado del servidor, conectividad de ChromaDB y hora del sistema:
-```json
-{
-  "estado": "activo",
-  "servicio": "Atena API REST",
-  "version": "3.0.0",
-  "documentos_indexados": 352
-}
-```
-
-#### 3. `GET /info`
-Retorna metadatos técnicos, modelos activos y estado de configuración.
-
-#### 4. `GET /docs`
-Interfaz Swagger UI interactiva para pruebas en navegador: [https://atena-vugz.onrender.com/docs](https://atena-vugz.onrender.com/docs).
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/admin/documents` | Lista documentos indexados |
+| `POST` | `/api/admin/upload` | Sube y vectoriza un documento (PDF/DOCX) |
+| `DELETE` | `/api/admin/delete/{nombre}` | Elimina documento del índice |
+| `POST` | `/api/admin/rebuild` | Reconstruye toda la base vectorial |
+| `POST` | `/api/admin/publicar` | Hace commit+push a GitHub (persistencia permanente) |
+| `GET` | `/api/admin/stats_sesion` | Estadísticas de uso desde Supabase |
+| `POST` | `/api/admin/cambiar-pin` | Cambia el PIN de acceso (guarda en Supabase) |
+| `GET` | `/api/admin/preguntas` | Lista banco de preguntas de evaluación |
+| `POST` | `/api/admin/preguntas` | Agrega pregunta al banco |
+| `PUT` | `/api/admin/preguntas/{id}` | Edita una pregunta |
+| `DELETE` | `/api/admin/preguntas/{id}` | Elimina una pregunta |
+| `GET` | `/diagnostico/db` | Verifica conectividad con Supabase |
 
 ---
 
 ## 9. Script para Unity — AtenaClient.cs
 
-El script oficial en C# gestiona las peticiones asíncronas desde la aplicación móvil:
-- **Ubicación en el repositorio:** [`AtenaClient.cs`](../AtenaClient.cs)
-- **URL Base:** `https://atena-vugz.onrender.com`
-- **Manejo de Red:** Utiliza `UnityWebRequest` con serialización JSON nativa (`JsonUtility`).
-- **Callback Desacoplado:** Envía la respuesta formateada a la UI del Canvas sin bloquear el hilo principal de renderizado de Unity (60 FPS sostenidos).
+- **Ubicación:** `frontend/unity/AtenaClient.cs`
+- **URL base:** `https://atena-vugz.onrender.com`
+- **Red:** `UnityWebRequest` con serialización JSON nativa.
+- **Callback:** Respuesta asíncrona sin bloquear el hilo de renderizado (60 FPS sostenidos).
+
+```csharp
+AtenaClient.Instance.ConsultarAsistente(
+    "¿Qué función cumple el hipocampo?",
+    "avanzado",
+    (response) => { Debug.Log(response.respuesta); },
+    (error)    => { Debug.LogError(error); }
+);
+```
 
 ---
 
 ## 10. Cómo Agregar y Vectorizar Nueva Literatura Científica
 
-### Flujo de Persistencia Eficiente (Inmutabilidad en Servidor Gratuito)
-Los contenedores gratuitos de Render tienen un sistema de archivos efímero: no deben realizar tareas pesadas de vectorización en caliente para evitar caídas por límite de RAM (512 MiB). 
+### El problema de la persistencia en Render gratuito
 
-Por tal motivo, la base vectorial `chroma_neuro_db` (~32 MB) está pre-indexada y empaquetada dentro del repositorio.
+Los contenedores gratuitos de Render tienen un **sistema de archivos efímero**: cuando el servidor entra en reposo o se reinicia, cualquier archivo escrito durante la ejecución (incluyendo documentos subidos o vectores generados) se pierde.
+
+**Solución implementada:** El panel admin incluye un botón **"Publicar en la nube"** que guarda los cambios permanentemente en GitHub. Render detecta el push y redespliega el contenedor en ~2 minutos con los nuevos documentos.
+
+### Flujo completo para el personal de laboratorio (sin código)
 
 ```
-[1. Laboratorista presiona el botón]
-                 │
-                 ▼
-[2. Se actualiza en GITHUB]
-  • Sube el PDF a la carpeta Docs/
-  • Sube los nuevos vectores a chroma_neuro_db/
-  • Queda guardado y respaldado para siempre en la nube de GitHub
-                 │
-                 ▼ (Notificación automática por Webhook)
-[3. Se actualiza en RENDER]
-  • Render detecta el cambio en GitHub
-  • Reconstruye el contenedor en ~2 minutos
-  • Pone los nuevos libros al servicio de Unity y los estudiantes
+[1] Abrir panel admin en el navegador
+    https://atena-vugz.onrender.com/admin.html
+
+[2] Ingresar el PIN de acceso
+
+[3] En la sección "Documentos":
+    Arrastra el archivo PDF o DOCX al recuadro
+    → El sistema lo procesa, fragmenta y vectoriza automáticamente
+
+[4] Verificar que el documento aparece en la lista
+
+[5] Presionar el botón "Publicar en la nube"
+    → El sistema hace commit + push a GitHub
+    → Render redespliega en ~2 minutos
+    → Los documentos quedan permanentes aunque el servidor se reinicie
 ```
 
-#### ¿Por qué se actualiza en ambos (GitHub y Render)?
-1. **Persistencia y Respaldo Permanente (GitHub):** Los contenedores gratuitos de Render tienen un sistema de archivos efímero (cualquier cambio local se descarta cuando el servidor entra en reposo o se reinicia tras 15 minutos de inactividad). Al almacenarse en **GitHub**, el repositorio actúa como la bóveda de respaldo definitiva bajo la cuenta institucional de la Konrad Lorenz.
-2. **Despliegue Continuo Automático (Render):** Render está enlazado a GitHub mediante *Webhooks*. En cuanto GitHub recibe la actualización, notifica a Render para reconstruir el contenedor Docker en ~2 minutos, garantizando que la app móvil de Unity siempre consuma la versión más reciente sin intervención manual.
+### Por qué la publicación en GitHub es necesaria
 
-### Flujo de Subida para el Personal de Laboratorio (100% Visual — Cero Código)
+| Sin publicar | Con publicar |
+|---|---|
+| El documento existe solo en RAM del servidor | El documento queda en el repositorio de GitHub |
+| Se pierde al reiniciar o entrar en reposo | Persiste siempre, incluso tras reinicios y redeploys |
+| Solo disponible para la sesión actual | Disponible para todos los usuarios desde el próximo deploy |
 
-Para garantizar que los docentes e investigadores de NeuroK no requieran conocimientos de programación ni uso de terminales de comandos, el sistema incluye un **asistente de sincronización en 1 solo clic** desde el panel web de Atena:
+### Requisitos para el botón "Publicar en la nube"
 
-#### Método 1: Panel Web Administrativo (Recomendado para Laboratorio)
-1. **Acceder como Administrador:** En la barra lateral de Atena, desplegar el panel de acceso e ingresar el PIN institucional: `1234`.
-2. **Arrastrar el Documento:** En la sección **«📂 Base de Conocimientos»**, arrastrar los nuevos archivos PDF o DOCX en el recuadro de carga. El motor los procesa, fragmenta y vectoriza inmediatamente en segundo plano.
-3. **Publicar a Unity en 1 Clic:** Debajo de la lista de documentos, presionar el botón:  
-   👉 **`🚀 Publicar Cambios a la Nube`**  
-   El sistema empaqueta automáticamente los vectores y los envía a la nube de Render sin que el docente deba abrir una consola ni escribir instrucciones de Git.
-4. **Despliegue Automático:** En 2 minutos, la app móvil de Unity de todos los estudiantes queda sincronizada con la nueva literatura científica.
+En el panel de Render → Environment Variables:
 
----
+| Variable | Valor |
+|---|---|
+| `GITHUB_TOKEN` | Token de acceso personal de GitHub (permisos: `repo`) |
+| `GITHUB_REPO_URL` | `https://github.com/Vivi271/Atena.git` |
 
-#### Método 2: Por Consola / Terminal (Para Desarrolladores)
-Si un ingeniero de sistemas desea realizar la indexación de forma manual:
-1. Copiar el archivo PDF/DOCX en la carpeta `Docs/`.
-2. Ejecutar:
-   ```bash
-   python indexar_documentos.py
-   git add Docs/ chroma_neuro_db/
-   git commit -m "docs: indexar nuevo texto de neuroanatomía"
-   git push origin main
-   ```
-3. Render compilará el contenedor automáticamente.
+Para generar el token: GitHub → Settings → Developer settings → Personal access tokens → Generate new token (classic) → marcar `repo`.
 
 ---
 
 ## 11. Cómo Administrar el Sistema
 
-| Plataforma | Propósito | URL de Acceso | Credenciales |
-|---|---|---|---|
-| **Render.com** | Servidor Backend Docker | [dashboard.render.com](https://dashboard.render.com) | `atena.unikonrad@gmail.com` |
-| **Groq Console** | Monitoreo y API Keys LLM | [console.groq.com](https://console.groq.com) | `atena.unikonrad@gmail.com` |
-| **Firebase Console** | Base de Datos NoSQL Firestore | [console.firebase.google.com](https://console.firebase.google.com) | `atena.unikonrad@gmail.com` |
-| **GitHub** | Código Fuente y Control de Versiones | [github.com/Vivi271/Atena](https://github.com/Vivi271/Atena) | Repositorio Oficial |
+### Panel de Administración Web
+
+Acceso: `https://atena-vugz.onrender.com/admin.html`
+
+| Sección | Funcionalidad |
+|---|---|
+| **Documentos** | Ver, subir (drag & drop), eliminar y reindexar documentos. Botón "Publicar en la nube" para persistencia. |
+| **Banco de preguntas** | Crear, editar y eliminar preguntas de evaluación por nivel (Básico, General, Avanzado). |
+| **Estadísticas** | Total de consultas, latencia promedio, distribución por nivel, palabras más consultadas, historial filtrable por fecha y nivel. Datos persistentes desde Supabase. |
+| **Sistema** | Estado de salud del servidor, conteo de documentos y preguntas activas, cambio de PIN desde el navegador. |
+
+### Plataformas de administración
+
+| Plataforma | Propósito | URL |
+|---|---|---|
+| **Render.com** | Servidor Docker, variables de entorno, logs | [dashboard.render.com](https://dashboard.render.com) |
+| **Groq Console** | Monitoreo de uso y API Keys | [console.groq.com](https://console.groq.com) |
+| **Supabase** | Base de datos PostgreSQL | [supabase.com/dashboard](https://supabase.com/dashboard) |
+| **GitHub** | Código fuente y control de versiones | [github.com/Vivi271/Atena](https://github.com/Vivi271/Atena) |
+
+### Cambiar el PIN de acceso
+
+1. Abrir el panel admin → sección **Sistema**.
+2. En "Cambiar contraseña de acceso": ingresar el PIN actual, el nuevo PIN y confirmarlo.
+3. Presionar "Actualizar contraseña".
+4. El nuevo PIN se guarda en Supabase y es efectivo de inmediato, sin reiniciar el servidor.
 
 ---
 
 ## 12. Monitoreo, Tiempos de Respuesta y Manejo del Cold Start
 
-### Comportamiento del Servidor Gratuito (Cold Start)
-En la capa gratuita de Render, la instancia entra en estado de suspensión (*sleep*) tras **15 minutos sin tráfico entrante**.
-- **Impacto:** La primera consulta recibida después de un periodo de inactividad puede tardar **entre 30 y 45 segundos** mientras Render despierta el contenedor Docker.
-- **A partir de la segunda consulta:** El servidor responde a velocidad plena en **0.6 a 0.9 segundos**.
+### Comportamiento del servidor gratuito (Cold Start)
 
-### Estrategia de Mitigación para Prácticas y Sustentaciones
-1. **Despertar Previo:** Abrir la URL `https://atena-vugz.onrender.com/salud` en cualquier navegador 1 minuto antes de iniciar una clase, práctica de laboratorio o sustentación de tesis.
-2. **Monitoreo Automático Gratuito (Opcional):** Configurar un servicio gratuito de monitoreo tipo *UptimeRobot* (https://uptimerobot.com) que envíe una petición `GET /salud` cada 14 minutos, impidiendo que el servidor entre en reposo durante las jornadas académicas.
+En el plan gratuito de Render, la instancia entra en suspensión tras **15 minutos sin tráfico**.
+
+- **Primera consulta tras inactividad:** 30 a 45 segundos (Render despierta el contenedor).
+- **A partir de la segunda consulta:** 0.6 a 0.9 segundos.
+
+### Estrategia de mitigación para prácticas y sustentaciones
+
+1. **Despertar previo:** Abrir `https://atena-vugz.onrender.com/salud` en un navegador 1 minuto antes de empezar.
+2. **Monitoreo automático (opcional):** Configurar [UptimeRobot](https://uptimerobot.com) para hacer GET `/salud` cada 14 minutos durante las jornadas académicas, impidiendo que el servidor entre en reposo.
 
 ---
 
 ## 13. Ficha Técnica Final de Entrega
 
-| Parámetro | Detalle Institucional |
+| Parámetro | Detalle |
 |---|---|
-| **Nombre del Proyecto** | Atena — Consultor RAG en Neuroanatomía 3D |
+| **Nombre del Proyecto** | Atena — Consultor RAG en Neuroanatomía |
 | **Aplicación Móvil Cliente** | NeuroK AR (Unity 3D / C# / Android) |
 | **Institución Académica** | Fundación Universitaria Konrad Lorenz |
 | **Laboratorio Destino** | Laboratorio de Neurociencias Aplicadas – NeuroK |
 | **Autores** | Viviana Marcela García Valderrama — Braian Felipe Ramirez Ortiz |
-| **Año y Versión** | 2026 — Versión 3.0 (Cloud Native Consolidada) |
+| **Año y Versión** | 2026 — Versión 4.0 (FastAPI + Web Nativa + Supabase) |
 | | |
-| **URL Base de Producción** | `https://atena-vugz.onrender.com` |
+| **URL de Producción** | `https://atena-vugz.onrender.com` |
 | **Health Check** | `https://atena-vugz.onrender.com/salud` |
-| **Documentación Swagger** | `https://atena-vugz.onrender.com/docs` |
+| **Swagger (Docs)** | `https://atena-vugz.onrender.com/docs` |
+| **Panel Admin** | `https://atena-vugz.onrender.com/admin.html` |
 | **Repositorio GitHub** | `https://github.com/Vivi271/Atena` |
 | | |
-| **Motor de Inferencia LLM** | Groq Cloud LPU — `openai/gpt-oss-120b` |
-| **Velocidad de Inferencia** | >350 tokens/segundo (Latencia promedio: 0.8s) |
-| **Modelo de Embeddings** | ChromaDB Nativo — `all-MiniLM-L6-v2` (ONNX Runtime, 384 dim) |
-| **Almacenamiento Vectorial** | ChromaDB Persistent Store (`chroma_neuro_db`, ~32 MB) |
-| **Consumo de RAM en Servidor** | < 140 MB (Operación holgada dentro de los 512 MiB de Render) |
-| **Tolerancia a Fallos de Usuario**| *Fuzzy Matching* léxico y Búsqueda Híbrida |
-| **Citas Documentales** | Trazabilidad exacta por texto y página: `[Fuente X, pág. Y]` |
-| **Costo Operativo Mensual** | **$0 USD (100% Permanente)** |
+| **Motor LLM** | Groq Cloud LPU — `openai/gpt-oss-120b` |
+| **Velocidad de inferencia** | > 350 tokens/segundo (Latencia promedio: 0.8 s) |
+| **Modelo de embeddings** | `all-MiniLM-L6-v2` (ONNX Runtime, 384 dimensiones) |
+| **Almacenamiento vectorial** | ChromaDB Persistent Store (`chroma_neuro_db`, ~32 MB) |
+| **Base de datos** | Supabase PostgreSQL (consultas, evaluaciones, configuración) |
+| **RAM en servidor** | < 140 MB (operación holgada dentro de los 512 MiB de Render) |
+| **Tolerancia a errores** | Fuzzy Matching léxico + Búsqueda Híbrida |
+| **Citas documentales** | `[Fuente X, pág. Y]` en todas las respuestas |
+| **Costo operativo mensual** | **$0 USD (100% permanente)** |
 
 ---
 
-*Manual Técnico de Infraestructura — Documento Oficial de Entrega — Facultad de Psicología / Ingeniería de Sistemas — Fundación Universitaria Konrad Lorenz.*
+*Manual Técnico de Infraestructura — Versión 4.0 — Octubre 2026*
+*Documento Oficial de Entrega — Facultad de Psicología / Ingeniería de Sistemas*
+*Fundación Universitaria Konrad Lorenz*
