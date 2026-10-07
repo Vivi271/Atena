@@ -119,16 +119,20 @@
 
  <!-- Main admin -->
  <div class="main" style="padding:0 24px 40px;">
- <header class="topbar">
- <span class="topbar-title" id="section-title">Documentos</span>
- <div class="topbar-spacer"></div>
- <div style="display:flex;align-items:center;gap:12px;">
- <span
- style="font-size:0.78rem;padding:4px 12px;border-radius:20px;background:rgba(140,198,63,0.1);color:var(--accent-dark);border:1px solid rgba(140,198,63,0.3);font-weight:600;">
- ● Administrador activo
- </span>
- </div>
- </header>
+  <header class="topbar">
+  <button id="admin-hamburger" class="admin-ham-btn" onclick="toggleAdminSidebar()" aria-label="Menu">
+   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+   </svg>
+  </button>
+  <span class="topbar-title" id="section-title">Documentos</span>
+  <div class="topbar-spacer"></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+   <span style="font-size:0.78rem;padding:4px 12px;border-radius:20px;background:rgba(140,198,63,0.1);color:var(--accent-dark);border:1px solid rgba(140,198,63,0.3);font-weight:600;white-space:nowrap;">
+    Administrador activo
+   </span>
+  </div>
+  </header>
 
  <!-- ── SECCIÓN: DOCUMENTOS ── -->
  <section id="section-docs" class="admin-section" style="margin-top:24px;">
@@ -364,6 +368,29 @@
 
  <script src="/js/admin.js?v=1.2"></script>
  <script src="/js/app.js?v=1.2"></script>
+
+<!-- Overlay para cerrar sidebar en móvil -->
+<div id="admin-sidebar-overlay" class="admin-sidebar-overlay" onclick="toggleAdminSidebar()"></div>
+
+<script>
+function toggleAdminSidebar() {
+  const sidebar = document.getElementById('admin-sidebar');
+  const overlay = document.getElementById('admin-sidebar-overlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('active');
+}
+// Auto-cerrar sidebar al seleccionar sección en móvil
+document.querySelectorAll('.sidebar-item').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (window.innerWidth <= 768) {
+      const sidebar = document.getElementById('admin-sidebar');
+      const overlay = document.getElementById('admin-sidebar-overlay');
+      sidebar.classList.remove('open');
+      overlay.classList.remove('active');
+    }
+  });
+});
+</script>
 </body>
 
 </html>

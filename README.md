@@ -13,7 +13,7 @@ Sistema de Inteligencia Artificial que actúa como **consultor científico espec
 - **Velocidad extrema:** Más de 350 tokens/segundo gracias al hardware LPU de Groq. Latencia < 0.9 s.
 - **Cero alucinaciones:** Respuestas fundamentadas únicamente en el corpus indexado, con directiva de abstención si la información no existe en los textos.
 - **Trazabilidad académica:** Cada afirmación se referencia con `[Fuente X, pág. Y]`.
-- **Fuzzy Matching:** Corrección automática de términos mal escritos (`hipicampo` → `hipocampo`).
+- **Fuzzy Matching:** Corrección automática de términos mal escritos (`hipicampo`  `hipocampo`).
 - **Bajo consumo de RAM:** ONNX Runtime < 140 MB (operación estable en Render plan gratuito de 512 MiB).
 - **Doble nivel pedagógico:** Respuestas para nivel **Básico** (estudiantes iniciales) y **Avanzado** (psicología, medicina, investigadores).
 - **API REST multiplataforma:** Endpoints para Unity (C#), móvil, web o herramientas analíticas.
@@ -26,19 +26,19 @@ Sistema de Inteligencia Artificial que actúa como **consultor científico espec
 
 ```
 Clientes
-├── Unity / NeuroK AR (C#)  ──────────────────────────────┐
-├── Web — Chat + Panel Admin (frontend/web/static/)        │ POST /consultar
-└── Swagger UI (/docs)                                     │ GET  /api/*
-                                                           ▼
+ Unity / NeuroK AR (C#)  
+ Web — Chat + Panel Admin (frontend/web/static/)         POST /consultar
+ Swagger UI (/docs)                                      GET  /api/*
+                                                           
                               api.py  (FastAPI — Render.com Docker)
-                                  │
-                    ┌─────────────┴──────────────┐
-                    ▼                            ▼
+                                  
+                    
+                                                
            rag_pipeline.py               db_metrics.py / db_preguntas.py
        (Búsqueda híbrida + Fuzzy)       (Supabase PostgreSQL)
-                    │
-       ┌────────────┴────────────┐
-       ▼                         ▼
+                    
+       
+                                
 ChromaDB + ONNX               Groq Cloud LPU
 (all-MiniLM-L6-v2)       (openai/gpt-oss-120b)
 ```
@@ -67,7 +67,7 @@ Recibe una consulta de neuroanatomía y devuelve la respuesta del consultor con 
 **Request:**
 ```json
 {
-  "pregunta": "¿Cuáles son las funciones del hipocampo?",
+  "pregunta": "Cuáles son las funciones del hipocampo?",
   "nivel": "avanzado",
   "k": 5
 }
@@ -162,7 +162,7 @@ INSERT INTO configuracion (clave, valor) VALUES ('admin_pin', '12345')
 
 ```csharp
 AtenaClient.Instance.ConsultarAsistente(
-    "¿Qué es la sustancia negra?",
+    "Qué es la sustancia negra?",
     "avanzado",
     (response) => {
         Debug.Log("Respuesta IA: " + response.respuesta);
@@ -231,7 +231,7 @@ La landing page está diseñada como una presentación de pantalla completa con 
 | 2 — Características | 6 tarjetas de funcionalidades con iconos SVG |
 | 3 — Cómo funciona | Flujo de 3 pasos + botones de acción + footer |
 
-Navegación: flechas `←` `→`, puntos indicadores, teclas de flecha del teclado y swipe táctil.
+Navegación: flechas `` ``, puntos indicadores, teclas de flecha del teclado y swipe táctil.
 
 ### Autoevaluación
 
@@ -247,8 +247,8 @@ Quiz de neuroanatomía accesible desde el navbar o el hero. Flujo:
 | Breakpoint | Comportamiento |
 |---|---|
 | `> 900px` | Layout completo con dos columnas, navegación horizontal |
-| `≤ 900px` | Navbar colapsado (hamburguesa), hero en 1 columna, cerebro oculto |
-| `≤ 600px` | Chat panel full-width, flechas del slider al pie, texto compacto |
+| ` 900px` | Navbar colapsado (hamburguesa), hero en 1 columna, cerebro oculto |
+| ` 600px` | Chat panel full-width, flechas del slider al pie, texto compacto |
 
 ---
 
@@ -265,7 +265,7 @@ Accesible en `/admin.html`, protegido por PIN. Funcionalidades:
 
 ## Literatura Científica Indexada
 
-1. **Neuroanatomía Clínica (26.ª Edición)** — Stephen G. Waxman (Lange / McGraw-Hill)
+1. **Neuroanatomía Clínica (26. Edición)** — Stephen G. Waxman (Lange / McGraw-Hill)
 2. **El Cerebro y la Conducta: Neuroanatomía para Psicólogos** — Clark, Boutros, Mendez
 3. **Manual de Modelo Neuroanatómico 3D** — Laboratorio de Neurociencias Aplicadas (NeuroK)
 
@@ -275,26 +275,26 @@ Accesible en `/admin.html`, protegido por PIN. Funcionalidades:
 
 ```
 Atena/
-├── backend/
-│   ├── api.py              # FastAPI — endpoints REST y panel admin
-│   ├── rag_pipeline.py     # Motor RAG: carga, chunking, vectorización, búsqueda
-│   ├── db_metrics.py       # Persistencia de métricas y PIN en Supabase
-│   ├── db_preguntas.py     # Banco de preguntas (Supabase)
-│   └── config.py           # Variables de entorno y configuración
-├── frontend/
-│   └── web/
-│       └── static/
-│           ├── index.html      # Chat web principal
-│           ├── admin.html      # Panel de administración
-│           ├── css/main.css    # Sistema de diseño (light/dark mode)
-│           └── js/
-│               ├── app.js      # Lógica del chat
-│               └── admin.js    # Lógica del panel admin
-├── Docs/                   # Literatura científica indexada (PDF/DOCX)
-├── tesis/                  # Scripts auxiliares para el documento de grado
-├── Dockerfile              # Imagen Docker para Render
-├── render.yaml             # Configuración de despliegue en Render.com
-└── requirements.txt        # Dependencias Python
+ backend/
+    api.py              # FastAPI — endpoints REST y panel admin
+    rag_pipeline.py     # Motor RAG: carga, chunking, vectorización, búsqueda
+    db_metrics.py       # Persistencia de métricas y PIN en Supabase
+    db_preguntas.py     # Banco de preguntas (Supabase)
+    config.py           # Variables de entorno y configuración
+ frontend/
+    web/
+        static/
+            index.html      # Chat web principal
+            admin.html      # Panel de administración
+            css/main.css    # Sistema de diseño (light/dark mode)
+            js/
+                app.js      # Lógica del chat
+                admin.js    # Lógica del panel admin
+ Docs/                   # Literatura científica indexada (PDF/DOCX)
+ tesis/                  # Scripts auxiliares para el documento de grado
+ Dockerfile              # Imagen Docker para Render
+ render.yaml             # Configuración de despliegue en Render.com
+ requirements.txt        # Dependencias Python
 ```
 
 ---

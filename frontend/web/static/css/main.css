@@ -644,3 +644,64 @@ tr:hover td { background:var(--bg-hover); }
   .chat-panel { width: calc(100vw - 16px); right: 8px; bottom: 86px; border-radius: 16px; }
   .bubble-btn { right: 16px; bottom: 16px; }
 }
+
+/* ═══ ADMIN PANEL — RESPONSIVIDAD MÓVIL ═══════════════════════════════
+   Hamburguesa, overlay, contenido adaptado
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Botón hamburguesa: oculto en desktop */
+.admin-ham-btn {
+  display: none; background: none; border: none;
+  cursor: pointer; color: var(--text-main);
+  padding: 4px 8px 4px 0; margin-right: 8px;
+  flex-shrink: 0;
+}
+
+/* Overlay oscuro al abrir sidebar */
+.admin-sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 39;
+}
+.admin-sidebar-overlay.active { display: block; }
+
+/* Padding del main en desktop */
+.main { padding: 0 24px 40px; }
+
+@media(max-width: 768px) {
+  /* Mostrar hamburguesa */
+  .admin-ham-btn { display: flex; align-items: center; }
+
+  /* Sidebar como drawer deslizable */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    z-index: 40; transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    width: 260px;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Main ocupa todo el ancho */
+  .main { margin-left: 0; padding: 0 14px 40px; }
+
+  /* Topbar */
+  .topbar { padding: 0 14px; }
+
+  /* Tablas: scroll horizontal */
+  .admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 520px; }
+
+  /* Upload dropzone */
+  .upload-zone { min-height: 100px; padding: 20px 12px; }
+
+  /* Botones de acción en grid */
+  .topbar-actions { flex-wrap: wrap; gap: 6px; }
+
+  /* Ocultar badge "Administrador activo" en móvil muy pequeño */
+}
+
+@media(max-width: 480px) {
+  .main { padding: 0 10px 40px; }
+  .admin-section { padding: 0; }
+  .section-header { padding: 16px 0 12px; }
+  .section-header h2 { font-size: 1.1rem; }
+}
