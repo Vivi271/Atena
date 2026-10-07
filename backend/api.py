@@ -537,68 +537,112 @@ async def subir_documento(
         raise HTTPException(status_code=500, detail=f"Error al subir documento: {e}")
 
 
-# ── Publicar documentos a GitHub (persistencia permanente en Render) ──────────
+# ── Publicar documentos a GitHub via REST API (funciona en Docker sin .git) ───
 
 @app.post("/api/admin/publicar", tags=["Admin"])
 async def publicar_a_github(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
     """
-    Hace commit + push de Docs/ y chroma_neuro_db/ a GitHub.
-    Requiere la variable de entorno GITHUB_TOKEN configurada en Render.
-    Al actualizarse GitHub, Render redespliega automáticamente y los documentos
-    quedan permanentemente disponibles aunque el servidor se reinicie.
+    Sube los archivos de Docs/ a GitHub usando la REST API.
+    No requiere git ni carpeta .git — funciona dentro del contenedor Docker de Render.
+    Render detecta el commit y redespliega automáticamente en ~2 minutos.
+    Requiere: GITHUB_TOKEN y GITHUB_OWNER + GITHUB_REPO en variables de entorno.
     """
     _verificar_pin(x_admin_pin)
 
-    import subprocess
+    import base64
+    import urllib.request
+    import urllib.error
+    import json as _json
 
-    token = os.environ.get("GITHUB_TOKEN", "")
-    repo_url = os.environ.get("GITHUB_REPO_URL", "")  # ej: https://github.com/Vivi271/Atena.git
+    token    = os.environ.get("GITHUB_TOKEN", "")
+    owner    = os.environ.get("GITHUB_OWNER", "Vivi271")
+    repo     = os.environ.get("GITHUB_REPO",  "Atena")
+    branch   = os.environ.get("GITHUB_BRANCH", "main")
 
     if not token:
         raise HTTPException(
             status_code=503,
-            detail="GITHUB_TOKEN no está configurado en las variables de entorno del servidor."
+            detail="GITHUB_TOKEN no está configurado. Agrégalo en las variables de entorno de Render."
         )
 
-    try:
-        # Configurar git con el token de autenticación
-        remote_with_token = repo_url.replace("https://", f"https://x-token:{token}@")
+    docs_dir = os.path.join(os.path.dirname(__file__), "..", "Docs")
+    docs_dir = os.path.abspath(docs_dir)
 
-        env = {**os.environ, "GIT_AUTHOR_NAME": "Atena Admin", "GIT_AUTHOR_EMAIL": "atena@konradlorenz.edu.co",
-               "GIT_COMMITTER_NAME": "Atena Admin", "GIT_COMMITTER_EMAIL": "atena@konradlorenz.edu.co"}
+    if not os.path.isdir(docs_dir):
+        raise HTTPException(status_code=404, detail="Carpeta Docs/ no encontrada en el servidor.")
 
-        base = "/app"  # ruta en Docker; en local usar os.getcwd()
-        if not os.path.exists(os.path.join(base, ".git")):
-            base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    archivos = [f for f in os.listdir(docs_dir) if f.lower().endswith((".pdf", ".docx"))]
+    if not archivos:
+        raise HTTPException(status_code=404, detail="No hay documentos en Docs/ para publicar.")
 
-        def run(cmd):
-            r = subprocess.run(cmd, cwd=base, capture_output=True, text=True, env=env)
-            if r.returncode != 0:
-                raise RuntimeError(r.stderr or r.stdout)
-            return r.stdout.strip()
+    headers_gh = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "Atena-Admin/4.0",
+    }
 
-        run(["git", "config", "user.email", "atena@konradlorenz.edu.co"])
-        run(["git", "config", "user.name", "Atena Admin"])
-        run(["git", "add", "Docs/", "backend/chroma_neuro_db/", "chroma_neuro_db/"])
-        status = run(["git", "status", "--porcelain"])
+    def gh_request(method: str, path: str, body: dict | None = None):
+        url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+        data = _json.dumps(body).encode() if body else None
+        req  = urllib.request.Request(url, data=data, headers=headers_gh, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return _json.loads(resp.read()), resp.status
+        except urllib.error.HTTPError as e:
+            return _json.loads(e.read()), e.code
 
-        if not status:
-            return {"ok": True, "mensaje": "No hay cambios nuevos para publicar. Los documentos ya están sincronizados."}
+    subidos, omitidos, errores = [], [], []
 
-        run(["git", "commit", "-m", "docs(lab): actualizar documentos y base vectorial desde panel admin"])
-        run(["git", "remote", "set-url", "origin", remote_with_token])
-        run(["git", "push", "origin", "main"])
-        run(["git", "remote", "set-url", "origin", repo_url])  # limpiar token de la url
+    for nombre in archivos:
+        ruta_local = os.path.join(docs_dir, nombre)
+        github_path = f"Docs/{nombre}"
 
-        logger.info("Documentos publicados exitosamente en GitHub desde el panel admin.")
-        return {
-            "ok": True,
-            "mensaje": "Documentos publicados en GitHub. Render redesplegará en ~2 minutos y los cambios serán permanentes."
+        with open(ruta_local, "rb") as f:
+            contenido_b64 = base64.b64encode(f.read()).decode()
+
+        # Verificar si ya existe en GitHub (para obtener el SHA y actualizar)
+        existente, status_get = gh_request("GET", github_path)
+        sha = existente.get("sha") if status_get == 200 else None
+
+        payload = {
+            "message": f"docs(lab): {'actualizar' if sha else 'agregar'} {nombre} desde panel admin",
+            "content": contenido_b64,
+            "branch":  branch,
         }
+        if sha:
+            payload["sha"] = sha
 
-    except Exception as e:
-        logger.error(f"Error al publicar en GitHub: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al publicar: {str(e)[:200]}")
+        method = "PUT"
+        resp, status_put = gh_request(method, github_path, payload)
+
+        if status_put in (200, 201):
+            subidos.append(nombre)
+            logger.info(f"Publicado en GitHub: {nombre}")
+        elif status_put == 422 and sha:
+            omitidos.append(nombre)  # sin cambios
+        else:
+            errores.append(f"{nombre}: {resp.get('message', status_put)}")
+            logger.error(f"Error publicando {nombre}: {resp}")
+
+    if errores:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Algunos archivos fallaron: {'; '.join(errores)}"
+        )
+
+    if not subidos and omitidos:
+        return {"ok": True, "mensaje": "Los documentos ya estaban sincronizados en GitHub. No hay cambios nuevos."}
+
+    return {
+        "ok": True,
+        "publicados": subidos,
+        "mensaje": (
+            f"{len(subidos)} documento(s) publicado(s) en GitHub "
+            f"({', '.join(subidos)}). "
+            "Render redesplegará automáticamente en ~2 minutos y quedarán permanentes."
+        ),
+    }
 
 
 @app.delete("/api/admin/delete/{filename}", tags=["Admin"])
