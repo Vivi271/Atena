@@ -150,28 +150,47 @@ async function eliminarDoc(nombre, btn) {
  }
 }
 
+// ── Cambios pendientes de publicar ─────────────────────────────────────
+// El botón "Publicar" inicia deshabilitado y solo se activa tras subir/reindexar
+function marcarCambiosPendientes(hay) {
+  const btn = document.getElementById('btn-publicar');
+  const msg = document.getElementById('publicar-msg');
+  if (!btn) return;
+  if (hay) {
+    btn.disabled = false;
+    btn.title = 'Hay documentos nuevos sin publicar.';
+    msg.textContent = 'Cambios pendientes. Pulsa "Publicar en la nube" para guardarlos permanentemente en GitHub.';
+    msg.style.cssText = 'display:block;padding:10px 14px;border-radius:8px;font-size:0.85rem;background:rgba(251,191,36,0.1);color:#b45309;border:1px solid rgba(251,191,36,0.4);margin-bottom:14px;';
+  } else {
+    btn.disabled = true;
+    btn.title = 'No hay cambios pendientes de publicar.';
+    msg.style.display = 'none';
+  }
+}
+
 async function reindexar() {
- if (!confirm('¿Reconstruir todo el índice vectorial?\nPuede tomar varios minutos.')) return;
- const btn = document.getElementById('btn-rebuild');
- btn.disabled = true;
- btn.innerHTML = '<span class="spinner"></span> Indexando…';
- try {
- const r = await fetch(`${API_BASE}/api/admin/rebuild`, {
- method: 'POST',
- headers: { 'X-Admin-Pin': adminPin },
- });
- const data = await r.json();
- if (r.ok) {
- alert(` Reindexado. ${data.total_vectores ?? '?'} vectores generados.`);
- } else {
- alert(`Error: ${data.detail || r.status}`);
- }
- } catch (e) {
- alert(`Error: ${e.message}`);
- } finally {
- btn.disabled = false;
- btn.textContent = 'Reindexar todo';
- }
+  if (!confirm('¿Reconstruir todo el índice vectorial?\nPuede tomar varios minutos.')) return;
+  const btn = document.getElementById('btn-rebuild');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Indexando…';
+  try {
+    const r = await fetch(`${API_BASE}/api/admin/rebuild`, {
+      method: 'POST',
+      headers: { 'X-Admin-Pin': adminPin },
+    });
+    const data = await r.json();
+    if (r.ok) {
+      alert(`Reindexado. ${data.total_vectores ?? '?'} vectores generados.`);
+      marcarCambiosPendientes(true);
+    } else {
+      alert(`Error: ${data.detail || r.status}`);
+    }
+  } catch (e) {
+    alert(`Error: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Reindexar todo';
+  }
 }
 
 
@@ -187,11 +206,13 @@ async function publicarEnNube() {
     msg.style.border  = '1px solid ' + (ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)');
   }
 
-  if (!confirm('¿Publicar en GitHub?\nRender redesplegará en ~2 minutos y los documentos serán permanentes.')) return;
+  if (!confirm(
+    'Se publicarán los documentos y vectores actuales en GitHub.\n' +
+    'Render redesplegará automáticamente en ~2 minutos.\n\n¿Continuar?'
+  )) return;
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Publicando…';
-  msg.style.display = 'none';
 
   try {
     const r = await fetch(`${API_BASE}/api/admin/publicar`, {
@@ -199,11 +220,17 @@ async function publicarEnNube() {
       headers: { 'X-Admin-Pin': adminPin },
     });
     const data = await r.json();
-    setMsg(data.mensaje || data.detail || 'Listo.', r.ok);
+    if (r.ok) {
+      setMsg(data.mensaje, true);
+      marcarCambiosPendientes(false);  // desactivar: ya no hay cambios pendientes
+    } else {
+      setMsg(data.detail || 'Error al publicar.', false);
+      btn.disabled = false;  // permitir reintentar
+    }
   } catch(e) {
     setMsg('Error de red: ' + e.message, false);
-  } finally {
     btn.disabled = false;
+  } finally {
     btn.textContent = 'Publicar en la nube';
   }
 }
@@ -238,7 +265,8 @@ async function subirArchivos(files) {
  const data = await r.json();
  if (r.ok) {
  prog.innerHTML = `<div class="alert alert-success"><strong>${escHtml(file.name)}</strong> subido. ${data.fragmentos_indexados ?? 0} fragmentos indexados.</div>`;
- } else {
+      marcarCambiosPendientes(true);
+    } else {
  prog.innerHTML = `<div class="alert alert-error"> Error al subir <strong>${escHtml(file.name)}</strong>: ${escHtml(data.detail || r.status)}</div>`;
  }
  } catch (e) {
