@@ -463,14 +463,17 @@ async def obtener_preguntas_evaluacion(
     )
 
 
-# ── Admin: autenticación por PIN ──────────────────────────────────────────────
+# ── Admin: autenticación por PIN (PIN se lee de Supabase, cambiable desde el panel) ──
 from fastapi import Header, UploadFile, File
 
-ADMIN_PIN = os.environ.get("ADMIN_PIN", "12345")
-
 def _verificar_pin(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
-    """Verifica que el header X-Admin-Pin coincida con ADMIN_PIN."""
-    if x_admin_pin != ADMIN_PIN:
+    """Verifica el PIN contra el valor guardado en Supabase (o env var como fallback)."""
+    try:
+        from db_metrics import get_pin
+        pin_correcto = get_pin()
+    except Exception:
+        pin_correcto = os.environ.get("ADMIN_PIN", "12345")
+    if x_admin_pin != pin_correcto:
         raise HTTPException(status_code=403, detail="PIN de administrador incorrecto.")
 
 
@@ -678,6 +681,29 @@ async def stats_sesion(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
         "temas_frecuentes": [{"tema": w, "veces": c} for w, c in word_freq2.most_common(8)],
         "recientes": list(reversed(logs)),
     }
+
+
+# ── Cambio de PIN desde el panel (persiste en Supabase) ──────────────────────
+
+class CambiarPinRequest(BaseModel):
+    pin_actual: str
+    pin_nuevo: str
+
+@app.post("/api/admin/cambiar-pin", tags=["Admin"])
+async def cambiar_pin(
+    body: CambiarPinRequest,
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Cambia el PIN de administrador. El nuevo PIN se guarda en Supabase."""
+    _verificar_pin(x_admin_pin)
+    if len(body.pin_nuevo) < 4:
+        raise HTTPException(status_code=400, detail="El PIN debe tener al menos 4 caracteres.")
+    try:
+        from db_metrics import set_pin
+        set_pin(body.pin_nuevo)
+        return {"ok": True, "mensaje": "PIN actualizado correctamente."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar el PIN: {e}")
 
 
 @app.get("/diagnostico/db", tags=["Admin"])

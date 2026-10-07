@@ -717,30 +717,40 @@ async function cargarSistema() {
 }
 
 async function cambiarPin() {
- const actual = document.getElementById('pin-actual').value.trim();
- const nuevo = document.getElementById('pin-nuevo').value.trim();
- const confirmar = document.getElementById('pin-confirmar').value.trim();
- const msg = document.getElementById('pin-msg');
+  const actual    = document.getElementById('pin-actual').value.trim();
+  const nuevo     = document.getElementById('pin-nuevo').value.trim();
+  const confirmar = document.getElementById('pin-confirmar').value.trim();
+  const msg       = document.getElementById('pin-msg');
 
- function showMsg(text, ok) {
- msg.textContent = text;
- msg.style.display = 'block';
- msg.style.background = ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
- msg.style.color = ok ? '#22c55e' : '#ef4444';
- msg.style.border = '1px solid ' + (ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)');
- }
+  function showMsg(text, ok) {
+    msg.textContent = text;
+    msg.style.display = 'block';
+    msg.style.background = ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+    msg.style.color = ok ? '#22c55e' : '#ef4444';
+    msg.style.border = '1px solid ' + (ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)');
+  }
 
- if (!actual || !nuevo || !confirmar) return showMsg('Completa todos los campos.', false);
- if (nuevo.length < 4) return showMsg('La nueva contraseña debe tener al menos 4 caracteres.', false);
- if (nuevo !== confirmar) return showMsg('La nueva contraseña y la confirmación no coinciden.', false);
+  if (!actual || !nuevo || !confirmar) return showMsg('Completa todos los campos.', false);
+  if (nuevo.length < 4) return showMsg('El nuevo PIN debe tener al menos 4 caracteres.', false);
+  if (nuevo !== confirmar) return showMsg('El nuevo PIN y la confirmación no coinciden.', false);
 
- try {
- const r = await fetch(API_BASE + '/api/admin/documents', { headers: { 'X-Admin-Pin': actual } });
- if (r.status === 403) return showMsg('La contraseña actual es incorrecta.', false);
- showMsg('Para aplicar el cambio de contraseña, edita la variable ADMIN_PIN en el archivo .env del servidor y reinícialo.', false);
- } catch(e) {
- showMsg('No se pudo verificar: ' + e.message, false);
- }
+  try {
+    const r = await fetch(API_BASE + '/api/admin/cambiar-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': actual },
+      body: JSON.stringify({ pin_actual: actual, pin_nuevo: nuevo }),
+    });
+    const data = await r.json();
+    if (!r.ok) return showMsg(data.detail || 'PIN actual incorrecto.', false);
+    // Actualizar el PIN guardado localmente para que las peticiones sigan funcionando
+    localStorage.setItem('adminPin', nuevo);
+    document.getElementById('pin-actual').value = '';
+    document.getElementById('pin-nuevo').value = '';
+    document.getElementById('pin-confirmar').value = '';
+    showMsg('PIN actualizado correctamente. Usa el nuevo PIN en tu próximo ingreso.', true);
+  } catch(e) {
+    showMsg('Error de red: ' + e.message, false);
+  }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────

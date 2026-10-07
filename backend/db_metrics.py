@@ -22,6 +22,14 @@ CREATE TABLE IF NOT EXISTS evaluaciones (
     es_correcta BOOLEAN NOT NULL,
     explicacion TEXT NOT NULL
 );
+
+-- PIN de administrador (permite cambiarlo desde el panel sin tocar Render)
+CREATE TABLE IF NOT EXISTS configuracion (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+);
+INSERT INTO configuracion (clave, valor) VALUES ('admin_pin', '12345')
+    ON CONFLICT (clave) DO NOTHING;
 ────────────────────────────────────────────────────────
 """
 
@@ -256,3 +264,41 @@ def obtener_tendencia_aciertos_diaria(dias: int = 30) -> list:
         logger.error(f"{e}")
     return rows
 
+
+# ── PIN de administrador (persistido en Supabase) ─────────────────────────────
+
+def get_pin() -> str:
+    """
+    Lee el PIN de admin desde la tabla configuracion de Supabase.
+    Fallback: variable de entorno ADMIN_PIN, o '12345' si nada está configurado.
+    """
+    fallback = os.environ.get("ADMIN_PIN", "12345")
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT valor FROM configuracion WHERE clave = 'admin_pin'")
+            row = cur.fetchone()
+        conn.close()
+        return row[0] if row else fallback
+    except Exception as e:
+        logger.warning(f"No se pudo leer PIN de Supabase, usando fallback: {e}")
+        return fallback
+
+
+def set_pin(nuevo_pin: str) -> None:
+    """
+    Guarda el nuevo PIN en Supabase. Crea la fila si no existe.
+    Lanza RuntimeError si falla.
+    """
+    conn = _get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO configuracion (clave, valor) VALUES ('admin_pin', %s)
+                       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor""",
+                    (nuevo_pin,)
+                )
+        logger.info("PIN de administrador actualizado en Supabase.")
+    finally:
+        conn.close()
