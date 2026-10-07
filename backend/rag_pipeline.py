@@ -107,8 +107,6 @@ embeddings_model = ONNXMiniLMEmbeddings()
 # LLM: Groq API con OpenAI GPT OSS 120B (alta precisión, sin límite para estudiantes)
 GROQ_LLM_MODEL = os.getenv("GROQ_LLM_MODEL", "openai/gpt-oss-120b")
 GROQ_EMBED_MODEL = EMBED_MODEL_NAME  # referencia para compatibilidad con api.py
-GEMINI_LLM_MODEL = GROQ_LLM_MODEL   # compatibilidad hacia atrás con sidebar y UI
-GEMINI_EMBED_MODEL = EMBED_MODEL_NAME
 
 from config import nombre_legible
 
