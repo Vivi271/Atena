@@ -417,12 +417,33 @@ function responder(idx) {
  quizRespondida = true;
  const q = quizPreguntas[quizIndice];
  const correctaIdx = q.respuestas.findIndex(r => r.es_correcta);
- if (idx === correctaIdx) quizAciertos++;
+ const acerto = idx === correctaIdx;
+ if (acerto) quizAciertos++;
+
+ // Colorear opciones
  document.querySelectorAll('.quiz-option').forEach((btn, i) => {
- btn.disabled = true;
- if (i === correctaIdx) btn.classList.add('correct');
- else if (i === idx) btn.classList.add('wrong');
+  btn.disabled = true;
+  if (i === correctaIdx) {
+   btn.style.background = 'rgba(34,197,94,0.15)';
+   btn.style.borderColor = '#22c55e';
+   btn.style.color = '#22c55e';
+  } else if (i === idx && !acerto) {
+   btn.style.background = 'rgba(239,68,68,0.12)';
+   btn.style.borderColor = '#ef4444';
+   btn.style.color = '#ef4444';
+  }
  });
+
+ // Feedback de texto claro
+ const exp = document.getElementById('quiz-explanation');
+ if (acerto) {
+  exp.style.cssText = 'margin-top:14px;padding:12px 16px;border-radius:10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#22c55e;font-size:0.88rem;font-weight:500;';
+  exp.textContent = 'Correcto.';
+ } else {
+  const textoCorrecta = q.respuestas[correctaIdx]?.texto || '';
+  exp.style.cssText = 'margin-top:14px;padding:12px 16px;border-radius:10px;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.35);color:#ef4444;font-size:0.88rem;';
+  exp.innerHTML = `Incorrecto. La respuesta correcta es: <strong>${textoCorrecta}</strong>`;
+ }
  document.getElementById('quiz-nav').style.display = 'block';
 }
 
