@@ -1,89 +1,70 @@
-# 🧠 Atena — Consultor RAG de Neuroanatomía
+# Atena — Consultor RAG de Neuroanatomía
 
-Sistema de Inteligencia Artificial que actúa como **consultor científico especializado en neuroanatomía**. Diseñado para responder consultas académicas y clínicas basándose **exclusivamente** en literatura científica indexada, implementando una arquitectura **RAG (Retrieval-Augmented Generation)** de ultra-alto rendimiento conectada con **Groq Cloud LPU** y expuesta mediante una **API REST en FastAPI** para su integración en tiempo real con aplicaciones de Realidad Aumentada (**Unity — NeuroK AR**) y plataformas web.
+Sistema de Inteligencia Artificial que actúa como **consultor científico especializado en neuroanatomía**. Diseñado para responder consultas académicas y clínicas basándose **exclusivamente** en literatura científica indexada, implementando una arquitectura **RAG (Retrieval-Augmented Generation)** conectada con **Groq Cloud LPU** y expuesta mediante una **API REST en FastAPI**.
 
 ---
 
-## 📌 Descripción General
+## Descripción General
 
-**Atena** procesa textos académicos y libros de referencia en neuroanatomía (formato PDF y DOCX), los fragmenta e indexa vectorialmente mediante **ChromaDB con ONNX Runtime** (`all-MiniLM-L6-v2`). Ante las consultas de estudiantes, docentes e investigadores, el sistema aplica **Búsqueda Híbrida** y **Fuzzy Matching** (tolerancia a errores tipográficos frecuentes en pantallas táctiles) para recuperar la evidencia más relevante, inyectándola como contexto estricto a un procesador de lenguaje de última generación (**Groq LPU — `openai/gpt-oss-120b`**).
-
-El sistema garantiza respuestas de latencia sub-segundo (< 0.9s), cero alucinaciones y citas bibliográficas exactas por documento y página.
+**Atena** procesa textos académicos en neuroanatomía (PDF y DOCX), los fragmenta e indexa vectorialmente con **ChromaDB + ONNX Runtime** (`all-MiniLM-L6-v2`). Ante las consultas de estudiantes, aplica **Búsqueda Híbrida** y **Fuzzy Matching** para recuperar la evidencia más relevante, inyectándola como contexto a un modelo de lenguaje de última generación (**Groq LPU — `openai/gpt-oss-120b`**).
 
 ### Características Principales
-- **Velocidad Extrema (Inferencia LPU):** Generación a más de **350 tokens/segundo** gracias al hardware determinista LPU de Groq.
-- **Cero Alucinaciones:** Respuestas fundamentadas únicamente en el corpus científico indexado con directiva de abstención si la información no está en los textos.
-- **Trazabilidad Académica Rigurosa:** Cada afirmación anatómica se referencia con el formato explícito `[Fuente X, pág. Y]`.
-- **Tolerancia a Errores Léxicos (Fuzzy Matching):** Corrección automática de términos neuroanatómicos mal digitados (`hipicampo` $\rightarrow$ `hipocampo`).
-- **Optimización Radical de Memoria (ONNX Runtime):** Consumo de RAM en servidor < 140 MB (ahorro del 73% frente a PyTorch), garantizando operación 24/7 estable en el plan gratuito de Render (límite 512 MiB).
-- **Doble Nivel Pedagógico:** Respuestas calibradas para nivel **Básico** (estudiantes iniciales/visitantes) y **Avanzado** (estudiantes de psicología, medicina e investigadores).
-- **API REST Multiplataforma:** Endpoints listos para ser consumidos desde **Unity (C#)**, móviles Android, web o herramientas analíticas.
-- **Persistencia en la Nube:** Despliegue en **Render.com** sincronizado con GitHub y base de datos **Supabase (PostgreSQL)** para el banco de preguntas, evaluaciones y métricas.
-- **Panel de Administración Web:** Gestión de documentos, banco de preguntas y estadísticas de uso protegido por PIN (`/admin.html`).
+
+- **Velocidad extrema:** Más de 350 tokens/segundo gracias al hardware LPU de Groq. Latencia < 0.9 s.
+- **Cero alucinaciones:** Respuestas fundamentadas únicamente en el corpus indexado, con directiva de abstención si la información no existe en los textos.
+- **Trazabilidad académica:** Cada afirmación se referencia con `[Fuente X, pág. Y]`.
+- **Fuzzy Matching:** Corrección automática de términos mal escritos (`hipicampo` → `hipocampo`).
+- **Bajo consumo de RAM:** ONNX Runtime < 140 MB (operación estable en Render plan gratuito de 512 MiB).
+- **Doble nivel pedagógico:** Respuestas para nivel **Básico** (estudiantes iniciales) y **Avanzado** (psicología, medicina, investigadores).
+- **API REST multiplataforma:** Endpoints para Unity (C#), móvil, web o herramientas analíticas.
+- **Persistencia en la nube:** Supabase (PostgreSQL) para banco de preguntas, evaluaciones y métricas de uso.
+- **Panel de Administración Web:** Gestión de documentos, banco de preguntas, estadísticas y cambio de PIN desde el navegador.
 
 ---
 
-## 🏛️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
-```mermaid
-flowchart TD
-    subgraph Clientes ["📱 Clientes & Interfaces"]
-        UNITY["🎮 Unity — NeuroK AR (App Móvil C#)"]
-        WEB["🖥️ Web HTML/CSS/JS — Chat + Panel Admin (frontend/web/static)"]
-        DOCS_UI["📖 Swagger UI (/docs)"]
-    end
-
-    subgraph API_Layer ["☁️ Capa de Servicios (Render.com)"]
-        API["⚡ api.py (FastAPI REST Service)"]
-        CONF["⚙️ config.py (Configuración & Mapeos)"]
-    end
-
-    subgraph RAG_Engine ["🧠 Motor RAG & Base de Conocimientos"]
-        RAG["rag_pipeline.py (Búsqueda Híbrida & Fuzzy Matching)"]
-        CHROMA["💾 ChromaDB Nativo (ONNX all-MiniLM-L6-v2 — <140 MB RAM)"]
-        DOCS["📚 Docs/ (Literatura Científica y Manuales 3D)"]
-    end
-
-    subgraph AI_Cloud ["⚡ Inferencia de Alta Velocidad (Groq Cloud)"]
-        LLM["Groq LPU (openai/gpt-oss-120b — >350 tok/s | Latencia <0.9s)"]
-    end
-
-    subgraph Persistence ["🗄️ Persistencia en la Nube"]
-        SUPABASE["Supabase PostgreSQL (Preguntas, Evaluaciones y Métricas)"]
-    end
-
-    UNITY -->|POST /consultar| API
-    WEB -->|/api/*| API
-    API --> SUPABASE
-    DOCS_UI --> API
-    API --> RAG
-    RAG --> CHROMA
-    RAG --> DOCS
-    RAG -->|Prompt Aumentado + Citas| LLM
+```
+Clientes
+├── Unity / NeuroK AR (C#)  ──────────────────────────────┐
+├── Web — Chat + Panel Admin (frontend/web/static/)        │ POST /consultar
+└── Swagger UI (/docs)                                     │ GET  /api/*
+                                                           ▼
+                              api.py  (FastAPI — Render.com Docker)
+                                  │
+                    ┌─────────────┴──────────────┐
+                    ▼                            ▼
+           rag_pipeline.py               db_metrics.py / db_preguntas.py
+       (Búsqueda híbrida + Fuzzy)       (Supabase PostgreSQL)
+                    │
+       ┌────────────┴────────────┐
+       ▼                         ▼
+ChromaDB + ONNX               Groq Cloud LPU
+(all-MiniLM-L6-v2)       (openai/gpt-oss-120b)
 ```
 
 ---
 
-## 🌐 Servicios en la Nube (Producción)
+## Servicios en la Nube (Producción)
 
-| Servicio | URL / Acceso | Descripción |
-|---|---|---|
-| **API REST en Producción** | `https://atena-vugz.onrender.com` | Backend en la nube (Render.com Docker) |
-| **Documentación Interactiva (Swagger)** | [https://atena-vugz.onrender.com/docs](https://atena-vugz.onrender.com/docs) | Pruebas interactivas de endpoints |
-| **Health Check** | [https://atena-vugz.onrender.com/salud](https://atena-vugz.onrender.com/salud) | Estado de salud y verificación de base vectorial |
-| **Interfaz Web y Panel Admin** | `https://atena-vugz.onrender.com` · `/admin.html` | Chat de consulta y administración (servidos por FastAPI) |
-| **Base de Datos** | Supabase (PostgreSQL) | Banco de preguntas, evaluaciones y métricas |
-| **Manual Técnico Completo** | [Otros/Manual_Tecnico_Atena_NeuroK.md](Otros/Manual_Tecnico_Atena_NeuroK.md) | Guía técnica detallada de infraestructura |
-| **Informe Técnico y Justificación** | [Otros/Informe_Justificacion_Tecnica_Gemini_vs_Ollama.docx](Otros/Informe_Justificacion_Tecnica_Gemini_vs_Ollama.docx) | Comparativa empírica de hardware y arquitectura |
+| Servicio | URL / Acceso |
+|---|---|
+| API REST | `https://atena-vugz.onrender.com` |
+| Swagger (Documentación) | `https://atena-vugz.onrender.com/docs` |
+| Health Check | `https://atena-vugz.onrender.com/salud` |
+| Chat web | `https://atena-vugz.onrender.com` |
+| Panel de administración | `https://atena-vugz.onrender.com/admin.html` |
+| Base de datos | Supabase (PostgreSQL) |
 
 ---
 
-## 🚀 Endpoints de la API REST
+## Endpoints de la API REST
 
-### 1. `POST /consultar`
-Recibe una consulta de neuroanatomía y devuelve la respuesta del consultor con fuentes bibliográficas y números de página.
+### `POST /consultar`
 
-**Request (JSON):**
+Recibe una consulta de neuroanatomía y devuelve la respuesta del consultor con fuentes bibliográficas.
+
+**Request:**
 ```json
 {
   "pregunta": "¿Cuáles son las funciones del hipocampo?",
@@ -92,66 +73,120 @@ Recibe una consulta de neuroanatomía y devuelve la respuesta del consultor con 
 }
 ```
 
-**Response (JSON):**
+**Response:**
 ```json
 {
-  "respuesta": "El hipocampo es una estructura fundamental del sistema límbico ubicada en el lóbulo temporal medial, esencial para la consolidación de la memoria a largo plazo y la navegación espacial [Neuroanatomia clinica 26va Edición - Lange.pdf, pág. 214]...",
+  "respuesta": "El hipocampo es una estructura del sistema límbico... [Neuroanatomia clinica.pdf, pág. 214]",
   "fuentes": [
     {
-      "fuente": "Neuroanatomia clinica  26va Edición - Lange.pdf",
+      "fuente": "Neuroanatomia clinica 26va Edición - Lange.pdf",
       "pagina": 214,
-      "fragmento": "El hipocampo forma parte del arquicórtex y desempeña un papel central en la consolidación de la memoria declarativa..."
+      "fragmento": "El hipocampo forma parte del arquicórtex..."
     }
   ],
   "nivel": "avanzado"
 }
 ```
 
-### 2. `GET /salud`
-Verifica la disponibilidad del servidor y comprueba el número de fragmentos indexados en ChromaDB:
+### `GET /salud`
+
 ```json
 {
   "estado": "activo",
   "servicio": "Atena API REST",
   "version": "3.0.0",
+  "vector_store_listo": true,
   "documentos_indexados": 352
 }
 ```
 
-### 3. `GET /info`
+### `GET /info`
+
 Retorna información técnica sobre los modelos activos y capacidades del pipeline.
 
----
+### Endpoints de Admin (requieren header `X-Admin-Pin`)
 
-## 🎮 Integración con Unity (C#)
-
-Para conectar la app móvil de Realidad Aumentada (**NeuroK AR**) con Atena, se utiliza el cliente en C#:
-
-- **Archivo C#:** [`AtenaClient.cs`](frontend/unity/AtenaClient.cs)
-- **Uso en Unity:**
-  ```csharp
-  AtenaClient.Instance.ConsultarAsistente(
-      "¿Qué es la sustancia negra?",
-      "avanzado",
-      (response) => {
-          Debug.Log("Respuesta IA: " + response.respuesta);
-          // Actualizar UI del Canvas en Unity
-      },
-      (error) => {
-          Debug.LogError("Error de red: " + error);
-      }
-  );
-  ```
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/admin/documents` | Lista documentos indexados |
+| `POST` | `/api/admin/upload` | Sube y vectoriza un nuevo documento |
+| `DELETE` | `/api/admin/documents/{nombre}` | Elimina un documento del índice |
+| `GET` | `/api/admin/stats_sesion` | Estadísticas de uso (desde Supabase) |
+| `POST` | `/api/admin/cambiar-pin` | Cambia el PIN de acceso al panel |
+| `GET` | `/api/admin/preguntas` | Lista el banco de preguntas |
+| `POST` | `/api/admin/preguntas` | Agrega una pregunta de evaluación |
+| `PUT` | `/api/admin/preguntas/{id}` | Edita una pregunta |
+| `DELETE` | `/api/admin/preguntas/{id}` | Elimina una pregunta |
+| `GET` | `/diagnostico/db` | Verifica conectividad con Supabase |
 
 ---
 
-## 🛠️ Ejecución Local (Desarrollo)
+## Tablas en Supabase
 
-### Requisitos Previos
+Ejecutar una sola vez en el SQL Editor de Supabase:
+
+```sql
+-- Consultas de usuarios al RAG
+CREATE TABLE IF NOT EXISTS consultas (
+    id BIGSERIAL PRIMARY KEY,
+    fecha TIMESTAMPTZ DEFAULT NOW(),
+    pregunta TEXT NOT NULL,
+    respuesta TEXT NOT NULL,
+    nivel TEXT NOT NULL,
+    latencia REAL
+);
+
+-- Respuestas de evaluaciones (quiz)
+CREATE TABLE IF NOT EXISTS evaluaciones (
+    id BIGSERIAL PRIMARY KEY,
+    fecha TIMESTAMPTZ DEFAULT NOW(),
+    pregunta TEXT NOT NULL,
+    respuesta_usuario TEXT NOT NULL,
+    respuesta_correcta TEXT NOT NULL,
+    es_correcta BOOLEAN NOT NULL,
+    explicacion TEXT NOT NULL
+);
+
+-- PIN de administrador (cambiable desde el panel)
+CREATE TABLE IF NOT EXISTS configuracion (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+);
+INSERT INTO configuracion (clave, valor) VALUES ('admin_pin', '12345')
+    ON CONFLICT (clave) DO NOTHING;
+```
+
+---
+
+## Integración con Unity (C#)
+
+```csharp
+AtenaClient.Instance.ConsultarAsistente(
+    "¿Qué es la sustancia negra?",
+    "avanzado",
+    (response) => {
+        Debug.Log("Respuesta IA: " + response.respuesta);
+    },
+    (error) => {
+        Debug.LogError("Error de red: " + error);
+    }
+);
+```
+
+Archivo: [`frontend/unity/AtenaClient.cs`](frontend/unity/AtenaClient.cs)
+
+---
+
+## Ejecución Local (Desarrollo)
+
+### Requisitos
+
 - Python 3.10 o 3.11
-- Clave de API de Groq Cloud (`GROQ_API_KEY`) obtenida gratuitamente en [console.groq.com](https://console.groq.com)
+- Clave de API de Groq Cloud: [console.groq.com](https://console.groq.com)
+- URL de conexión a Supabase (PostgreSQL)
 
 ### Instalación
+
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/Vivi271/Atena.git
@@ -159,42 +194,81 @@ cd Atena
 
 # 2. Crear y activar entorno virtual
 python3 -m venv env
-source env/bin/activate  # En Windows: env\Scripts\activate
+source env/bin/activate       # Windows: env\Scripts\activate
 
 # 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Configurar variables de entorno en .env
-GROQ_API_KEY=gsk_tu_clave_de_groq_aqui
+# 4. Crear archivo .env
+GROQ_API_KEY=gsk_tu_clave_aqui
 SUPABASE_DB_URL=postgresql://usuario:clave@host:5432/postgres
-ADMIN_PIN=1234
+ADMIN_PIN=12345
 ```
 
-### Iniciar el Servidor Local
-
-FastAPI sirve tanto la API como la interfaz web:
+### Iniciar servidor
 
 ```bash
 PYTHONPATH=backend uvicorn backend.api:app --reload --port 8080
 ```
 
-- Chat web: http://localhost:8080
-- Panel admin: http://localhost:8080/admin.html
-- Swagger: http://localhost:8080/docs
+| URL | Descripción |
+|---|---|
+| `http://localhost:8080` | Chat web |
+| `http://localhost:8080/admin.html` | Panel de administración |
+| `http://localhost:8080/docs` | Swagger / Documentación interactiva |
 
 ---
 
-## 📚 Literatura Científica Indexada
+## Panel de Administración
 
-1. **Neuroanatomía Clínica (26ª Edición)** — *Stephen G. Waxman (Lange / McGraw-Hill)*.
-2. **El Cerebro y la Conducta: Neuroanatomía para Psicólogos** — *David L. Clark, Nash N. Boutros, Mario F. Mendez*.
-3. **Manual de Modelo Neuroanatómico 3D** — *Laboratorio de Neurociencias Aplicadas (NeuroK)*.
+Accesible en `/admin.html`, protegido por PIN. Funcionalidades:
+
+- **Documentos:** Ver, subir y eliminar documentos del índice vectorial en tiempo real.
+- **Banco de preguntas:** Crear, editar y eliminar preguntas de evaluación por nivel.
+- **Estadísticas:** Consultas históricas desde Supabase — total, latencia promedio, distribución por nivel, temas frecuentes y listado filtrable.
+- **Sistema:** Estado de salud del servidor, banco de evaluaciones y cambio de PIN desde el navegador (sin necesidad de acceder a Render).
 
 ---
 
-## 📄 Licencia y Créditos
+## Literatura Científica Indexada
 
-Proyecto desarrollado en el marco del trabajo de grado de la **Fundación Universitaria Konrad Lorenz** para el **Laboratorio de Neurociencias Aplicadas – NeuroK**.
+1. **Neuroanatomía Clínica (26.ª Edición)** — Stephen G. Waxman (Lange / McGraw-Hill)
+2. **El Cerebro y la Conducta: Neuroanatomía para Psicólogos** — Clark, Boutros, Mendez
+3. **Manual de Modelo Neuroanatómico 3D** — Laboratorio de Neurociencias Aplicadas (NeuroK)
+
+---
+
+## Estructura del Repositorio
+
+```
+Atena/
+├── backend/
+│   ├── api.py              # FastAPI — endpoints REST y panel admin
+│   ├── rag_pipeline.py     # Motor RAG: carga, chunking, vectorización, búsqueda
+│   ├── db_metrics.py       # Persistencia de métricas y PIN en Supabase
+│   ├── db_preguntas.py     # Banco de preguntas (Supabase)
+│   └── config.py           # Variables de entorno y configuración
+├── frontend/
+│   └── web/
+│       └── static/
+│           ├── index.html      # Chat web principal
+│           ├── admin.html      # Panel de administración
+│           ├── css/main.css    # Sistema de diseño (light/dark mode)
+│           └── js/
+│               ├── app.js      # Lógica del chat
+│               └── admin.js    # Lógica del panel admin
+├── Docs/                   # Literatura científica indexada (PDF/DOCX)
+├── tesis/                  # Scripts auxiliares para el documento de grado
+├── Dockerfile              # Imagen Docker para Render
+├── render.yaml             # Configuración de despliegue en Render.com
+└── requirements.txt        # Dependencias Python
+```
+
+---
+
+## Licencia y Créditos
+
+Proyecto desarrollado en el marco del trabajo de grado de la **Fundación Universitaria Konrad Lorenz** para el **Laboratorio de Neurociencias Aplicadas — NeuroK**.
 
 - **Autores:** Viviana Marcela García Valderrama — Braian Felipe Ramirez Ortiz
 - **Institución:** Fundación Universitaria Konrad Lorenz (2026)
