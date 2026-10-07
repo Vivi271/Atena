@@ -929,3 +929,125 @@ async function cambiarPin() {
  }
 })();
 
+
+// ── Vista previa Autoevaluación en Admin ─────────────────────────────
+let adminQuizPreguntas = [], adminQuizIndice = 0, adminQuizAciertos = 0, adminQuizNivel = 'Principiante';
+
+function abrirQuizAdmin() {
+  adminQuizPreguntas = []; adminQuizIndice = 0; adminQuizAciertos = 0;
+  const content = document.getElementById('admin-quiz-content');
+  if (!content) return;
+
+  const niveles = [
+    { key: 'Principiante', desc: 'Conceptos fundamentales' },
+    { key: 'General',      desc: 'Conocimiento intermedio' },
+    { key: 'Avanzado',     desc: 'Profundización clínica' },
+  ];
+  const botones = niveles.map(n => `
+    <button onclick="iniciarQuizAdmin('${n.key}')"
+      style="width:100%;text-align:left;background:var(--bg-input);border:1px solid var(--border);
+             border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;
+             transition:border-color .2s,transform .1s;color:var(--text-main);"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateX(3px)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+      <strong style="display:block;margin-bottom:2px;">${n.key}</strong>
+      <span style="font-size:0.82rem;color:var(--text-muted);">${n.desc}</span>
+    </button>`).join('');
+
+  content.innerHTML = `
+    <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:18px;">
+      Selecciona el nivel para previsualizar:
+    </p>
+    ${botones}
+    <button onclick="iniciarQuizAdmin('todos')"
+      style="width:100%;text-align:left;background:transparent;border:1px dashed var(--border);
+             border-radius:10px;padding:14px 18px;cursor:pointer;color:var(--text-muted);transition:border-color .2s;"
+      onmouseover="this.style.borderColor='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border)'">
+      <strong style="display:block;color:var(--text-main);margin-bottom:2px;">Todos los niveles</strong>
+      <span style="font-size:0.82rem;">Mezcla aleatoria</span>
+    </button>`;
+}
+
+async function iniciarQuizAdmin(nivel) {
+  adminQuizNivel = nivel;
+  adminQuizPreguntas = []; adminQuizIndice = 0; adminQuizAciertos = 0;
+  const content = document.getElementById('admin-quiz-content');
+  const nivelParam = nivel !== 'todos' ? `&nivel=${encodeURIComponent(nivel)}` : '';
+  content.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);">
+    <div class="spinner" style="border-top-color:var(--accent);margin:0 auto 12px;width:24px;height:24px;border-width:3px;"></div>
+    Cargando preguntas de ${nivel === 'todos' ? 'todos los niveles' : nivel}…</div>`;
+  try {
+    const r = await fetch(`${API_BASE}/api/evaluacion/preguntas?cantidad=10&aleatorio=true${nivelParam}`, {
+      headers: { 'X-Admin-Pin': adminPin }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!data.preguntas || data.preguntas.length === 0) {
+      content.innerHTML = `<p style="text-align:center;color:var(--text-muted);">No hay preguntas para este nivel.<br>
+        <small>Agrégalas en la sección Banco de Preguntas.</small></p>`;
+      return;
+    }
+    adminQuizPreguntas = data.preguntas;
+    renderAdminPregunta();
+  } catch(e) {
+    content.innerHTML = `<p style="text-align:center;color:#ef4444;">Error al cargar: ${e.message}</p>`;
+  }
+}
+
+function renderAdminPregunta() {
+  const q = adminQuizPreguntas[adminQuizIndice];
+  const total = adminQuizPreguntas.length;
+  const content = document.getElementById('admin-quiz-content');
+  const opcs = q.respuestas.map((r,i) => `
+    <button id="adm-opt-${i}" onclick="responderAdmin(${i},${r.es_correcta})"
+      style="width:100%;text-align:left;padding:12px 16px;margin-bottom:8px;
+             background:var(--bg-input);border:1px solid var(--border);border-radius:9px;
+             cursor:pointer;color:var(--text-main);font-size:0.9rem;transition:border-color .15s;"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      ${r.texto}
+    </button>`).join('');
+  content.innerHTML = `
+    <div style="font-size:0.78rem;color:var(--accent);font-weight:600;margin-bottom:6px;letter-spacing:.05em;">
+      PREGUNTA ${adminQuizIndice+1} DE ${total} · ${q.nivel?.toUpperCase()} · ${q.tema || ''}
+    </div>
+    <p style="font-size:1rem;font-weight:500;margin-bottom:18px;">${q.enunciado}</p>
+    <div id="adm-opciones">${opcs}</div>
+    <div id="adm-feedback" style="display:none;margin-top:14px;padding:12px 16px;border-radius:9px;font-size:0.88rem;"></div>`;
+}
+
+function responderAdmin(idx, esCorrecta) {
+  document.querySelectorAll('[id^="adm-opt-"]').forEach(b => b.disabled = true);
+  const fb = document.getElementById('adm-feedback');
+  if (esCorrecta) {
+    adminQuizAciertos++;
+    fb.style.cssText = 'display:block;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);border-radius:9px;padding:12px 16px;margin-top:14px;font-size:0.88rem;color:#22c55e;';
+    fb.textContent = 'Correcto.';
+  } else {
+    fb.style.cssText = 'display:block;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.35);border-radius:9px;padding:12px 16px;margin-top:14px;font-size:0.88rem;color:#ef4444;';
+    const correcta = adminQuizPreguntas[adminQuizIndice].respuestas.find(r => r.es_correcta);
+    fb.textContent = `Incorrecto. Respuesta correcta: ${correcta?.texto || ''}`;
+  }
+  const siguiente = adminQuizIndice + 1 < adminQuizPreguntas.length;
+  const btnLabel = siguiente ? 'Siguiente' : 'Ver resultado';
+  const content = document.getElementById('admin-quiz-content');
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-primary';
+  btn.style.marginTop = '14px';
+  btn.textContent = btnLabel;
+  btn.onclick = () => {
+    adminQuizIndice++;
+    if (adminQuizIndice < adminQuizPreguntas.length) {
+      renderAdminPregunta();
+    } else {
+      const pct = Math.round(adminQuizAciertos / adminQuizPreguntas.length * 100);
+      document.getElementById('admin-quiz-content').innerHTML = `
+        <div style="text-align:center;padding:20px;">
+          <div style="font-size:2.5rem;font-weight:700;color:var(--accent);">${pct}%</div>
+          <p style="color:var(--text-muted);margin-top:8px;">${adminQuizAciertos} de ${adminQuizPreguntas.length} correctas</p>
+          <button class="btn btn-primary" style="margin-top:18px;" onclick="abrirQuizAdmin()">Volver a intentar</button>
+        </div>`;
+    }
+  };
+  fb.after(btn);
+}

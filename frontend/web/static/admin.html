@@ -69,6 +69,13 @@
  </svg>
  Banco de Preguntas
  </button>
+ <button class="sidebar-item" onclick="showSection('quiz',this); abrirQuizAdmin()">
+ <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+ <polyline points="9 11 12 14 22 4"/>
+ <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+ </svg>
+ Autoevaluación
+ </button>
  <button class="sidebar-item" onclick="showSection('stats',this)">
  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
  <line x1="18" y1="20" x2="18" y2="10" />
@@ -217,6 +224,21 @@
  </div>
 
  <div id="preguntas-lista"></div>
+ </section>
+
+ <!-- ── SECCIÓN: AUTOEVALUACIÓN (preview para admin) ── -->
+ <section id="section-quiz" class="admin-section" style="display:none;margin-top:24px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+   <h2 style="margin:0;">Vista previa — Autoevaluación</h2>
+   <span style="font-size:0.82rem;color:var(--text-muted);margin-left:8px;">Así la ven los estudiantes</span>
+   <div style="margin-left:auto;">
+    <button class="btn btn-outline" onclick="abrirQuizAdmin()">&#8635; Reiniciar</button>
+   </div>
+  </div>
+  <div id="admin-quiz-content"
+   style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:640px;">
+   <p style="color:var(--text-muted);text-align:center;">Abriendo autoevaluación…</p>
+  </div>
  </section>
 
  <!-- ── SECCIÓN: ESTADÍSTICAS ── -->
