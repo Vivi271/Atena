@@ -389,16 +389,19 @@ async function cargarPreguntasQuiz() {
 }
 
 function renderPregunta() {
+ quizRespondida = false;  // reset explícito siempre
  const q = quizPreguntas[quizIndice];
  const total = quizPreguntas.length;
+ const nivelLabel = quizNivelSeleccionado === 'todos' ? 'Mixto' : quizNivelSeleccionado;
  document.getElementById('quiz-content').innerHTML = `
  <div class="quiz-progress"><div class="quiz-progress-fill" style="width:${(quizIndice/total)*100}%"></div></div>
  <div class="quiz-question">
- <div class="quiz-question-num">Pregunta ${quizIndice+1} de ${total} · ${escHtml(nivelActual)}${q.tema ? ' · ' + escHtml(q.tema) : ''}</div>
+ <div class="quiz-question-num">Pregunta ${quizIndice+1} de ${total} · ${escHtml(nivelLabel)}${q.tema ? ' · ' + escHtml(q.tema) : ''}</div>
  <div class="quiz-question-text">${escHtml(q.enunciado)}</div>
  <div class="quiz-options" id="quiz-options">
  ${q.respuestas.map((r,i) => `
- <button class="quiz-option" id="opt-${i}" onclick="responder(${i})" data-correcta="${r.es_correcta}">
+ <button class="quiz-option" id="opt-${i}" onclick="responder(${i})"
+   style="cursor:pointer;pointer-events:auto;">
  ${escHtml(r.texto)}
  </button>`).join('')}
  </div>
