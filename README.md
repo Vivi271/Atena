@@ -219,6 +219,39 @@ PYTHONPATH=backend uvicorn backend.api:app --reload --port 8080
 
 ---
 
+## Interfaz Web
+
+### Landing page (slider de diapositivas)
+
+La landing page está diseñada como una presentación de pantalla completa con transiciones fluidas:
+
+| Diapositiva | Contenido |
+|---|---|
+| 1 — Hero | Título, descripción, botones de acción, cerebro SVG animado, red neuronal en canvas |
+| 2 — Características | 6 tarjetas de funcionalidades con iconos SVG |
+| 3 — Cómo funciona | Flujo de 3 pasos + botones de acción + footer |
+
+Navegación: flechas `←` `→`, puntos indicadores, teclas de flecha del teclado y swipe táctil.
+
+### Autoevaluación
+
+Quiz de neuroanatomía accesible desde el navbar o el hero. Flujo:
+
+1. Selección de nivel: **Principiante / General / Avanzado / Todos los niveles**
+2. 10 preguntas aleatorias del nivel elegido
+3. Feedback inmediato por pregunta (colorea opción + mensaje "Correcto / Incorrecto — La respuesta correcta es: X")
+4. Resultado final con nota sobre 5.0 y porcentaje de aciertos
+
+### Responsividad
+
+| Breakpoint | Comportamiento |
+|---|---|
+| `> 900px` | Layout completo con dos columnas, navegación horizontal |
+| `≤ 900px` | Navbar colapsado (hamburguesa), hero en 1 columna, cerebro oculto |
+| `≤ 600px` | Chat panel full-width, flechas del slider al pie, texto compacto |
+
+---
+
 ## Panel de Administración
 
 Accesible en `/admin.html`, protegido por PIN. Funcionalidades:
