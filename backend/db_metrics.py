@@ -26,9 +26,12 @@ CREATE TABLE IF NOT EXISTS evaluaciones (
 """
 
 import os
+import logging
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
+
+logger = logging.getLogger("atena.db_metrics")
 
 load_dotenv()
 
@@ -65,7 +68,7 @@ def registrar_consulta(pregunta: str, respuesta: str, nivel: str, latencia: floa
                 )
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] No se pudo registrar la consulta: {e}")
+        logger.error(f"No se pudo registrar la consulta: {e}")
 
 
 # ── Registro de evaluaciones (quiz) ──────────────────────────────────────────
@@ -90,7 +93,7 @@ def registrar_evaluacion(
                 )
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] No se pudo registrar la evaluación: {e}")
+        logger.error(f"No se pudo registrar la evaluación: {e}")
 
 
 # ── Métricas para el panel de administración ─────────────────────────────────
@@ -98,7 +101,7 @@ def registrar_evaluacion(
 def obtener_metricas() -> dict:
     """
     Retorna un diccionario con estadísticas consolidadas para el
-    panel de administración de Streamlit.
+    panel de administración web.
     """
     stats = {
         "total_consultas": 0,
@@ -137,7 +140,7 @@ def obtener_metricas() -> dict:
                 )
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] Error al obtener métricas: {e}")
+        logger.error(f"Error al obtener métricas: {e}")
 
     return stats
 
@@ -155,7 +158,7 @@ def obtener_consultas_recientes(limite: int = 20) -> list:
             rows = [dict(r) for r in cur.fetchall()]
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] {e}")
+        logger.error(f"{e}")
     return rows
 
 
@@ -173,7 +176,7 @@ def obtener_preguntas_frecuentes(limite: int = 10) -> list:
             rows = [dict(r) for r in cur.fetchall()]
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] {e}")
+        logger.error(f"{e}")
     return rows
 
 
@@ -193,7 +196,7 @@ def obtener_volumen_diario(dias: int = 30) -> list:
             rows = [dict(r) for r in cur.fetchall()]
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] {e}")
+        logger.error(f"{e}")
     return rows
 
 
@@ -208,7 +211,7 @@ def obtener_distribucion_niveles() -> dict:
                 dist[row["nivel"]] = row["total"]
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] {e}")
+        logger.error(f"{e}")
     return dist
 
 
@@ -228,7 +231,7 @@ def obtener_precision_evaluaciones() -> list:
             rows = [dict(r) for r in cur.fetchall()]
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] {e}")
+        logger.error(f"{e}")
     return rows
 
 
@@ -250,6 +253,6 @@ def obtener_tendencia_aciertos_diaria(dias: int = 30) -> list:
             rows = [dict(r) for r in cur.fetchall()]
         conn.close()
     except Exception as e:
-        print(f"[DB ERROR] {e}")
+        logger.error(f"{e}")
     return rows
 

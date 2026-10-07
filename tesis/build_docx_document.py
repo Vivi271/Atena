@@ -846,7 +846,7 @@ def create_document():
     )
 
     # Guardar documento en carpeta Otros
-    output_dir = os.path.join(base_dir, "Otros")
+    output_dir = os.path.join(os.path.dirname(base_dir), "Otros")
     os.makedirs(output_dir, exist_ok=True)
     file_path = os.path.join(output_dir, "Informe_Justificacion_Tecnica_Gemini_vs_Ollama.docx")
     doc.save(file_path)

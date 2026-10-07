@@ -5,8 +5,12 @@ para ser consumidos desde Unity u otras aplicaciones externas.
 """
 
 import os
+import logging
 import sys
 from contextlib import asynccontextmanager
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
+logger = logging.getLogger("atena.api")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -26,15 +30,15 @@ vector_store = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global vector_store
-    print("🧠 Atena API — Cargando vector store...")
+    logger.info("Atena API — Cargando vector store...")
     try:
         from rag_pipeline import build_vector_store
         vector_store = build_vector_store(force_rebuild=False)
-        print("✅ Vector store listo.")
+        logger.info("Vector store listo.")
     except Exception as e:
-        print(f"❌ Error al cargar vector store: {e}")
+        logger.error(f"Error al cargar vector store: {e}")
     yield
-    print("🔴 Atena API — Cerrando.")
+    logger.info("Atena API — Cerrando.")
 
 
 # ── App ────────────────────────────────────────────────────────────────────────
@@ -52,12 +56,21 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
-
 import re
+from collections import deque
+import time as _time
+from datetime import datetime as _dt
+from fastapi import Header
+
+# ── Registro en memoria de consultas de la sesión actual ─────────────────────
+# Guarda las últimas 200 consultas desde que el servidor arrancó (sin BD)
+_SESSION_LOG: deque = deque(maxlen=200)
+_SESSION_START = _dt.now()
+
 
 # ── Formateador de texto para Unity (Rich Text) ────────────────────────────────
 def formatear_para_unity(texto: str) -> str:
@@ -239,6 +252,18 @@ class PreguntasEvaluacionResponse(BaseModel):
     preguntas: List[PreguntaEvaluacion]
 
 
+class PreguntaAdminRequest(BaseModel):
+    """Payload para crear o editar una pregunta de evaluación."""
+    nivel: str
+    tema: str
+    enunciado: str
+    opcion_a: str
+    opcion_b: str
+    opcion_c: str
+    opcion_d: str
+    correcta: str  # "A", "B", "C" o "D"
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 from fastapi.responses import FileResponse as _FileResponse
@@ -322,12 +347,32 @@ async def consultar_endpoint(body: ConsultaRequest):
 
     try:
         from rag_pipeline import consultar
+        t0 = _time.time()
         resultado = consultar(
             pregunta=body.pregunta.strip(),
             vector_store=vector_store,
             k=body.k,
             nivel=body.nivel,
         )
+        latencia = round(_time.time() - t0, 2)
+        # Registrar en log de sesión (en memoria, instantáneo, sin BD)
+        _SESSION_LOG.append({
+            "fecha": _dt.now().isoformat(timespec='seconds'),
+            "pregunta": body.pregunta.strip()[:120],
+            "nivel": body.nivel,
+            "latencia": latencia,
+        })
+        # Intentar guardar en Supabase (si está disponible) sin bloquear
+        try:
+            from db_metrics import registrar_consulta
+            registrar_consulta(
+                pregunta=body.pregunta.strip(),
+                respuesta=resultado.get("respuesta", ""),
+                nivel=body.nivel,
+                latencia=latencia,
+            )
+        except Exception:
+            pass  # Supabase no disponible, no es crítico
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el pipeline RAG: {str(e)}")
 
@@ -416,35 +461,6 @@ async def obtener_preguntas_evaluacion(
         cantidad=len(preguntas),
         preguntas=preguntas,
     )
-
-
-# ── Diagnóstico de base de datos (temporal, para depurar en Render) ───────────
-@app.get("/diagnostico/db", tags=["Sistema"])
-async def diagnostico_db():
-    """Verifica la conexión a Supabase y cuenta preguntas por nivel. Solo para depuración."""
-    resultado = {"db_url_configurada": False, "conexion": "error", "niveles": {}, "error": None}
-    try:
-        db_url = os.environ.get("SUPABASE_DB_URL", "")
-        resultado["db_url_configurada"] = bool(db_url)
-        resultado["db_url_preview"] = db_url[:30] + "..." if db_url else "(vacía)"
-
-        import psycopg2
-        # Limpia el URL igual que lo hace db_preguntas
-        url = db_url.replace('["', '').replace('"]', '').replace('[', '').replace(']', '').strip()
-        conn = psycopg2.connect(url)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT n.nombre, COUNT(p.id) FROM niveles n LEFT JOIN preguntas p ON p.nivel_id = n.id GROUP BY n.nombre ORDER BY n.nombre")
-        for nombre, total in cursor.fetchall():
-            resultado["niveles"][nombre] = total
-
-        cursor.close()
-        conn.close()
-        resultado["conexion"] = "ok"
-    except Exception as e:
-        resultado["error"] = str(e)
-
-    return resultado
 
 
 # ── Admin: autenticación por PIN ──────────────────────────────────────────────
@@ -569,14 +585,123 @@ async def reconstruir_vectorstore(
         raise HTTPException(status_code=500, detail=f"Error al reconstruir: {e}")
 
 
-# ── Arranque local ─────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("api:app", host="0.0.0.0", port=port, reload=False)
+
+# ── Estadísticas persistentes (Supabase) con fallback a sesión en RAM ────────
+
+@app.get("/api/admin/stats_sesion", tags=["Admin"])
+async def stats_sesion(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
+    """
+    Estadísticas de uso leídas desde Supabase (persistentes entre reinicios).
+    Si Supabase no está disponible, devuelve los datos de la sesión en RAM.
+    """
+    _verificar_pin(x_admin_pin)
+
+    # ── Intenta leer de Supabase ─────────────────────────────────────────────
+    try:
+        from db_metrics import (
+            _get_conn,
+            obtener_distribucion_niveles,
+            obtener_metricas,
+        )
+        import psycopg2.extras
+
+        conn = _get_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Total y latencia promedio
+            cur.execute("SELECT COUNT(*) AS total, AVG(latencia) AS lat_prom FROM consultas")
+            row = cur.fetchone()
+            total    = int(row["total"]) if row else 0
+            lat_prom = round(float(row["lat_prom"]), 2) if row and row["lat_prom"] else None
+
+            # Distribución por nivel
+            cur.execute("SELECT nivel, COUNT(*) AS cnt FROM consultas GROUP BY nivel ORDER BY cnt DESC")
+            por_nivel = {r["nivel"]: int(r["cnt"]) for r in cur.fetchall()}
+
+            # Palabras clave más frecuentes
+            cur.execute("SELECT pregunta FROM consultas ORDER BY fecha DESC LIMIT 500")
+            from collections import Counter
+            stop = {"qué","que","cual","cuál","como","cómo","es","son","de","del","en",
+                    "la","el","los","las","un","una","por","y","a","se","su","con",
+                    "para","al","lo","hay","sobre","me","mi","tiene","tienen"}
+            word_freq: Counter = Counter()
+            for r in cur.fetchall():
+                words = [w.lower().strip("¿?.,;:()") for w in r["pregunta"].split()]
+                word_freq.update(w for w in words if len(w) > 4 and w not in stop)
+            temas_frecuentes = [{"tema": w, "veces": c} for w, c in word_freq.most_common(8)]
+
+            # Últimas 200 consultas
+            cur.execute(
+                "SELECT fecha, pregunta, nivel, latencia FROM consultas ORDER BY fecha DESC LIMIT 200"
+            )
+            recientes = []
+            for r in cur.fetchall():
+                d = dict(r)
+                if d.get("fecha"):
+                    d["fecha"] = d["fecha"].isoformat()
+                recientes.append(d)
+
+        conn.close()
+        return {
+            "fuente": "supabase",
+            "total_consultas": total,
+            "lat_prom": lat_prom,
+            "por_nivel": por_nivel,
+            "temas_frecuentes": temas_frecuentes,
+            "recientes": recientes,
+        }
+
+    except Exception as db_err:
+        logger.warning(f"Supabase no disponible para stats, usando RAM: {db_err}")
+
+    # ── Fallback: datos de la sesión actual (RAM) ────────────────────────────
+    logs = list(_SESSION_LOG)
+    total = len(logs)
+    niveles: dict = {}
+    for e in logs:
+        n = e.get("nivel", "—")
+        niveles[n] = niveles.get(n, 0) + 1
+    lats = [e["latencia"] for e in logs if e.get("latencia") is not None]
+    lat_prom = round(sum(lats) / len(lats), 2) if lats else None
+    from collections import Counter
+    stop = {"qué","que","cual","cuál","como","cómo","es","son","de","del","en",
+            "la","el","los","las","un","una","por","y","a","se","su","con",
+            "para","al","lo","hay","sobre","me","mi","tiene","tienen"}
+    word_freq2: Counter = Counter()
+    for e in logs:
+        words = [w.lower().strip("¿?.,;:()") for w in e.get("pregunta","").split()]
+        word_freq2.update(w for w in words if len(w) > 4 and w not in stop)
+    return {
+        "fuente": "ram",
+        "total_consultas": total,
+        "lat_prom": lat_prom,
+        "por_nivel": niveles,
+        "temas_frecuentes": [{"tema": w, "veces": c} for w, c in word_freq2.most_common(8)],
+        "recientes": list(reversed(logs)),
+    }
+
+
+@app.get("/diagnostico/db", tags=["Admin"])
+async def diagnostico_db(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
+    """Verifica conectividad con Supabase y cuenta preguntas por nivel."""
+    _verificar_pin(x_admin_pin)
+    try:
+        from db_preguntas import get_connection
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT n.nombre, COUNT(p.id) FROM niveles n "
+            "LEFT JOIN preguntas p ON p.nivel_id = n.id "
+            "GROUP BY n.nombre ORDER BY n.nombre"
+        )
+        rows = cur.fetchall()
+        conn.close()
+        return {"conexion": "ok", "niveles": {r[0]: r[1] for r in rows}}
+    except Exception as e:
+        return {"conexion": "error", "detalle": str(e)[:120]}
 
 
 # ── Endpoints de Métricas y Registro (para frontend web) ──────────────────────
+
 
 class RegistrarEvaluacionRequest(BaseModel):
     pregunta: str
@@ -639,6 +764,85 @@ async def registrar_respuesta_evaluacion(
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al registrar evaluación: {e}")
+
+
+# ── Admin: CRUD de Preguntas de Evaluación ────────────────────────────────────
+
+@app.post("/api/admin/preguntas", tags=["Admin"])
+async def crear_pregunta_admin(
+    body: PreguntaAdminRequest,
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Crea una nueva pregunta de evaluación en la base de datos."""
+    _verificar_pin(x_admin_pin)
+    try:
+        from db_preguntas import agregar_pregunta
+        ok = agregar_pregunta(
+            nivel=body.nivel,
+            tema=body.tema,
+            enunciado=body.enunciado,
+            opcion_a=body.opcion_a,
+            opcion_b=body.opcion_b,
+            opcion_c=body.opcion_c,
+            opcion_d=body.opcion_d,
+            correcta=body.correcta,
+        )
+        if not ok:
+            raise HTTPException(status_code=400, detail="Nivel o tema no encontrado en la base de datos.")
+        return {"ok": True, "mensaje": "Pregunta creada correctamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear pregunta: {e}")
+
+
+@app.put("/api/admin/preguntas/{pregunta_id}", tags=["Admin"])
+async def actualizar_pregunta_admin(
+    pregunta_id: int,
+    body: PreguntaAdminRequest,
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Actualiza una pregunta de evaluación existente."""
+    _verificar_pin(x_admin_pin)
+    try:
+        from db_preguntas import actualizar_pregunta
+        ok = actualizar_pregunta(
+            pregunta_id=pregunta_id,
+            nivel=body.nivel,
+            tema=body.tema,
+            enunciado=body.enunciado,
+            opcion_a=body.opcion_a,
+            opcion_b=body.opcion_b,
+            opcion_c=body.opcion_c,
+            opcion_d=body.opcion_d,
+            correcta=body.correcta,
+        )
+        if not ok:
+            raise HTTPException(status_code=404, detail="Pregunta o nivel/tema no encontrado.")
+        return {"ok": True, "mensaje": "Pregunta actualizada correctamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar pregunta: {e}")
+
+
+@app.delete("/api/admin/preguntas/{pregunta_id}", tags=["Admin"])
+async def eliminar_pregunta_admin(
+    pregunta_id: int,
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Elimina una pregunta de evaluación y sus respuestas asociadas."""
+    _verificar_pin(x_admin_pin)
+    try:
+        from db_preguntas import eliminar_pregunta
+        ok = eliminar_pregunta(pregunta_id)
+        if not ok:
+            raise HTTPException(status_code=500, detail="No se pudo eliminar la pregunta.")
+        return {"ok": True, "mensaje": "Pregunta eliminada correctamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al eliminar pregunta: {e}")
 
 
 # ── Frontend estático (debe ir al final, después de todos los endpoints API) ───

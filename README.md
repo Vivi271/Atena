@@ -18,7 +18,8 @@ El sistema garantiza respuestas de latencia sub-segundo (< 0.9s), cero alucinaci
 - **Optimización Radical de Memoria (ONNX Runtime):** Consumo de RAM en servidor < 140 MB (ahorro del 73% frente a PyTorch), garantizando operación 24/7 estable en el plan gratuito de Render (límite 512 MiB).
 - **Doble Nivel Pedagógico:** Respuestas calibradas para nivel **Básico** (estudiantes iniciales/visitantes) y **Avanzado** (estudiantes de psicología, medicina e investigadores).
 - **API REST Multiplataforma:** Endpoints listos para ser consumidos desde **Unity (C#)**, móviles Android, web o herramientas analíticas.
-- **Persistencia en la Nube:** Despliegue en **Render.com** sincronizado con GitHub y base de datos NoSQL en **Firebase Firestore** para evaluaciones y analítica.
+- **Persistencia en la Nube:** Despliegue en **Render.com** sincronizado con GitHub y base de datos **Supabase (PostgreSQL)** para el banco de preguntas, evaluaciones y métricas.
+- **Panel de Administración Web:** Gestión de documentos, banco de preguntas y estadísticas de uso protegido por PIN (`/admin.html`).
 
 ---
 
@@ -28,7 +29,7 @@ El sistema garantiza respuestas de latencia sub-segundo (< 0.9s), cero alucinaci
 flowchart TD
     subgraph Clientes ["📱 Clientes & Interfaces"]
         UNITY["🎮 Unity — NeuroK AR (App Móvil C#)"]
-        WEB["🖥️ Streamlit — Interfaz Web (app.py)"]
+        WEB["🖥️ Web HTML/CSS/JS — Chat + Panel Admin (frontend/web/static)"]
         DOCS_UI["📖 Swagger UI (/docs)"]
     end
 
@@ -47,13 +48,13 @@ flowchart TD
         LLM["Groq LPU (openai/gpt-oss-120b — >350 tok/s | Latencia <0.9s)"]
     end
 
-    subgraph Persistence ["🔥 Persistencia en la Nube"]
-        FIREBASE["Firebase Firestore (Evaluaciones, Quizzes y Métricas)"]
+    subgraph Persistence ["🗄️ Persistencia en la Nube"]
+        SUPABASE["Supabase PostgreSQL (Preguntas, Evaluaciones y Métricas)"]
     end
 
     UNITY -->|POST /consultar| API
-    UNITY -->|Lectura / Escritura Quizzes| FIREBASE
-    WEB --> RAG
+    WEB -->|/api/*| API
+    API --> SUPABASE
     DOCS_UI --> API
     API --> RAG
     RAG --> CHROMA
@@ -70,7 +71,8 @@ flowchart TD
 | **API REST en Producción** | `https://atena-vugz.onrender.com` | Backend en la nube (Render.com Docker) |
 | **Documentación Interactiva (Swagger)** | [https://atena-vugz.onrender.com/docs](https://atena-vugz.onrender.com/docs) | Pruebas interactivas de endpoints |
 | **Health Check** | [https://atena-vugz.onrender.com/salud](https://atena-vugz.onrender.com/salud) | Estado de salud y verificación de base vectorial |
-| **Base de Datos NoSQL** | Firebase Cloud Firestore (`atena-2d765`) | Métricas, evaluaciones de quizzes e historial |
+| **Interfaz Web y Panel Admin** | `https://atena-vugz.onrender.com` · `/admin.html` | Chat de consulta y administración (servidos por FastAPI) |
+| **Base de Datos** | Supabase (PostgreSQL) | Banco de preguntas, evaluaciones y métricas |
 | **Manual Técnico Completo** | [Otros/Manual_Tecnico_Atena_NeuroK.md](Otros/Manual_Tecnico_Atena_NeuroK.md) | Guía técnica detallada de infraestructura |
 | **Informe Técnico y Justificación** | [Otros/Informe_Justificacion_Tecnica_Gemini_vs_Ollama.docx](Otros/Informe_Justificacion_Tecnica_Gemini_vs_Ollama.docx) | Comparativa empírica de hardware y arquitectura |
 
@@ -125,7 +127,7 @@ Retorna información técnica sobre los modelos activos y capacidades del pipeli
 
 Para conectar la app móvil de Realidad Aumentada (**NeuroK AR**) con Atena, se utiliza el cliente en C#:
 
-- **Archivo C#:** [`AtenaClient.cs`](AtenaClient.cs)
+- **Archivo C#:** [`AtenaClient.cs`](frontend/unity/AtenaClient.cs)
 - **Uso en Unity:**
   ```csharp
   AtenaClient.Instance.ConsultarAsistente(
@@ -164,23 +166,21 @@ pip install -r requirements.txt
 
 # 4. Configurar variables de entorno en .env
 GROQ_API_KEY=gsk_tu_clave_de_groq_aqui
-CHROMA_DB_DIR=chroma_neuro_db
-SECRET_PIN=1234
+SUPABASE_DB_URL=postgresql://usuario:clave@host:5432/postgres
+ADMIN_PIN=1234
 ```
 
-### Iniciar Servicios Locales
+### Iniciar el Servidor Local
 
-- **Iniciar API REST (FastAPI):**
-  ```bash
-  python3 api.py
-  # Disponible en http://localhost:8000/docs
-  ```
+FastAPI sirve tanto la API como la interfaz web:
 
-- **Iniciar Interfaz Web (Streamlit):**
-  ```bash
-  streamlit run app.py
-  # Disponible en http://localhost:8501
-  ```
+```bash
+PYTHONPATH=backend uvicorn backend.api:app --reload --port 8080
+```
+
+- Chat web: http://localhost:8080
+- Panel admin: http://localhost:8080/admin.html
+- Swagger: http://localhost:8080/docs
 
 ---
 

@@ -7,11 +7,14 @@ Versión 4.0: HuggingFace Embeddings (en contenedor) + Groq LLM
 """
 
 import os
+import logging
 import re
 import shutil
 import unicodedata
 import difflib
 from dotenv import load_dotenv
+
+logger = logging.getLogger("atena.rag_pipeline")
 
 # Forzar uso de PyTorch solamente — evita conflictos con TensorFlow instalado en el sistema
 os.environ.setdefault("USE_TF", "0")
@@ -72,7 +75,7 @@ def _load_any_document(file_path: str) -> list:
                 text = " ".join(n.text for n in root.findall(".//w:t", ns) if n.text)
             return [Document(page_content=text, metadata={"source": file_path, "page": 1})]
         except Exception as e:
-            print(f"  [!] Error leyendo Word {os.path.basename(file_path)}: {e}")
+            logger.warning(f"Error leyendo Word {os.path.basename(file_path)}: {e}")
             return []
     return []
 
@@ -111,25 +114,27 @@ from config import nombre_legible
 
 # ─────────────────────────────────────────────
 # 3. SYSTEM PROMPT — Identidad y Rol del Consultor en Neuroanatomía
-from config import RESPONSE_STRUCTURE_BASICO, RESPONSE_STRUCTURE_AVANZADO
+from config import RESPONSE_STRUCTURE_BASICO, RESPONSE_STRUCTURE_AVANZADO, nombre_cita
 
 SYSTEM_INSTRUCTION_BASICO = """Eres Atena, el consultor y tutor experto en neuroanatomía de la Fundación Universitaria Konrad Lorenz.
 Tu función es responder a las consultas con rigor científico, claridad conceptual y enfoque pedagógico basándote EXCLUSIVAMENTE en las fuentes documentales provistas.
 
 DIRECTRICES DE RESPUESTA (NIVEL BÁSICO):
 1. Claridad Pedagógica: Explica conceptos y funciones anatómicas de manera accesible, clara y didáctica para facilitar el aprendizaje.
-2. Fundamentación y Citas: Sustenta las afirmaciones anatómicas citando formalmente la fuente correspondiente al final de los conceptos clave [Fuente X, pág. Y].
+2. Fundamentación y Citas: Sustenta las afirmaciones citando el nombre del libro/fuente seguido de la página, por ejemplo: [Lange, pág. 18] o [Cerebro y Conducta, pág. 45]. USA SIEMPRE el nombre corto del libro que aparece en la etiqueta de cada fuente del contexto.
 3. Rigor Documental (Cero Alucinación): Usa únicamente la información de los fragmentos provistos. Si la información no figura en los textos, responde: "Lo siento, no cuento con esa información en la literatura disponible."
-4. Estructura Didáctica: Presenta las ideas mediante párrafos claros o listas organizadas cuando faciliten la comprensión del estudiante."""
+4. Estructura Didáctica: Presenta las ideas mediante párrafos cortos y listas con viñetas '•'.
+5. Formato para Chat y Unity: No uses tablas Markdown (|---|). Mantén una respuesta concisa y fácil de leer (máximo 150-200 palabras) optimizada para la ventana de chat y la interfaz de Unity."""
 
 SYSTEM_INSTRUCTION_AVANZADO = """Eres Atena, el especialista consultor en neuroanatomía clínica y funcional de la Fundación Universitaria Konrad Lorenz.
 Tu propósito es proveer análisis anatómicos de alta precisión, profundidad citoarquitectónica, vías de conectividad y correlatos clínicos basándote EXCLUSIVAMENTE en las fuentes provistas.
 
 DIRECTRICES DE RESPUESTA (NIVEL AVANZADO):
 1. Precisión Científica: Aborda la consulta con detalle morfofuncional, vías neurales, conexiones aferentes/eferentes y correlatos clínicos según la literatura.
-2. Fundamentación Documental: Cita con rigor académico las fuentes documentales correspondientes [Fuente X, pág. Y] para respaldar cada concepto relevante.
+2. Fundamentación Documental: Cita el nombre corto del libro o fuente seguido de la página, por ejemplo: [Lange, pág. 52] o [Cerebro y Conducta, pág. 130]. USA SIEMPRE el nombre corto del libro que aparece en la etiqueta de cada fuente del contexto.
 3. Rigor Documental (Cero Alucinación): Basa tus respuestas únicamente en los fragmentos provistos. No incorpores información externa ni especulaciones. Si un aspecto no está en los textos, indícalo explícitamente.
-4. Organización Analítica: Presenta explicaciones estructuradas por componentes anatómicos, circuitos o vías funcionales."""
+4. Organización Analítica: Presenta explicaciones estructuradas por componentes anatómicos, circuitos o vías funcionales usando viñetas '•' y negritas.
+5. Formato para Chat y Unity: NUNCA generes tablas Markdown (|---|), ya que se desbordan en interfaces compactas. Sintetiza la información en apartados claros y directos (máximo 200-250 palabras) aptos para lectura en chat y la interfaz de Unity."""
 
 PROMPT_TEMPLATE = """FUENTES DOCUMENTALES DE REFERENCIA:
 {context}
@@ -142,31 +147,13 @@ Respuesta:"""
 # (ver función _build_prompt), manteniendo este archivo libre de reglas de presentación.
 
 
-
-# ─────────────────────────────────────────────
-# 3.5. HELPER — Restaurar backup si el rebuild falla
-# ─────────────────────────────────────────────
-def _restaurar_backup(temp_dir: str, backup_dir: str, persist_dir: str) -> None:
-    """Limpia carpeta temporal y restaura el backup si existe."""
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-    if os.path.exists(backup_dir):
-        if os.path.exists(persist_dir):
-            shutil.rmtree(persist_dir)
-        shutil.copytree(backup_dir, persist_dir)
-        shutil.rmtree(backup_dir)
-        print("[RESTORE] ✅ Base de datos anterior restaurada exitosamente.")
-    else:
-        print("[RESTORE] ⚠️ No se encontró backup para restaurar.")
-
-
 import chromadb
 
 
 def _get_or_create_vector_store(persist_dir: str = PERSIST_DIR) -> Chroma:
     """
     Crea siempre un ChromaDB PersistentClient NUEVO para evitar usar clientes
-    obsoletos del caché de Streamlit que pueden apuntar a un SQLite ya borrado
+    obsoletos que pueden apuntar a un SQLite ya borrado
     o cuyo singleton interno fue detenido.
     """
     os.makedirs(persist_dir, exist_ok=True)
@@ -211,25 +198,25 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
                 vs = _get_or_create_vector_store(PERSIST_DIR)
                 count = vs._collection.count()
                 if count > 0:
-                    print(f"[OK] Cargando base vectorial existente desde: {PERSIST_DIR} ({count} fragmentos)")
+                    logger.info(f"Cargando base vectorial existente desde: {PERSIST_DIR} ({count} fragmentos)")
                     return vs
-                print("[INFO] Base vectorial existe pero está vacía.")
+                logger.info("Base vectorial existe pero está vacía.")
             except Exception as e:
-                print(f"[WARN] Error al verificar base existente ({e}). Intentando restaurar backup...")
+                logger.warning(f"Error al verificar base existente ({e}). Intentando restaurar backup...")
 
         if os.path.exists(PERMANENT_BACKUP):
             try:
-                print("[RESTORE] Restaurando DB desde backup permanente...")
+                logger.info("Restaurando DB desde backup permanente...")
                 if os.path.exists(PERSIST_DIR):
                     shutil.rmtree(PERSIST_DIR, ignore_errors=True)
                 shutil.copytree(PERMANENT_BACKUP, PERSIST_DIR)
                 vs = _get_or_create_vector_store(PERSIST_DIR)
                 count = vs._collection.count()
                 if count > 0:
-                    print(f"[RESTORE] ✔ DB restaurada exitosamente ({count} fragmentos)")
+                    logger.info(f"✔ DB restaurada exitosamente ({count} fragmentos)")
                     return vs
             except Exception as err:
-                print(f"[WARN] Fallo al restaurar desde backup: {err}")
+                logger.warning(f"Fallo al restaurar desde backup: {err}")
 
         # Si no se forzó reconstrucción y no hay DB válida, lanzar FileNotFoundError para que la UI no se congele
         raise FileNotFoundError("Base vectorial no encontrada o vacía.")
@@ -247,43 +234,43 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
     # PASO 1 — Carga de documentos (PDF y DOCX)
     docs_files = _get_docs_files()
     total_archivos = len(docs_files)
-    print(f"\n[PASO 1] Cargando documentos de neuroanatomía... ({total_archivos} archivos en Docs/)")
-    _progress(0.02, f"📂 Leyendo {total_archivos} documento(s)...")
+    logger.info(f"Cargando documentos de neuroanatomía... ({total_archivos} archivos en Docs/)")
+    _progress(0.02, f"Leyendo {total_archivos} documento(s)...")
     documents = []
     for idx, file_path in enumerate(docs_files):
         nombre = os.path.basename(file_path)
         if not os.path.exists(file_path):
-            print(f"  [!] Archivo no encontrado: {nombre}")
+            logger.warning(f"Archivo no encontrado: {nombre}")
             continue
-        _progress(0.02 + 0.08 * (idx / total_archivos), f"📄 Leyendo: {nombre}")
+        _progress(0.02 + 0.08 * (idx / total_archivos), f"Leyendo: {nombre}")
         pages = _load_any_document(file_path)
         documents.extend(pages)
-        print(f"  ✔ {nombre}: {len(pages)} páginas/secciones cargadas")
-    print(f"  Total de páginas/secciones cargadas: {len(documents)}")
+        logger.info(f"{nombre}: {len(pages)} páginas/secciones cargadas")
+    logger.info(f"Total de páginas/secciones cargadas: {len(documents)}")
 
     # PASO 2 — Chunking
-    _progress(0.12, f"✂️ Dividiendo en fragmentos ({len(documents)} páginas)...")
-    print("\n[PASO 2] Dividiendo en fragmentos (chunk_size=1800, overlap=250)...")
+    _progress(0.12, f"Dividiendo en fragmentos ({len(documents)} páginas)...")
+    logger.info("Dividiendo en fragmentos (chunk_size=1800, overlap=250)...")
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1800,
         chunk_overlap=250,
         separators=["\n\n", "\n", ".", " "],
     )
     chunks = splitter.split_documents(documents)
-    print(f"  Fragmentos generados: {len(chunks)}")
+    logger.info(f"Fragmentos generados: {len(chunks)}")
 
     # PASO 3 & 4 — Embeddings con Groq + ChromaDB
     BATCH_SIZE = 96  # Groq soporta hasta 96 textos por petición
     total_lotes = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
-    print(f"\n[PASO 3 & 4] Vectorizando con Groq ({GROQ_EMBED_MODEL})...")
-    print(f"  (lotes de {BATCH_SIZE} fragmentos, total {total_lotes} lotes)")
+    logger.info(f"Vectorizando con Groq ({GROQ_EMBED_MODEL})...")
+    logger.info(f"(lotes de {BATCH_SIZE} fragmentos, total {total_lotes} lotes)")
 
-    _progress(0.15, f"🧠 Vectorizando {len(chunks)} fragmentos en {total_lotes} lotes con ONNX...")
+    _progress(0.15, f"Vectorizando {len(chunks)} fragmentos en {total_lotes} lotes con ONNX...")
     if force_rebuild:
         try:
             _c = chromadb.PersistentClient(path=PERSIST_DIR)
             _c.delete_collection(COLLECTION_NAME)
-            print(f"[REBUILD] Colección '{COLLECTION_NAME}' renovada para inserción atómica.")
+            logger.info(f"Colección '{COLLECTION_NAME}' renovada para inserción atómica.")
         except Exception:
             pass
     vector_store = _get_or_create_vector_store(PERSIST_DIR)
@@ -294,12 +281,12 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
         numero_lote = i // BATCH_SIZE + 1
         pct_vectorizacion = 0.15 + 0.80 * (numero_lote / total_lotes)
         msg = (
-            f"🧠 Lote {numero_lote}/{total_lotes} — "
+            f"Lote {numero_lote}/{total_lotes} — "
             f"fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))} de {len(chunks)} "
             f"({int(pct_vectorizacion * 100)}%)"
         )
         _progress(pct_vectorizacion, msg)
-        print(f"  Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
+        logger.info(f"Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
 
         max_reintentos = 3
         exito = False
@@ -318,7 +305,7 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
             raise RuntimeError(f"Error vectorizando lote {numero_lote}/{total_lotes}: {ultimo_error}") from ultimo_error
 
     total = vector_store._collection.count() if vector_store is not None else 0
-    print(f"  ✔ DB actualizada en {os.path.basename(PERSIST_DIR)}/ — {total} vectores indexados")
+    logger.info(f"DB actualizada en {os.path.basename(PERSIST_DIR)}/ — {total} vectores indexados")
 
     # Backup permanente en home
     try:
@@ -326,9 +313,9 @@ def build_vector_store(force_rebuild: bool = False, on_progress=None) -> Chroma:
         if os.path.exists(PERMANENT_BACKUP):
             shutil.rmtree(PERMANENT_BACKUP)
         shutil.copytree(PERSIST_DIR, PERMANENT_BACKUP)
-        print(f"  ✔ Backup permanente guardado en ~/.neuro_db_permanent/ ({total} vectores)")
+        logger.info(f"Backup permanente guardado en ~/.neuro_db_permanent/ ({total} vectores)")
     except Exception as _e:
-        print(f"  [WARN] No se pudo guardar backup permanente: {_e}")
+        logger.warning(f"No se pudo guardar backup permanente: {_e}")
 
     return vector_store
 
@@ -342,7 +329,7 @@ def remove_documents_from_store(pdf_filename: str, vs_existente=None):
     Siempre crea un cliente fresco para evitar usar referencias obsoletas del caché.
     """
     # SIEMPRE usar un cliente fresco, ignorar vs_existente para evitar el error
-    # 'default_tenant does not exist' causado por clientes obsoletos del caché de Streamlit
+    # 'default_tenant does not exist' causado por clientes ChromaDB obsoletos
     if not os.path.exists(PERSIST_DIR):
         return None, 0
     vs = _get_or_create_vector_store(PERSIST_DIR)
@@ -356,12 +343,12 @@ def remove_documents_from_store(pdf_filename: str, vs_existente=None):
 
     if ids_a_borrar:
         vs._collection.delete(ids=ids_a_borrar)
-        print(f"  ✔ {len(ids_a_borrar)} vectores eliminados de '{pdf_filename}'")
+        logger.info(f"{len(ids_a_borrar)} vectores eliminados de '{pdf_filename}'")
     else:
-        print(f"  [!] No se encontraron vectores para '{pdf_filename}'")
+        logger.warning(f"No se encontraron vectores para '{pdf_filename}'")
 
     total = vs._collection.count()
-    print(f"  ✔ DB ahora tiene {total} vectores totales")
+    logger.info(f"DB ahora tiene {total} vectores totales")
     return vs, len(ids_a_borrar)
 
 
@@ -373,7 +360,7 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
     Agrega solo los archivos nuevos a la base vectorial existente.
     IMPORTANTE: Siempre crea un cliente ChromaDB fresco para evitar el error
     'default_tenant does not exist' causado por clientes obsoletos en el caché
-    de Streamlit (@st.cache_resource) que pueden apuntar a un SQLite inválido.
+    cacheados que pueden apuntar a un SQLite inválido.
     """
     BATCH_SIZE = 50
 
@@ -385,20 +372,20 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
     documents = []
     for doc_path in new_pdf_paths:
         if not os.path.exists(doc_path):
-            print(f"  [!] No encontrado: {os.path.basename(doc_path)}")
+            logger.warning(f"No encontrado: {os.path.basename(doc_path)}")
             continue
         pages = _load_any_document(doc_path)
         documents.extend(pages)
-        print(f"  ✔ {os.path.basename(doc_path)}: {len(pages)} páginas/secciones cargadas")
+        logger.info(f"{os.path.basename(doc_path)}: {len(pages)} páginas/secciones cargadas")
 
     if not documents:
         raise ValueError("No se pudo cargar ningún documento de los archivos dados.")
 
     chunks = splitter.split_documents(documents)
-    print(f"  Fragmentos nuevos: {len(chunks)}")
+    logger.info(f"Fragmentos nuevos: {len(chunks)}")
 
     # SIEMPRE crear un cliente fresco — ignorar vs_existente para evitar referencias
-    # obsoletas del caché de Streamlit que causan 'default_tenant does not exist'
+    # obsoletas que causan 'default_tenant does not exist'
     vs = _get_or_create_vector_store(PERSIST_DIR)
 
     import time
@@ -406,7 +393,7 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
         lote = chunks[i:i + BATCH_SIZE]
         numero_lote = i // BATCH_SIZE + 1
         total_lotes = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
-        print(f"  Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
+        logger.info(f"Lote {numero_lote}/{total_lotes}: fragmentos {i+1}–{min(i+BATCH_SIZE, len(chunks))}...")
 
         max_reintentos = 3
         exito = False
@@ -424,7 +411,7 @@ def add_documents_incremental(new_pdf_paths: list, vs_existente=None):
             raise RuntimeError(f"Error vectorizando lote {numero_lote}/{total_lotes}: {ultimo_error}") from ultimo_error
 
     total = vs._collection.count()
-    print(f"  ✔ DB ahora tiene {total} vectores totales")
+    logger.info(f"DB ahora tiene {total} vectores totales")
     return vs
 
 
@@ -728,11 +715,11 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
     context_parts = []
     for i, doc in enumerate(docs_contexto):
         fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
-        nombre = nombre_legible(fuente)
+        cita = nombre_cita(fuente)
         pagina = doc.metadata.get("page", "?")
         contenido_limpio = _limpiar_texto_ocr(doc.page_content)
         context_parts.append(
-            f"[Fuente {i+1}] {nombre} | Página: {pagina}\n{contenido_limpio}"
+            f"[{cita} | Página: {pagina}]\n{contenido_limpio}"
         )
     context = "\n\n---\n\n".join(context_parts)
 
@@ -743,7 +730,7 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
         model=GROQ_LLM_MODEL,
         api_key=GROQ_API_KEY,
         temperature=0.0,
-        max_tokens=1800,
+        max_tokens=900,
         reasoning_effort="low",
     )
 
@@ -776,72 +763,13 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
     }
 
 
-def stream_consultar(pregunta: str, vector_store, k: int = 10, nivel: str = "avanzado"):
-    """
-    Igual que consultar() pero devuelve un GENERADOR de tokens para streaming
-    en tiempo real con st.write_stream() en Streamlit.
-    Retorna: (generator, docs, context_tokens)
-    """
-    from config import obtener_respuesta_cortesia
-    resp_cortesia = obtener_respuesta_cortesia(pregunta)
-    if resp_cortesia:
-        def _gen_cortesia():
-            yield resp_cortesia
-        return _gen_cortesia(), [], 0
-
-    # Guard: VectorDB no inicializada
-    if vector_store is None:
-        def _sin_db():
-            yield "⚠️ **Base de conocimientos vacía.** Por favor, inicia sesión como administrador y usa el botón **'Reconstruir VectorDB'** en la barra lateral para indexar los documentos."
-        return _sin_db(), [], 0
-
-    docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k)
-
-    context_parts = []
-    for i, doc in enumerate(docs_contexto):
-        fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
-        nombre = nombre_legible(fuente)
-        pagina = doc.metadata.get("page", "?")
-        contenido_limpio = _limpiar_texto_ocr(doc.page_content)
-        context_parts.append(
-            f"[Fuente {i+1}] {nombre} | Página: {pagina}\n{contenido_limpio}"
-        )
-    context = "\n\n---\n\n".join(context_parts)
-
-    system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
-    response_structure = RESPONSE_STRUCTURE_AVANZADO if nivel.lower() == "avanzado" else RESPONSE_STRUCTURE_BASICO
-
-    llm = ChatGroq(
-        model=GROQ_LLM_MODEL,
-        api_key=GROQ_API_KEY,
-        temperature=0.0,
-        max_tokens=1800,
-        reasoning_effort="low",
-    )
-
-    prompt_usuario = (
-        f"{response_structure}\n\n"
-        + PROMPT_TEMPLATE.format(context=context, question=pregunta)
-    )
-    messages = [
-        SystemMessage(content=system_instruction),
-        HumanMessage(content=prompt_usuario),
-    ]
-
-    def _token_generator():
-        for chunk in llm.stream(messages):
-            if chunk.content:
-                yield _extraer_texto_contenido(chunk.content)
-
-    return _token_generator(), docs_contexto[:k], len(context) // 4
-
-
 # ─────────────────────────────────────────────
 # 6. EJECUCIÓN DIRECTA (modo script / prueba)
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     print("=" * 65)
-    print("🧠 CONSULTOR RAG — NEUROANATOMÍA (Groq API)")
+    print(" CONSULTOR RAG — NEUROANATOMÍA (Groq API)")
     print("=" * 65)
 
     vs = build_vector_store(force_rebuild=False)
@@ -855,9 +783,9 @@ if __name__ == "__main__":
 
     for pregunta in preguntas_prueba:
         print(f"\n{'─'*65}")
-        print(f"❓ {pregunta}")
+        print(f" {pregunta}")
         resultado = consultar(pregunta, vs)
-        print(f"\n🤖 {resultado['respuesta']}")
+        print(f"\n {resultado['respuesta']}")
         print(f"\n   [~{resultado['tokens_contexto_aprox']} tokens | "
               f"{len(resultado['fragmentos'])} fragmentos recuperados]")
 

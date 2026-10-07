@@ -6,9 +6,6 @@ import re
 from dotenv import load_dotenv
 load_dotenv()
 
-# PIN de acceso administrador (se puede cambiar aquí o en el archivo .env)
-ADMIN_PIN = os.getenv("ADMIN_PIN", "1234")
-
 # Mapeo MANUAL de nombres conocidos → títulos legibles
 # Si un archivo NO está aquí, el sistema genera un nombre bonito automáticamente
 _MAPEO_MANUAL = {
@@ -19,6 +16,30 @@ _MAPEO_MANUAL = {
     "circir_25_93_2_197-201.pdf": "Modelos 3D y Realidad Aumentada en Neuroanatomía",
     "SCT_2025_1250.pdf": "Tecnologías Inmersivas vs. Convencionales en la Enseñanza",
 }
+
+# Nombres cortos para las citas dentro de las respuestas (se usan en el prompt del RAG)
+_MAPEO_CITA_CORTA = {
+    "El cerebro y la conducta Neuroanatomía para psicólogos.pdf": "Cerebro y Conducta",
+    "MODELO NEUROANATÓMICO 3D.docx": "Modelo 3D",
+    "Neuroanatomia clinica  26va Edición - Lange.pdf": "Lange",
+    "0717-9502-ijmorphol-41-04-996.pdf": "Regla Neuroanatomía",
+    "circir_25_93_2_197-201.pdf": "Modelos 3D RA",
+    "SCT_2025_1250.pdf": "Tecnologías Inmersivas",
+}
+
+
+def nombre_cita(filename: str) -> str:
+    """Retorna el nombre corto de cita para un archivo (ej: 'Lange', 'Cerebro y Conducta')."""
+    if filename in _MAPEO_CITA_CORTA:
+        return _MAPEO_CITA_CORTA[filename]
+    # Fallback: usar el nombre legible abreviado
+    n = nombre_legible(filename)
+    # Si es muy largo, truncar al primer guión o em dash
+    for sep in [" — ", " - ", ":"]:
+        if sep in n:
+            return n.split(sep)[0].strip()
+    return n[:40].strip()
+
 
 
 def nombre_legible(filename: str) -> str:
@@ -119,41 +140,17 @@ EJEMPLOS_CONSULTA = [
 # Se mantienen separadas del dominio académico-científico (rag_pipeline.py)
 # para respetar el principio de separación de responsabilidades (SRP).
 RESPONSE_STRUCTURE_BASICO = (
-    "Organiza la respuesta con fluidez y claridad pedagógica: "
-    "inicia con una breve introducción que sitúe el concepto consultado, "
-    "desarrolla los componentes principales en apartados claramente delimitados, "
-    "y concluye con una síntesis sobre su relevancia funcional."
+    "Estructura la respuesta de forma concisa y adaptada a interfaces de chat y Unity (máximo 150-200 palabras, sin tablas): "
+    "1) Breve párrafo introductorio con el concepto central. "
+    "2) 2 o 3 viñetas breves ('•') con los componentes anatómicos clave y sus citas [Fuente X, pág. Y]. "
+    "3) Un párrafo o viñeta final sobre su relevancia funcional. "
+    "NUNCA generes tablas Markdown (|---|); utiliza siempre listas con viñetas y negritas."
 )
 
 RESPONSE_STRUCTURE_AVANZADO = (
-    "Estructura la respuesta con cohesión expositiva de alto nivel: "
-    "inicia con una contextualización neuroanatómica formal del sistema o región, "
-    "desarrolla cada subdivisión, circuito o componente en bloques temáticos bien separados, "
-    "y finaliza con una síntesis integradora sobre el correlato funcional o clínico."
+    "Estructura la respuesta con rigor científico pero de forma concisa y sintetizada para chat y Unity (máximo 200-260 palabras, sin tablas): "
+    "1) Breve contextualización neuroanatómica formal (1 párrafo corto). "
+    "2) 3 o 4 viñetas directas ('•') resumiendo las subdivisiones, vías o circuitos clave con sus citas [Fuente X, pág. Y]. "
+    "3) Un breve cierre con el correlato funcional o clínico esencial. "
+    "NUNCA generes tablas Markdown (|---|); utiliza exclusivamente listas de viñetas con negritas para garantizar legibilidad en pantalla pequeña."
 )
-
-
-def obtener_enlace_cloudflare() -> str:
-    """
-    Lee el archivo de logs del túnel Cloudflare y extrae la URL generada.
-    """
-    import os
-    log_path = "/app/shared_logs/tunnel.log"
-    if not os.path.exists(log_path):
-        # Fallback local fuera del contenedor
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        log_path = os.path.join(base_dir, "shared_logs", "tunnel.log")
-        if not os.path.exists(log_path):
-            log_path = os.path.join(os.path.dirname(base_dir), "shared_logs", "tunnel.log")
-            if not os.path.exists(log_path):
-                return None
-    try:
-        with open(log_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        urls = re.findall(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", content)
-        if urls:
-            return urls[-1]
-    except Exception:
-        pass
-    return None
-

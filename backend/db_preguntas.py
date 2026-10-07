@@ -5,8 +5,11 @@ niveles -> preguntas -> respuestas, temas -> preguntas.
 """
 
 import os
+import logging
 import psycopg2
 import psycopg2.extras
+
+logger = logging.getLogger("atena.db_preguntas")
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 
@@ -151,7 +154,7 @@ def obtener_preguntas_por_nivel(nivel: str, cantidad: int = None, aleatorio: boo
         return preguntas_ordenadas
 
     except Exception as e:
-        print(f"[DB_PREGUNTAS ERROR] Error al obtener preguntas: {e}")
+        logger.error(f"Error al obtener preguntas: {e}")
         return []
 
 
@@ -168,7 +171,7 @@ def agregar_pregunta(nivel: str, tema: str, enunciado: str,
         row_tema = cursor.fetchone()
 
         if not row_nivel or not row_tema:
-            print(f"[DB_PREGUNTAS ERROR] Nivel o tema no encontrado: {nivel} / {tema}")
+            logger.error(f"Nivel o tema no encontrado: {nivel} / {tema}")
             cursor.close()
             conn.close()
             return False
@@ -196,7 +199,7 @@ def agregar_pregunta(nivel: str, tema: str, enunciado: str,
         conn.close()
         return True
     except Exception as e:
-        print(f"[DB_PREGUNTAS ERROR] Error al agregar pregunta: {e}")
+        logger.error(f"Error al agregar pregunta: {e}")
         return False
 
 
@@ -242,7 +245,7 @@ def actualizar_pregunta(pregunta_id: int, nivel: str, tema: str, enunciado: str,
         conn.close()
         return True
     except Exception as e:
-        print(f"[DB_PREGUNTAS ERROR] Error al actualizar pregunta: {e}")
+        logger.error(f"Error al actualizar pregunta: {e}")
         return False
 
 
@@ -257,7 +260,7 @@ def eliminar_pregunta(pregunta_id: int):
         conn.close()
         return True
     except Exception as e:
-        print(f"[DB_PREGUNTAS ERROR] Error al eliminar pregunta: {e}")
+        logger.error(f"Error al eliminar pregunta: {e}")
         return False
 
 
@@ -272,7 +275,7 @@ def obtener_niveles():
         conn.close()
         return niveles
     except Exception as e:
-        print(f"[DB_PREGUNTAS ERROR] Error al obtener niveles: {e}")
+        logger.error(f"Error al obtener niveles: {e}")
         return []
 
 
@@ -287,5 +290,5 @@ def obtener_temas():
         conn.close()
         return temas
     except Exception as e:
-        print(f"[DB_PREGUNTAS ERROR] Error al obtener temas: {e}")
+        logger.error(f"Error al obtener temas: {e}")
         return []

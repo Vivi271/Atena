@@ -1,599 +1,599 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atena — Consultor de Neuroanatomía · Konrad Lorenz</title>
-  <meta name="description" content="Atena: consultor inteligente de neuroanatomía con IA para el Laboratorio Konrad Lorenz. Pregunta, aprende y evalúate sobre el sistema nervioso.">
-  <link rel="stylesheet" href="/css/main.css">
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <style>
-    /* ── Landing page ─────────────────────────────────────────────── */
-    body { overflow-x: hidden; }
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Atena — Consultor de Neuroanatomía · Konrad Lorenz</title>
+ <meta name="description" content="Atena: consultor inteligente de neuroanatomía con IA para el Laboratorio Konrad Lorenz. Pregunta, aprende y evalúate sobre el sistema nervioso.">
+ <link rel="stylesheet" href="/css/main.css">
+ <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+ <style>
+ /* ── Landing page ─────────────────────────────────────────────── */
+ body { overflow-x: hidden; }
 
-    /* NAV */
-    .nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-      height: 60px;
-      background: rgba(13,17,23,0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; padding: 0 32px; gap: 16px;
-      transition: background 0.3s;
-    }
-    [data-theme="light"] .nav { background: rgba(255,255,255,0.88); }
+ /* NAV */
+ .nav {
+ position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+ height: 60px;
+ background: rgba(13,17,23,0.85);
+ backdrop-filter: blur(12px);
+ border-bottom: 1px solid var(--border);
+ display: flex; align-items: center; padding: 0 32px; gap: 16px;
+ transition: background 0.3s;
+ }
+ [data-theme="light"] .nav { background: rgba(255,255,255,0.88); }
 
-    .nav-brand {
-      font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 800;
-      color: var(--text-main); letter-spacing: -0.5px;
-    }
-    .nav-spacer { flex: 1; }
-    .nav-links { display: flex; gap: 6px; align-items: center; }
-    .nav-link {
-      padding: 6px 14px; border-radius: 8px; font-size: 0.84rem; font-weight: 500;
-      color: var(--text-muted); background: none; border: none; cursor: pointer;
-      transition: color 0.2s, background 0.2s; font-family: 'Inter', sans-serif;
-      text-decoration: none; display: inline-block;
-    }
-    .nav-link:hover { color: var(--text-main); background: var(--bg-card); }
-    .nav-cta {
-      padding: 7px 18px; border-radius: 10px;
-      background: linear-gradient(135deg, #4a235a, #6c3483);
-      color: white; font-size: 0.84rem; font-weight: 600;
-      border: none; cursor: pointer; transition: all 0.2s;
-      font-family: 'Inter', sans-serif;
-    }
-    .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(74,35,90,0.45); }
+ .nav-brand {
+ font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 800;
+ color: var(--text-main); letter-spacing: -0.5px;
+ }
+ .nav-spacer { flex: 1; }
+ .nav-links { display: flex; gap: 6px; align-items: center; }
+ .nav-link {
+ padding: 6px 14px; border-radius: 8px; font-size: 0.84rem; font-weight: 500;
+ color: var(--text-muted); background: none; border: none; cursor: pointer;
+ transition: color 0.2s, background 0.2s; font-family: 'Inter', sans-serif;
+ text-decoration: none; display: inline-block;
+ }
+ .nav-link:hover { color: var(--text-main); background: var(--bg-card); }
+ .nav-cta {
+ padding: 7px 18px; border-radius: 10px;
+ background: linear-gradient(135deg, #4a235a, #6c3483);
+ color: white; font-size: 0.84rem; font-weight: 600;
+ border: none; cursor: pointer; transition: all 0.2s;
+ font-family: 'Inter', sans-serif;
+ }
+ .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(74,35,90,0.45); }
 
-    /* HERO */
-    .hero {
-      min-height: 100vh;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 80px 24px 60px;
-      position: relative; overflow: hidden;
-    }
+ /* HERO */
+ .hero {
+ min-height: 100vh;
+ display: flex; flex-direction: column;
+ align-items: center; justify-content: center;
+ text-align: center; padding: 80px 24px 60px;
+ position: relative; overflow: hidden;
+ }
 
-    /* Gradiente de fondo */
-    .hero::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: radial-gradient(ellipse 80% 60% at 50% 20%, rgba(74,35,90,0.25) 0%, transparent 65%),
-                  radial-gradient(ellipse 50% 40% at 80% 80%, rgba(140,198,63,0.08) 0%, transparent 60%);
-      pointer-events: none;
-    }
+ /* Gradiente de fondo */
+ .hero::before {
+ content: '';
+ position: absolute; inset: 0;
+ background: radial-gradient(ellipse 80% 60% at 50% 20%, rgba(74,35,90,0.25) 0%, transparent 65%),
+ radial-gradient(ellipse 50% 40% at 80% 80%, rgba(140,198,63,0.08) 0%, transparent 60%);
+ pointer-events: none;
+ }
 
-    /* Grid de puntos sutiles */
-    .hero::after {
-      content: '';
-      position: absolute; inset: 0;
-      background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
-      background-size: 28px 28px;
-      pointer-events: none;
-    }
-    [data-theme="light"] .hero::after {
-      background-image: radial-gradient(circle, rgba(0,0,0,0.04) 1px, transparent 1px);
-    }
+ /* Grid de puntos sutiles */
+ .hero::after {
+ content: '';
+ position: absolute; inset: 0;
+ background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+ background-size: 28px 28px;
+ pointer-events: none;
+ }
+ [data-theme="light"] .hero::after {
+ background-image: radial-gradient(circle, rgba(0,0,0,0.04) 1px, transparent 1px);
+ }
 
-    .hero-content { position: relative; z-index: 1; max-width: 700px; }
+ .hero-content { position: relative; z-index: 1; max-width: 700px; }
 
-    .hero-badge {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
-      border: 1px solid rgba(140,198,63,0.3);
-      background: rgba(140,198,63,0.07);
-      font-size: 0.76rem; font-weight: 600; color: #8CC63F;
-      letter-spacing: 0.03em;
-    }
-    .hero-badge-dot {
-      width: 6px; height: 6px; border-radius: 50%; background: #8CC63F;
-      animation: pulse 2s infinite;
-    }
+ .hero-badge {
+ display: inline-flex; align-items: center; gap: 7px;
+ padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+ border: 1px solid rgba(140,198,63,0.3);
+ background: rgba(140,198,63,0.07);
+ font-size: 0.76rem; font-weight: 600; color: #8CC63F;
+ letter-spacing: 0.03em;
+ }
+ .hero-badge-dot {
+ width: 6px; height: 6px; border-radius: 50%; background: #8CC63F;
+ animation: pulse 2s infinite;
+ }
 
-    .hero h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: clamp(2.4rem, 6vw, 4rem);
-      font-weight: 900; line-height: 1.1;
-      color: var(--text-main); margin-bottom: 20px;
-      letter-spacing: -1.5px;
-    }
-    .hero h1 span {
-      background: linear-gradient(135deg, #4a235a, #8CC63F);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
+ .hero h1 {
+ font-family: 'Outfit', sans-serif;
+ font-size: clamp(2.4rem, 6vw, 4rem);
+ font-weight: 900; line-height: 1.1;
+ color: var(--text-main); margin-bottom: 20px;
+ letter-spacing: -1.5px;
+ }
+ .hero h1 span {
+ background: linear-gradient(135deg, #4a235a, #8CC63F);
+ -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+ background-clip: text;
+ }
 
-    .hero-sub {
-      font-size: 1.1rem; color: var(--text-muted);
-      max-width: 520px; margin: 0 auto 36px; line-height: 1.65;
-    }
+ .hero-sub {
+ font-size: 1.1rem; color: var(--text-muted);
+ max-width: 520px; margin: 0 auto 36px; line-height: 1.65;
+ }
 
-    .hero-actions {
-      display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
-    }
-    .btn-hero {
-      padding: 13px 28px; border-radius: 12px; font-size: 0.95rem; font-weight: 700;
-      cursor: pointer; border: none; transition: all 0.25s;
-      font-family: 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;
-    }
-    .btn-hero-primary {
-      background: linear-gradient(135deg, #4a235a, #6c3483);
-      color: white; box-shadow: 0 4px 20px rgba(74,35,90,0.4);
-    }
-    .btn-hero-primary:hover {
-      transform: translateY(-2px); box-shadow: 0 8px 28px rgba(74,35,90,0.55);
-    }
-    .btn-hero-secondary {
-      background: var(--bg-card); color: var(--text-main);
-      border: 1px solid var(--border);
-    }
-    .btn-hero-secondary:hover { background: var(--bg-hover); border-color: var(--accent); }
+ .hero-actions {
+ display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+ }
+ .btn-hero {
+ padding: 13px 28px; border-radius: 12px; font-size: 0.95rem; font-weight: 700;
+ cursor: pointer; border: none; transition: all 0.25s;
+ font-family: 'Inter', sans-serif; display: flex; align-items: center; gap: 8px;
+ }
+ .btn-hero-primary {
+ background: linear-gradient(135deg, #4a235a, #6c3483);
+ color: white; box-shadow: 0 4px 20px rgba(74,35,90,0.4);
+ }
+ .btn-hero-primary:hover {
+ transform: translateY(-2px); box-shadow: 0 8px 28px rgba(74,35,90,0.55);
+ }
+ .btn-hero-secondary {
+ background: var(--bg-card); color: var(--text-main);
+ border: 1px solid var(--border);
+ }
+ .btn-hero-secondary:hover { background: var(--bg-hover); border-color: var(--accent); }
 
-    /* Stats */
-    .hero-stats {
-      display: flex; gap: 32px; justify-content: center; flex-wrap: wrap;
-      margin-top: 48px; padding-top: 40px;
-      border-top: 1px solid var(--border);
-    }
-    .stat { text-align: center; }
-    .stat-num {
-      font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 800;
-      color: var(--text-main); line-height: 1;
-    }
-    .stat-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+ /* Stats */
+ .hero-stats {
+ display: flex; gap: 32px; justify-content: center; flex-wrap: wrap;
+ margin-top: 48px; padding-top: 40px;
+ border-top: 1px solid var(--border);
+ }
+ .stat { text-align: center; }
+ .stat-num {
+ font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 800;
+ color: var(--text-main); line-height: 1;
+ }
+ .stat-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
 
-    /* FEATURES */
-    .section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
-    .section-title {
-      font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 800;
-      color: var(--text-main); text-align: center; margin-bottom: 12px;
-    }
-    .section-sub {
-      text-align: center; color: var(--text-muted); font-size: 1rem;
-      max-width: 480px; margin: 0 auto 48px; line-height: 1.6;
-    }
+ /* FEATURES */
+ .section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+ .section-title {
+ font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 800;
+ color: var(--text-main); text-align: center; margin-bottom: 12px;
+ }
+ .section-sub {
+ text-align: center; color: var(--text-muted); font-size: 1rem;
+ max-width: 480px; margin: 0 auto 48px; line-height: 1.6;
+ }
 
-    .features-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-    }
-    .feature-card {
-      background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 24px;
-      transition: all 0.25s; position: relative; overflow: hidden;
-    }
-    .feature-card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      background: linear-gradient(90deg, #4a235a, #8CC63F);
-      opacity: 0; transition: opacity 0.25s;
-    }
-    .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
-    .feature-card:hover::before { opacity: 1; }
+ .features-grid {
+ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+ gap: 20px;
+ }
+ .feature-card {
+ background: var(--bg-surface); border: 1px solid var(--border);
+ border-radius: 16px; padding: 24px;
+ transition: all 0.25s; position: relative; overflow: hidden;
+ }
+ .feature-card::before {
+ content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+ background: linear-gradient(90deg, #4a235a, #8CC63F);
+ opacity: 0; transition: opacity 0.25s;
+ }
+ .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+ .feature-card:hover::before { opacity: 1; }
 
-    .feature-icon {
-      width: 46px; height: 46px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; margin-bottom: 14px;
-    }
-    .feature-title { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--text-main); margin-bottom: 8px; }
-    .feature-desc { font-size: 0.87rem; color: var(--text-muted); line-height: 1.6; }
+ .feature-icon {
+ width: 46px; height: 46px; border-radius: 12px;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 1.4rem; margin-bottom: 14px;
+ }
+ .feature-title { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--text-main); margin-bottom: 8px; }
+ .feature-desc { font-size: 0.87rem; color: var(--text-muted); line-height: 1.6; }
 
-    /* HOW IT WORKS */
-    .steps { display: flex; gap: 0; flex-wrap: wrap; justify-content: center; margin-top: 48px; }
-    .step {
-      flex: 1; min-width: 200px; text-align: center; padding: 24px 20px;
-      position: relative;
-    }
-    .step:not(:last-child)::after {
-      content: '→';
-      position: absolute; right: -12px; top: 32px;
-      font-size: 1.2rem; color: var(--text-muted); opacity: 0.5;
-    }
-    .step-num {
-      width: 48px; height: 48px; border-radius: 50%;
-      background: linear-gradient(135deg, #4a235a, #6c3483);
-      color: white; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.1rem;
-      display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
-    }
-    .step-title { font-weight: 700; font-size: 0.92rem; color: var(--text-main); margin-bottom: 6px; }
-    .step-desc { font-size: 0.81rem; color: var(--text-muted); line-height: 1.5; }
+ /* HOW IT WORKS */
+ .steps { display: flex; gap: 0; flex-wrap: wrap; justify-content: center; margin-top: 48px; }
+ .step {
+ flex: 1; min-width: 200px; text-align: center; padding: 24px 20px;
+ position: relative;
+ }
+ .step:not(:last-child)::after {
+ content: '→';
+ position: absolute; right: -12px; top: 32px;
+ font-size: 1.2rem; color: var(--text-muted); opacity: 0.5;
+ }
+ .step-num {
+ width: 48px; height: 48px; border-radius: 50%;
+ background: linear-gradient(135deg, #4a235a, #6c3483);
+ color: white; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.1rem;
+ display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
+ }
+ .step-title { font-weight: 700; font-size: 0.92rem; color: var(--text-main); margin-bottom: 6px; }
+ .step-desc { font-size: 0.81rem; color: var(--text-muted); line-height: 1.5; }
 
-    /* FOOTER */
-    .footer {
-      border-top: 1px solid var(--border);
-      padding: 32px 24px;
-      text-align: center;
-      font-size: 0.82rem; color: var(--text-muted);
-    }
-    .footer a { color: var(--accent); text-decoration: none; }
+ /* FOOTER */
+ .footer {
+ border-top: 1px solid var(--border);
+ padding: 32px 24px;
+ text-align: center;
+ font-size: 0.82rem; color: var(--text-muted);
+ }
+ .footer a { color: var(--accent); text-decoration: none; }
 
-    /* ── Burbuja flotante ──────────────────────────────────────────── */
-    .bubble-btn {
-      position: fixed; bottom: 28px; right: 28px;
-      width: 60px; height: 60px; border-radius: 50%;
-      background: linear-gradient(135deg, #4a235a, #6c3483);
-      border: none; cursor: pointer;
-      box-shadow: 0 4px 20px rgba(74,35,90,0.5);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 900;
-      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
-      animation: bubbleAppear 0.5s 0.3s cubic-bezier(.34,1.56,.64,1) both;
-    }
-    .bubble-btn:hover { transform: scale(1.1); box-shadow: 0 8px 28px rgba(74,35,90,0.6); }
-    @keyframes bubbleAppear { from{transform:scale(0);opacity:0;} to{transform:scale(1);opacity:1;} }
-    .bubble-badge {
-      position: absolute; top: -2px; right: -2px;
-      width: 18px; height: 18px; border-radius: 50%;
-      background: #8CC63F; border: 2px solid var(--bg-base);
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse{ 0%,100%{box-shadow:0 0 0 0 rgba(140,198,63,0.6);} 50%{box-shadow:0 0 0 6px rgba(140,198,63,0);} }
+ /* ── Burbuja flotante ──────────────────────────────────────────── */
+ .bubble-btn {
+ position: fixed; bottom: 28px; right: 28px;
+ width: 60px; height: 60px; border-radius: 50%;
+ background: linear-gradient(135deg, #4a235a, #6c3483);
+ border: none; cursor: pointer;
+ box-shadow: 0 4px 20px rgba(74,35,90,0.5);
+ display: flex; align-items: center; justify-content: center;
+ z-index: 900;
+ transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
+ animation: bubbleAppear 0.5s 0.3s cubic-bezier(.34,1.56,.64,1) both;
+ }
+ .bubble-btn:hover { transform: scale(1.1); box-shadow: 0 8px 28px rgba(74,35,90,0.6); }
+ @keyframes bubbleAppear { from{transform:scale(0);opacity:0;} to{transform:scale(1);opacity:1;} }
+ .bubble-badge {
+ position: absolute; top: -2px; right: -2px;
+ width: 18px; height: 18px; border-radius: 50%;
+ background: #8CC63F; border: 2px solid var(--bg-base);
+ animation: pulse 2s infinite;
+ }
+ @keyframes pulse{ 0%,100%{box-shadow:0 0 0 0 rgba(140,198,63,0.6);} 50%{box-shadow:0 0 0 6px rgba(140,198,63,0);} }
 
-    /* ── Panel de chat ────────────────────────────────────────────── */
-    .chat-panel {
-      position: fixed; bottom: 100px; right: 28px;
-      width: 400px; height: 600px;
-      max-height: calc(100vh - 120px);
-      background: var(--bg-surface); border-radius: 20px;
-      border: 1px solid var(--border);
-      box-shadow: 0 16px 64px rgba(0,0,0,0.35);
-      display: flex; flex-direction: column;
-      z-index: 800; overflow: hidden;
-      transform: scale(0.85) translateY(24px);
-      transform-origin: bottom right;
-      opacity: 0; pointer-events: none;
-      transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), opacity 0.25s ease;
-    }
-    .chat-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+ /* ── Panel de chat ────────────────────────────────────────────── */
+ .chat-panel {
+ position: fixed; bottom: 100px; right: 28px;
+ width: 400px; height: 600px;
+ max-height: calc(100vh - 120px);
+ background: var(--bg-surface); border-radius: 20px;
+ border: 1px solid var(--border);
+ box-shadow: 0 16px 64px rgba(0,0,0,0.35);
+ display: flex; flex-direction: column;
+ z-index: 800; overflow: hidden;
+ transform: scale(0.85) translateY(24px);
+ transform-origin: bottom right;
+ opacity: 0; pointer-events: none;
+ transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), opacity 0.25s ease;
+ }
+ .chat-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
 
-    .panel-header {
-      background: linear-gradient(135deg, #4a235a 0%, #6c3483 100%);
-      padding: 14px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-    }
-    .panel-avatar {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; color: white;
-    }
-    .panel-name { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.95rem; color: white; }
-    .panel-status {
-      font-size: 0.7rem; color: rgba(255,255,255,0.75);
-      display: flex; align-items: center; gap: 4px; margin-top: 1px;
-    }
-    .status-dot-live { width: 6px; height: 6px; border-radius: 50%; background: #8CC63F; animation: pulse 2s infinite; }
-    .panel-actions { margin-left: auto; display: flex; gap: 4px; }
-    .panel-action-btn {
-      background: rgba(255,255,255,0.12); border: none; cursor: pointer;
-      width: 28px; height: 28px; border-radius: 7px;
-      display: flex; align-items: center; justify-content: center;
-      color: white; transition: background 0.2s;
-    }
-    .panel-action-btn:hover { background: rgba(255,255,255,0.22); }
+ .panel-header {
+ background: linear-gradient(135deg, #4a235a 0%, #6c3483 100%);
+ padding: 14px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+ }
+ .panel-avatar {
+ width: 36px; height: 36px; border-radius: 50%;
+ background: rgba(255,255,255,0.2);
+ display: flex; align-items: center; justify-content: center;
+ font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; color: white;
+ }
+ .panel-name { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.95rem; color: white; }
+ .panel-status {
+ font-size: 0.7rem; color: rgba(255,255,255,0.75);
+ display: flex; align-items: center; gap: 4px; margin-top: 1px;
+ }
+ .status-dot-live { width: 6px; height: 6px; border-radius: 50%; background: #8CC63F; animation: pulse 2s infinite; }
+ .panel-actions { margin-left: auto; display: flex; gap: 4px; }
+ .panel-action-btn {
+ background: rgba(255,255,255,0.12); border: none; cursor: pointer;
+ width: 28px; height: 28px; border-radius: 7px;
+ display: flex; align-items: center; justify-content: center;
+ color: white; transition: background 0.2s;
+ }
+ .panel-action-btn:hover { background: rgba(255,255,255,0.22); }
 
-    .nivel-tabs {
-      display: flex; padding: 8px 12px 0; gap: 4px;
-      border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg-surface);
-    }
-    .nivel-tab {
-      padding: 5px 11px; border-radius: 20px; font-size: 0.73rem; font-weight: 600;
-      cursor: pointer; border: none; background: none; color: var(--text-muted);
-      transition: all 0.2s; margin-bottom: -1px;
-    }
-    .nivel-tab.active { background: #4a235a; color: white; }
-    [data-theme="light"] .nivel-tab.active { background: #4a235a; color: white; }
+ .nivel-tabs {
+ display: flex; padding: 8px 12px 0; gap: 4px;
+ border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg-surface);
+ }
+ .nivel-tab {
+ padding: 5px 11px; border-radius: 20px; font-size: 0.73rem; font-weight: 600;
+ cursor: pointer; border: none; background: none; color: var(--text-muted);
+ transition: all 0.2s; margin-bottom: -1px;
+ }
+ .nivel-tab.active { background: #4a235a; color: white; }
+ [data-theme="light"] .nivel-tab.active { background: #4a235a; color: white; }
 
-    .panel-messages {
-      flex: 1; overflow-y: auto; padding: 12px 12px 8px;
-      display: flex; flex-direction: column; gap: 10px; background: var(--bg-surface);
-    }
-    .panel-welcome {
-      display: flex; flex-direction: column; align-items: center;
-      text-align: center; gap: 8px; padding: 16px 8px;
-    }
-    .panel-welcome-logo {
-      width: 52px; height: 52px; border-radius: 14px;
-      background: linear-gradient(135deg, #4a235a, #6c3483);
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.3rem; color: white;
-      box-shadow: 0 4px 16px rgba(74,35,90,0.35);
-    }
-    .panel-welcome h3 { font-size: 0.92rem; color: var(--text-main); margin: 0; }
-    .panel-welcome p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
-    .panel-chips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 4px; }
-    .panel-chip {
-      padding: 5px 11px; border-radius: 16px;
-      border: 1px solid var(--border-accent); background: var(--bg-card);
-      color: var(--text-main); font-size: 0.74rem; cursor: pointer; transition: all 0.2s;
-    }
-    .panel-chip:hover { background: rgba(140,198,63,0.12); border-color: var(--accent); color: #5a8a24; }
-    [data-theme="light"] .panel-chip:hover { color: #3d6016; }
+ .panel-messages {
+ flex: 1; overflow-y: auto; padding: 12px 12px 8px;
+ display: flex; flex-direction: column; gap: 10px; background: var(--bg-surface);
+ }
+ .panel-welcome {
+ display: flex; flex-direction: column; align-items: center;
+ text-align: center; gap: 8px; padding: 16px 8px;
+ }
+ .panel-welcome-logo {
+ width: 52px; height: 52px; border-radius: 14px;
+ background: linear-gradient(135deg, #4a235a, #6c3483);
+ display: flex; align-items: center; justify-content: center;
+ font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.3rem; color: white;
+ box-shadow: 0 4px 16px rgba(74,35,90,0.35);
+ }
+ .panel-welcome h3 { font-size: 0.92rem; color: var(--text-main); margin: 0; }
+ .panel-welcome p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
+ .panel-chips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 4px; }
+ .panel-chip {
+ padding: 5px 11px; border-radius: 16px;
+ border: 1px solid var(--border-accent); background: var(--bg-card);
+ color: var(--text-main); font-size: 0.74rem; cursor: pointer; transition: all 0.2s;
+ }
+ .panel-chip:hover { background: rgba(140,198,63,0.12); border-color: var(--accent); color: #5a8a24; }
+ [data-theme="light"] .panel-chip:hover { color: #3d6016; }
 
-    .pmsg { display: flex; gap: 7px; animation: fadeSlideIn 0.2s ease; }
-    .pmsg.user { flex-direction: row-reverse; }
-    @keyframes fadeSlideIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
-    .pmsg-avatar {
-      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem; font-weight: 700; align-self: flex-end;
-    }
-    .pmsg.bot .pmsg-avatar { background: linear-gradient(135deg,#4a235a,#6c3483); color: white; font-family: 'Outfit', sans-serif; }
-    .pmsg.user .pmsg-avatar { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
-    .pmsg-body { max-width: 80%; display: flex; flex-direction: column; gap: 3px; }
-    .pmsg-bubble { padding: 9px 12px; border-radius: 14px; font-size: 0.84rem; line-height: 1.6; }
-    .pmsg.user .pmsg-bubble { background: linear-gradient(135deg,#4a235a,#6c3483); color: white; border-bottom-right-radius: 4px; }
-    .pmsg.bot .pmsg-bubble { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-    .pmsg-bubble p { margin: 0; color: inherit; }
-    .pmsg-bubble ul,.pmsg-bubble ol { padding-left: 14px; margin: 4px 0; }
-    .pmsg-bubble li { margin-bottom: 2px; }
-    .pmsg-bubble strong { font-weight: 600; }
-    .pmsg-bubble code { background: rgba(0,0,0,0.1); border-radius: 3px; padding: 1px 4px; font-size: 0.82em; }
-    [data-theme="light"] .pmsg-bubble code { background: rgba(0,0,0,0.06); }
-    .pmsg-time { font-size: 0.65rem; color: var(--text-muted); padding: 0 4px; }
-    .pmsg.user .pmsg-time { text-align: right; }
-    .pmsg-sources-btn { font-size: 0.71rem; color: var(--accent); cursor: pointer; padding: 2px 4px; background: none; border: none; display: flex; align-items: center; gap: 3px; }
-    .pmsg-sources-list { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 7px 9px; display: none; flex-direction: column; gap: 4px; }
-    .pmsg-sources-list.open { display: flex; }
-    .pmsg-source-item { font-size: 0.72rem; color: var(--text-muted); padding: 4px 8px; border-left: 2px solid var(--accent); background: var(--bg-card); border-radius: 0 5px 5px 0; }
+ .pmsg { display: flex; gap: 7px; animation: fadeSlideIn 0.2s ease; }
+ .pmsg.user { flex-direction: row-reverse; }
+ @keyframes fadeSlideIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+ .pmsg-avatar {
+ width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 0.7rem; font-weight: 700; align-self: flex-end;
+ }
+ .pmsg.bot .pmsg-avatar { background: linear-gradient(135deg,#4a235a,#6c3483); color: white; font-family: 'Outfit', sans-serif; }
+ .pmsg.user .pmsg-avatar { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
+ .pmsg-body { max-width: 80%; display: flex; flex-direction: column; gap: 3px; }
+ .pmsg-bubble { padding: 9px 12px; border-radius: 14px; font-size: 0.84rem; line-height: 1.6; }
+ .pmsg.user .pmsg-bubble { background: linear-gradient(135deg,#4a235a,#6c3483); color: white; border-bottom-right-radius: 4px; }
+ .pmsg.bot .pmsg-bubble { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+ .pmsg-bubble p { margin: 0; color: inherit; }
+ .pmsg-bubble ul,.pmsg-bubble ol { padding-left: 14px; margin: 4px 0; }
+ .pmsg-bubble li { margin-bottom: 2px; }
+ .pmsg-bubble strong { font-weight: 600; }
+ .pmsg-bubble code { background: rgba(0,0,0,0.1); border-radius: 3px; padding: 1px 4px; font-size: 0.82em; }
+ [data-theme="light"] .pmsg-bubble code { background: rgba(0,0,0,0.06); }
+ .pmsg-time { font-size: 0.65rem; color: var(--text-muted); padding: 0 4px; }
+ .pmsg.user .pmsg-time { text-align: right; }
+ .pmsg-sources-btn { font-size: 0.71rem; color: var(--accent); cursor: pointer; padding: 2px 4px; background: none; border: none; display: flex; align-items: center; gap: 3px; }
+ .pmsg-sources-list { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 7px 9px; display: none; flex-direction: column; gap: 4px; }
+ .pmsg-sources-list.open { display: flex; }
+ .pmsg-source-item { font-size: 0.72rem; color: var(--text-muted); padding: 4px 8px; border-left: 2px solid var(--accent); background: var(--bg-card); border-radius: 0 5px 5px 0; }
 
-    .pmsg-typing .pmsg-bubble { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: typingBounce 1.2s infinite; }
-    .dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
-    @keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
+ .pmsg-typing .pmsg-bubble { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
+ .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: typingBounce 1.2s infinite; }
+ .dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
+ @keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
 
-    .panel-input-area {
-      padding: 8px 12px 12px; border-top: 1px solid var(--border); flex-shrink: 0; background: var(--bg-surface);
-    }
-    .panel-input-row { display: flex; gap: 7px; align-items: flex-end; }
-    .panel-input {
-      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 9px 13px; font-size: 0.86rem;
-      color: var(--text-main); font-family: 'Inter', sans-serif;
-      resize: none; min-height: 40px; max-height: 90px; outline: none;
-      transition: border-color 0.2s; line-height: 1.4;
-    }
-    .panel-input:focus { border-color: var(--accent); }
-    .panel-input::placeholder { color: var(--text-muted); }
-    .panel-send {
-      width: 36px; height: 36px; border-radius: 10px;
-      background: linear-gradient(135deg,#4a235a,#6c3483);
-      border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; flex-shrink: 0;
-    }
-    .panel-send:hover { transform: scale(1.08); box-shadow: 0 4px 12px rgba(74,35,90,0.4); }
-    .panel-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-    .panel-footer-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-    .panel-quiz-btn {
-      font-size: 0.72rem; font-weight: 600; color: #5a8a24;
-      background: rgba(140,198,63,0.08); border: 1px solid rgba(140,198,63,0.25);
-      border-radius: 20px; padding: 3px 10px; cursor: pointer; transition: all 0.2s;
-    }
-    .panel-quiz-btn:hover { background: rgba(140,198,63,0.16); border-color: var(--accent); }
-    .powered-by { margin-left: auto; font-size: 0.65rem; color: var(--text-muted); opacity: 0.5; }
+ .panel-input-area {
+ padding: 8px 12px 12px; border-top: 1px solid var(--border); flex-shrink: 0; background: var(--bg-surface);
+ }
+ .panel-input-row { display: flex; gap: 7px; align-items: flex-end; }
+ .panel-input {
+ flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+ border-radius: 12px; padding: 9px 13px; font-size: 0.86rem;
+ color: var(--text-main); font-family: 'Inter', sans-serif;
+ resize: none; min-height: 40px; max-height: 90px; outline: none;
+ transition: border-color 0.2s; line-height: 1.4;
+ }
+ .panel-input:focus { border-color: var(--accent); }
+ .panel-input::placeholder { color: var(--text-muted); }
+ .panel-send {
+ width: 36px; height: 36px; border-radius: 10px;
+ background: linear-gradient(135deg,#4a235a,#6c3483);
+ border: none; cursor: pointer;
+ display: flex; align-items: center; justify-content: center;
+ transition: all 0.2s; flex-shrink: 0;
+ }
+ .panel-send:hover { transform: scale(1.08); box-shadow: 0 4px 12px rgba(74,35,90,0.4); }
+ .panel-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+ .panel-footer-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+ .panel-quiz-btn {
+ font-size: 0.72rem; font-weight: 600; color: #5a8a24;
+ background: rgba(140,198,63,0.08); border: 1px solid rgba(140,198,63,0.25);
+ border-radius: 20px; padding: 3px 10px; cursor: pointer; transition: all 0.2s;
+ }
+ .panel-quiz-btn:hover { background: rgba(140,198,63,0.16); border-color: var(--accent); }
+ .powered-by { margin-left: auto; font-size: 0.65rem; color: var(--text-muted); opacity: 0.5; }
 
-    @media(max-width:480px){
-      .chat-panel { width: calc(100vw - 16px); right: 8px; bottom: 86px; border-radius: 16px; }
-      .bubble-btn { right: 16px; bottom: 16px; }
-    }
-  </style>
+ @media(max-width:480px){
+ .chat-panel { width: calc(100vw - 16px); right: 8px; bottom: 86px; border-radius: 16px; }
+ .bubble-btn { right: 16px; bottom: 16px; }
+ }
+ </style>
 </head>
 <body>
 
 <!-- ═══ NAV ═══ -->
 <nav class="nav">
-  <span class="nav-brand" translate="no">Atena</span>
-  <div class="nav-spacer"></div>
-  <div class="nav-links">
-    <a href="#features" class="nav-link">Características</a>
-    <a href="#como-funciona" class="nav-link">Cómo funciona</a>
-    <a href="/admin.html" class="nav-link">Admin</a>
-    <button class="nav-cta" onclick="toggleChat()">💬 Consultar</button>
-    <button class="nav-link" onclick="toggleTheme()" title="Modo oscuro" style="padding:6px 10px;">🌙</button>
-  </div>
+ <span class="nav-brand" translate="no">Atena</span>
+ <div class="nav-spacer"></div>
+ <div class="nav-links">
+ <a href="#features" class="nav-link">Características</a>
+ <a href="#como-funciona" class="nav-link">Cómo funciona</a>
+ <a href="/admin.html" class="nav-link">Admin</a>
+ <button class="nav-cta" onclick="toggleChat()"> Consultar</button>
+ <button class="nav-link" onclick="toggleTheme()" title="Modo oscuro" style="padding:6px 10px;"></button>
+ </div>
 </nav>
 
 <!-- ═══ HERO ═══ -->
 <section class="hero">
-  <div class="hero-content">
-    <div class="hero-badge">
-      <div class="hero-badge-dot"></div>
-      Asistente IA activo · Konrad Lorenz
-    </div>
-    <h1>Tu consultor de<br><span>Neuroanatomía</span><br>potenciado por IA</h1>
-    <p class="hero-sub">Resuelve dudas sobre el sistema nervioso, estructuras cerebrales y vías neurales. Respuestas fundamentadas en bibliografía científica del laboratorio.</p>
-    <div class="hero-actions">
-      <button class="btn-hero btn-hero-primary" onclick="toggleChat()">
-        🧠 Hacer una pregunta
-      </button>
-      <button class="btn-hero btn-hero-secondary" onclick="document.getElementById('quiz-modal').classList.add('open'); cargarPreguntas()">
-        📝 Autoevaluación
-      </button>
-    </div>
-    <div class="hero-stats">
-      <div class="stat">
-        <div class="stat-num">RAG</div>
-        <div class="stat-label">Motor de búsqueda semántica</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">3</div>
-        <div class="stat-label">Niveles de dificultad</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">24/7</div>
-        <div class="stat-label">Disponibilidad</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">✦</div>
-        <div class="stat-label">Fuentes bibliográficas citadas</div>
-      </div>
-    </div>
-  </div>
+ <div class="hero-content">
+ <div class="hero-badge">
+ <div class="hero-badge-dot"></div>
+ Asistente IA activo · Konrad Lorenz
+ </div>
+ <h1>Tu consultor de<br><span>Neuroanatomía</span><br>potenciado por IA</h1>
+ <p class="hero-sub">Resuelve dudas sobre el sistema nervioso, estructuras cerebrales y vías neurales. Respuestas fundamentadas en bibliografía científica del laboratorio.</p>
+ <div class="hero-actions">
+ <button class="btn-hero btn-hero-primary" onclick="toggleChat()">
+ Hacer una pregunta
+ </button>
+ <button class="btn-hero btn-hero-secondary" onclick="document.getElementById('quiz-modal').classList.add('open'); cargarPreguntas()">
+ Autoevaluación
+ </button>
+ </div>
+ <div class="hero-stats">
+ <div class="stat">
+ <div class="stat-num">RAG</div>
+ <div class="stat-label">Motor de búsqueda semántica</div>
+ </div>
+ <div class="stat">
+ <div class="stat-num">3</div>
+ <div class="stat-label">Niveles de dificultad</div>
+ </div>
+ <div class="stat">
+ <div class="stat-num">24/7</div>
+ <div class="stat-label">Disponibilidad</div>
+ </div>
+ <div class="stat">
+ <div class="stat-num"></div>
+ <div class="stat-label">Fuentes bibliográficas citadas</div>
+ </div>
+ </div>
+ </div>
 </section>
 
 <!-- ═══ FEATURES ═══ -->
 <section class="section" id="features">
-  <h2 class="section-title">¿Qué puede hacer Atena?</h2>
-  <p class="section-sub">Diseñada para estudiantes del programa de Psicología que cursan el módulo de Neuroanatomía.</p>
-  <div class="features-grid">
-    <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(74,35,90,0.12);">🔍</div>
-      <div class="feature-title">Consulta RAG inteligente</div>
-      <div class="feature-desc">Busca en los documentos del laboratorio y genera respuestas precisas, citando las fuentes bibliográficas originales.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(140,198,63,0.12);">📝</div>
-      <div class="feature-title">Autoevaluación por nivel</div>
-      <div class="feature-desc">Quiz dinámico con preguntas de selección múltiple en niveles Principiante, Avanzado y General. Retroalimentación inmediata.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(59,130,246,0.12);">🧠</div>
-      <div class="feature-title">Adaptado al nivel</div>
-      <div class="feature-desc">Elige entre Principiante, Avanzado o General para obtener respuestas ajustadas al nivel de conocimiento del estudiante.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(239,68,68,0.1);">📚</div>
-      <div class="feature-title">Bibliografía científica</div>
-      <div class="feature-desc">Cada respuesta incluye las referencias exactas (capítulo, página) de los textos indexados en la base de conocimiento.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(245,158,11,0.1);">⚡</div>
-      <div class="feature-title">Respuestas rápidas</div>
-      <div class="feature-desc">Tiempo de respuesta típico menor a 8 segundos. Disponible en cualquier momento, sin necesidad de esperar a un docente.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(16,185,129,0.1);">📊</div>
-      <div class="feature-title">Panel de administración</div>
-      <div class="feature-desc">Los docentes pueden gestionar documentos, el banco de preguntas y ver métricas de uso del laboratorio.</div>
-    </div>
-  </div>
+ <h2 class="section-title">¿Qué puede hacer Atena?</h2>
+ <p class="section-sub">Diseñada para estudiantes del programa de Psicología que cursan el módulo de Neuroanatomía.</p>
+ <div class="features-grid">
+ <div class="feature-card">
+ <div class="feature-icon" style="background:rgba(74,35,90,0.12);"></div>
+ <div class="feature-title">Consulta RAG inteligente</div>
+ <div class="feature-desc">Busca en los documentos del laboratorio y genera respuestas precisas, citando las fuentes bibliográficas originales.</div>
+ </div>
+ <div class="feature-card">
+ <div class="feature-icon" style="background:rgba(140,198,63,0.12);"></div>
+ <div class="feature-title">Autoevaluación por nivel</div>
+ <div class="feature-desc">Quiz dinámico con preguntas de selección múltiple en niveles Principiante, Avanzado y General. Retroalimentación inmediata.</div>
+ </div>
+ <div class="feature-card">
+ <div class="feature-icon" style="background:rgba(59,130,246,0.12);"></div>
+ <div class="feature-title">Adaptado al nivel</div>
+ <div class="feature-desc">Elige entre Principiante, Avanzado o General para obtener respuestas ajustadas al nivel de conocimiento del estudiante.</div>
+ </div>
+ <div class="feature-card">
+ <div class="feature-icon" style="background:rgba(239,68,68,0.1);"></div>
+ <div class="feature-title">Bibliografía científica</div>
+ <div class="feature-desc">Cada respuesta incluye las referencias exactas (capítulo, página) de los textos indexados en la base de conocimiento.</div>
+ </div>
+ <div class="feature-card">
+ <div class="feature-icon" style="background:rgba(245,158,11,0.1);"></div>
+ <div class="feature-title">Respuestas rápidas</div>
+ <div class="feature-desc">Tiempo de respuesta típico menor a 8 segundos. Disponible en cualquier momento, sin necesidad de esperar a un docente.</div>
+ </div>
+ <div class="feature-card">
+ <div class="feature-icon" style="background:rgba(16,185,129,0.1);"></div>
+ <div class="feature-title">Panel de administración</div>
+ <div class="feature-desc">Los docentes pueden gestionar documentos, el banco de preguntas y ver métricas de uso del laboratorio.</div>
+ </div>
+ </div>
 </section>
 
 <!-- ═══ CÓMO FUNCIONA ═══ -->
 <section class="section" id="como-funciona" style="padding-top:40px;">
-  <h2 class="section-title">¿Cómo funciona?</h2>
-  <p class="section-sub">Tres pasos para obtener la respuesta que necesitas.</p>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-title">Haz tu pregunta</div>
-      <div class="step-desc">Escribe tu duda sobre neuroanatomía en lenguaje natural, como le preguntarías a un experto.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-title">Búsqueda semántica</div>
-      <div class="step-desc">Atena busca en la bibliografía indexada los fragmentos más relevantes para tu pregunta.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-title">Respuesta fundamentada</div>
-      <div class="step-desc">Recibe una respuesta clara, adaptada a tu nivel, con las fuentes originales citadas.</div>
-    </div>
-  </div>
-  <div style="text-align:center;margin-top:48px;">
-    <button class="btn-hero btn-hero-primary" onclick="toggleChat()" style="margin:0 auto;">
-      🧠 Comenzar ahora
-    </button>
-  </div>
+ <h2 class="section-title">¿Cómo funciona?</h2>
+ <p class="section-sub">Tres pasos para obtener la respuesta que necesitas.</p>
+ <div class="steps">
+ <div class="step">
+ <div class="step-num">1</div>
+ <div class="step-title">Haz tu pregunta</div>
+ <div class="step-desc">Escribe tu duda sobre neuroanatomía en lenguaje natural, como le preguntarías a un experto.</div>
+ </div>
+ <div class="step">
+ <div class="step-num">2</div>
+ <div class="step-title">Búsqueda semántica</div>
+ <div class="step-desc">Atena busca en la bibliografía indexada los fragmentos más relevantes para tu pregunta.</div>
+ </div>
+ <div class="step">
+ <div class="step-num">3</div>
+ <div class="step-title">Respuesta fundamentada</div>
+ <div class="step-desc">Recibe una respuesta clara, adaptada a tu nivel, con las fuentes originales citadas.</div>
+ </div>
+ </div>
+ <div style="text-align:center;margin-top:48px;">
+ <button class="btn-hero btn-hero-primary" onclick="toggleChat()" style="margin:0 auto;">
+ Comenzar ahora
+ </button>
+ </div>
 </section>
 
 <!-- ═══ FOOTER ═══ -->
 <footer class="footer">
-  <p>© 2026 <strong translate="no">Atena</strong> · Universidad Konrad Lorenz · Programa de Psicología</p>
-  <p style="margin-top:6px;">
-    <a href="/admin.html">Panel Administración</a> ·
-    <a href="/docs" target="_blank">API Docs</a>
-  </p>
+ <p>© 2026 <strong translate="no">Atena</strong> · Universidad Konrad Lorenz · Programa de Psicología</p>
+ <p style="margin-top:6px;">
+ <a href="/admin.html">Panel Administración</a> ·
+ <a href="/docs" target="_blank">API Docs</a>
+ </p>
 </footer>
 
 <!-- ═══ BURBUJA FLOTANTE ═══ -->
 <button class="bubble-btn" id="bubble-btn" onclick="toggleChat()" aria-label="Abrir Atena" title="Consultar a Atena">
-  <div class="bubble-badge" id="bubble-badge"></div>
-  <svg id="icon-open" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
-    <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
-    <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
-  </svg>
-  <svg id="icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" style="display:none">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
+ <div class="bubble-badge" id="bubble-badge"></div>
+ <svg id="icon-open" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+ <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+ <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+ <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
+ </svg>
+ <svg id="icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" style="display:none">
+ <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+ </svg>
 </button>
 
 <!-- ═══ PANEL FLOTANTE ═══ -->
 <div class="chat-panel" id="chat-panel" role="dialog" aria-label="Consultor Atena">
-  <div class="panel-header">
-    <div class="panel-avatar">A</div>
-    <div>
-      <div class="panel-name" translate="no">Atena</div>
-      <div class="panel-status">
-        <div class="status-dot-live" id="status-dot"></div>
-        <span id="status-text">Consultora IA activa</span>
-      </div>
-    </div>
-    <div class="panel-actions">
-      <button class="panel-action-btn" onclick="nuevaConversacion()" title="Nueva conversación">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </button>
-      <button class="panel-action-btn" onclick="toggleTheme()" title="Tema">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-      </button>
-      <button class="panel-action-btn" onclick="toggleChat()" title="Cerrar">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-  </div>
+ <div class="panel-header">
+ <div class="panel-avatar">A</div>
+ <div>
+ <div class="panel-name" translate="no">Atena</div>
+ <div class="panel-status">
+ <div class="status-dot-live" id="status-dot"></div>
+ <span id="status-text">Consultora IA activa</span>
+ </div>
+ </div>
+ <div class="panel-actions">
+ <button class="panel-action-btn" onclick="nuevaConversacion()" title="Nueva conversación">
+ <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+ </button>
+ <button class="panel-action-btn" onclick="toggleTheme()" title="Tema">
+ <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+ </button>
+ <button class="panel-action-btn" onclick="toggleChat()" title="Cerrar">
+ <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+ </button>
+ </div>
+ </div>
 
-  <div class="nivel-tabs">
-    <button class="nivel-tab active" data-nivel="Principiante" onclick="setNivel(this)">🌱 Principiante</button>
-    <button class="nivel-tab" data-nivel="Avanzado" onclick="setNivel(this)">🧠 Avanzado</button>
-    <button class="nivel-tab" data-nivel="General" onclick="setNivel(this)">📚 General</button>
-  </div>
+ <div class="nivel-tabs">
+ <button class="nivel-tab active" data-nivel="Principiante" onclick="setNivel(this)"> Principiante</button>
+ <button class="nivel-tab" data-nivel="Avanzado" onclick="setNivel(this)"> Avanzado</button>
+ <button class="nivel-tab" data-nivel="General" onclick="setNivel(this)"> General</button>
+ </div>
 
-  <div class="panel-messages" id="panel-messages">
-    <div class="panel-welcome" id="panel-welcome">
-      <div class="panel-welcome-logo">A</div>
-      <h3>Hola, soy Atena</h3>
-      <p>Consultora especializada en neuroanatomía. Pregúntame lo que necesites.</p>
-      <div class="panel-chips">
-        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">¿Qué es el hipocampo?</button>
-        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Lóbulos cerebrales</button>
-        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Vías del dolor</button>
-        <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Cerebelo y funciones</button>
-      </div>
-    </div>
-  </div>
+ <div class="panel-messages" id="panel-messages">
+ <div class="panel-welcome" id="panel-welcome">
+ <div class="panel-welcome-logo">A</div>
+ <h3>Hola, soy Atena</h3>
+ <p>Consultora especializada en neuroanatomía. Pregúntame lo que necesites.</p>
+ <div class="panel-chips">
+ <button class="panel-chip" onclick="hacerPregunta(this.textContent)">¿Qué es el hipocampo?</button>
+ <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Lóbulos cerebrales</button>
+ <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Vías del dolor</button>
+ <button class="panel-chip" onclick="hacerPregunta(this.textContent)">Cerebelo y funciones</button>
+ </div>
+ </div>
+ </div>
 
-  <div class="panel-input-area">
-    <div class="panel-input-row">
-      <textarea id="panel-input" class="panel-input" placeholder="Escribe tu pregunta…" rows="1"
-        onkeydown="handleKey(event)" oninput="autoResize(this)" aria-label="Pregunta"></textarea>
-      <button class="panel-send" id="panel-send" onclick="enviarPregunta()" aria-label="Enviar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
-    </div>
-    <div class="panel-footer-row">
-      <button class="panel-quiz-btn" onclick="document.getElementById('quiz-modal').classList.add('open'); document.body.style.overflow='hidden'; cargarPreguntas()">📝 Autoevaluación</button>
-      <span class="powered-by">Konrad Lorenz · IA</span>
-    </div>
-  </div>
+ <div class="panel-input-area">
+ <div class="panel-input-row">
+ <textarea id="panel-input" class="panel-input" placeholder="Escribe tu pregunta…" rows="1"
+ onkeydown="handleKey(event)" oninput="autoResize(this)" aria-label="Pregunta"></textarea>
+ <button class="panel-send" id="panel-send" onclick="enviarPregunta()" aria-label="Enviar">
+ <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+ </button>
+ </div>
+ <div class="panel-footer-row">
+ <button class="panel-quiz-btn" onclick="document.getElementById('quiz-modal').classList.add('open'); document.body.style.overflow='hidden'; cargarPreguntas()"> Autoevaluación</button>
+ <span class="powered-by">Konrad Lorenz · IA</span>
+ </div>
+ </div>
 </div>
 
 <!-- ═══ MODAL QUIZ ═══ -->
 <div class="modal-overlay" id="quiz-modal" role="dialog" aria-modal="true">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title">📝 Autoevaluación de Neuroanatomía</h2>
-      <button class="modal-close" onclick="cerrarQuiz()" aria-label="Cerrar">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div id="quiz-content">
-      <div style="text-align:center;padding:40px;color:var(--text-muted);">
-        <div class="spinner" style="border-top-color:var(--accent);margin:0 auto 16px;width:28px;height:28px;border-width:3px;"></div>
-        Cargando preguntas…
-      </div>
-    </div>
-  </div>
+ <div class="modal">
+ <div class="modal-header">
+ <h2 class="modal-title"> Autoevaluación de Neuroanatomía</h2>
+ <button class="modal-close" onclick="cerrarQuiz()" aria-label="Cerrar">
+ <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+ </button>
+ </div>
+ <div id="quiz-content">
+ <div style="text-align:center;padding:40px;color:var(--text-muted);">
+ <div class="spinner" style="border-top-color:var(--accent);margin:0 auto 16px;width:28px;height:28px;border-width:3px;"></div>
+ Cargando preguntas…
+ </div>
+ </div>
+ </div>
 </div>
 
 <script src="/js/app.js"></script>

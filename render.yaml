@@ -16,4 +16,4 @@ services:
       - key: SUPABASE_DB_URL
         sync: false          # Se configura manualmente en el panel de Render
       - key: ADMIN_PIN
-        value: "12345"
+        sync: false          # Se configura manualmente en el panel de Render
