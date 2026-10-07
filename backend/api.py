@@ -29,6 +29,12 @@ vector_store = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """
+    Gestiona el ciclo de vida de la aplicación FastAPI.
+    Al arrancar, carga el vector store de ChromaDB en memoria para que
+    todas las consultas RAG posteriores sean inmediatas (sin cold start).
+    Al cerrar, registra el evento de apagado en los logs.
+    """
     global vector_store
     logger.info("Atena API — Cargando vector store...")
     try:
@@ -130,6 +136,10 @@ def formatear_para_unity(texto: str) -> str:
 
     # 3. Estilizar citas documentales y autores (Reconocedor universal robusto)
     def _estilizar_cita_fuente(match):
+        """
+        Reemplaza una referencia numérica [Fuente X, pág. Y] por texto
+        estilizado con color dorado para Unity Rich Text (TextMeshPro).
+        """
         fuente = match.group(1)
         pag = match.group(2) if match.group(2) else None
         if pag:
@@ -146,6 +156,10 @@ def formatear_para_unity(texto: str) -> str:
 
     # Citas con nombre de autor: (Clark, pág. 231), (*Clark, pág. 231*), (Lange, p. 195)
     def _estilizar_cita_autor(match):
+        """
+        Estiliza una cita de autor tipo (Clark, pág. 231) con color dorado
+        para mejorar la legibilidad en la interfaz de Unity.
+        """
         contenido = match.group(1).strip('*')
         return f'<color=#E5C07B><i>({contenido})</i></color>'
 
@@ -583,6 +597,11 @@ async def publicar_a_github(x_admin_pin: str = Header(..., alias="X-Admin-Pin"))
     }
 
     def gh_request(method: str, path: str, body: dict | None = None):
+        """
+        Realiza una petición autenticada a la GitHub Contents API.
+        Retorna una tupla (respuesta_json, http_status_code).
+        En caso de error HTTP, devuelve el cuerpo del error y el código.
+        """
         url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
         data = _json.dumps(body).encode() if body else None
         req  = urllib.request.Request(url, data=data, headers=headers_gh, method=method)
