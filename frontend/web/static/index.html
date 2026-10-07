@@ -597,66 +597,118 @@
  <div class="hero-right">
  <div class="brain-visual">
  <div class="brain-glow"></div>
- <svg class="brain-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
- <defs>
- <radialGradient id="brainGrad" cx="50%" cy="45%" r="55%">
- <stop offset="0%" stop-color="#9b59b6"/>
- <stop offset="40%" stop-color="#6c3483"/>
- <stop offset="100%" stop-color="#2c1a3e"/>
- </radialGradient>
- <filter id="glow">
- <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
- <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
- </filter>
- <radialGradient id="glowGreen" cx="50%" cy="50%" r="50%">
- <stop offset="0%" stop-color="#8CC63F" stop-opacity="0.9"/>
- <stop offset="100%" stop-color="#8CC63F" stop-opacity="0"/>
- </radialGradient>
- </defs>
- <!-- Hemisferio cerebral izquierdo -->
- <path d="M200,80 C140,60 80,90 65,140 C50,190 60,230 80,260 C100,290 130,310 160,318 C170,320 175,315 175,300 L175,200 C175,180 180,160 200,150 Z"
- fill="url(#brainGrad)" opacity="0.95" filter="url(#glow)"/>
- <!-- Hemisferio cerebral derecho -->
- <path d="M200,80 C260,60 320,90 335,140 C350,190 340,230 320,260 C300,290 270,310 240,318 C230,320 225,315 225,300 L225,200 C225,180 220,160 200,150 Z"
- fill="url(#brainGrad)" opacity="0.85" filter="url(#glow)"/>
- <!-- Surcos cerebrales -->
- <path d="M110,150 Q140,130 170,155" stroke="rgba(180,120,220,0.5)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
- <path d="M105,180 Q145,160 180,175" stroke="rgba(180,120,220,0.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
- <path d="M100,215 Q140,195 175,210" stroke="rgba(180,120,220,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
- <path d="M108,248 Q145,232 172,244" stroke="rgba(180,120,220,0.3)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
- <path d="M290,150 Q260,130 230,155" stroke="rgba(180,120,220,0.5)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
- <path d="M295,180 Q255,160 220,175" stroke="rgba(180,120,220,0.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
- <path d="M300,215 Q260,195 225,210" stroke="rgba(180,120,220,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
- <!-- Fisura longitudinal (centro) -->
- <path d="M200,85 L200,320" stroke="rgba(30,10,50,0.8)" stroke-width="4" stroke-linecap="round"/>
- <!-- Tronco -->
- <path d="M175,310 Q180,340 185,360 L215,360 Q220,340 225,310" fill="url(#brainGrad)" opacity="0.7"/>
- <!-- Nodos de actividad (sinapsis) -->
- <circle cx="130" cy="160" r="4" fill="#8CC63F" opacity="0.9" filter="url(#glow)">
- <animate attributeName="opacity" values="0.9;0.3;0.9" dur="2.1s" repeatCount="indefinite"/>
- </circle>
- <circle cx="155" cy="210" r="3" fill="#8CC63F" opacity="0.7">
- <animate attributeName="opacity" values="0.7;0.2;0.7" dur="1.7s" repeatCount="indefinite"/>
- </circle>
- <circle cx="270" cy="165" r="4" fill="#8CC63F" opacity="0.85" filter="url(#glow)">
- <animate attributeName="opacity" values="0.85;0.25;0.85" dur="2.4s" repeatCount="indefinite"/>
- </circle>
- <circle cx="250" cy="225" r="3" fill="#a855f7" opacity="0.8">
- <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.9s" repeatCount="indefinite"/>
- </circle>
- <circle cx="200" cy="180" r="5" fill="#c084fc" opacity="0.6" filter="url(#glow)">
- <animate attributeName="opacity" values="0.6;0.15;0.6" dur="3s" repeatCount="indefinite"/>
- </circle>
- <!-- Líneas de conexión sináptica -->
- <line x1="130" y1="160" x2="200" y2="180" stroke="rgba(140,198,63,0.35)" stroke-width="1" stroke-dasharray="4,4">
- <animate attributeName="stroke-opacity" values="0.35;0.1;0.35" dur="2.1s" repeatCount="indefinite"/>
- </line>
- <line x1="270" y1="165" x2="200" y2="180" stroke="rgba(140,198,63,0.35)" stroke-width="1" stroke-dasharray="4,4">
- <animate attributeName="stroke-opacity" values="0.35;0.1;0.35" dur="2.4s" repeatCount="indefinite"/>
- </line>
- <line x1="155" y1="210" x2="250" y2="225" stroke="rgba(168,85,247,0.3)" stroke-width="1" stroke-dasharray="3,5">
- <animate attributeName="stroke-opacity" values="0.3;0.08;0.3" dur="1.9s" repeatCount="indefinite"/>
- </line>
+ <svg class="brain-svg" viewBox="0 0 400 420" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+   <radialGradient id="bg1" cx="40%" cy="38%" r="60%">
+    <stop offset="0%" stop-color="#b06fd8"/>
+    <stop offset="55%" stop-color="#6c3483"/>
+    <stop offset="100%" stop-color="#2c1a3e"/>
+   </radialGradient>
+   <radialGradient id="bg2" cx="62%" cy="42%" r="58%">
+    <stop offset="0%" stop-color="#9b59b6"/>
+    <stop offset="55%" stop-color="#5b2c82"/>
+    <stop offset="100%" stop-color="#1e0f2e"/>
+   </radialGradient>
+   <filter id="softshadow" x="-20%" y="-20%" width="140%" height="140%">
+    <feGaussianBlur stdDeviation="6" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+   </filter>
+   <filter id="glow2" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="3" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+   </filter>
+  </defs>
+
+  <!-- Hemisferio izquierdo — forma cerebral realista -->
+  <path d="
+   M 200 75
+   C 175 65, 140 62, 115 72
+   C 85 84, 65 108, 57 135
+   C 48 165, 52 195, 60 220
+   C 70 250, 88 272, 108 288
+   C 128 304, 152 314, 172 318
+   C 180 320, 186 316, 188 308
+   L 190 240
+   C 190 220, 192 200, 198 190
+   L 200 185
+   Z
+  " fill="url(#bg1)" opacity="0.97" filter="url(#softshadow)"/>
+
+  <!-- Hemisferio derecho -->
+  <path d="
+   M 200 75
+   C 225 65, 260 62, 285 72
+   C 315 84, 335 108, 343 135
+   C 352 165, 348 195, 340 220
+   C 330 250, 312 272, 292 288
+   C 272 304, 248 314, 228 318
+   C 220 320, 214 316, 212 308
+   L 210 240
+   C 210 220, 208 200, 202 190
+   L 200 185
+   Z
+  " fill="url(#bg2)" opacity="0.92" filter="url(#softshadow)"/>
+
+  <!-- Tronco encefálico -->
+  <path d="M 183 315 Q 185 355 187 375 L 213 375 Q 215 355 217 315 Z"
+   fill="#5b2c82" opacity="0.8"/>
+
+  <!-- Surcos izquierdo -->
+  <path d="M 88 148 Q 112 136 138 148" stroke="rgba(200,140,240,0.55)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 80 178 Q 112 163 145 172" stroke="rgba(200,140,240,0.45)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M 75 210 Q 110 196 148 205" stroke="rgba(200,140,240,0.40)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M 82 244 Q 115 232 148 240" stroke="rgba(200,140,240,0.30)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 95 274 Q 125 264 155 270" stroke="rgba(200,140,240,0.25)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 110 135 Q 130 118 160 130" stroke="rgba(200,140,240,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Surcos derecho -->
+  <path d="M 312 148 Q 288 136 262 148" stroke="rgba(200,140,240,0.55)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 320 178 Q 288 163 255 172" stroke="rgba(200,140,240,0.45)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M 325 210 Q 290 196 252 205" stroke="rgba(200,140,240,0.40)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M 318 244 Q 285 232 252 240" stroke="rgba(200,140,240,0.30)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 305 274 Q 275 264 245 270" stroke="rgba(200,140,240,0.25)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M 290 135 Q 270 118 240 130" stroke="rgba(200,140,240,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Fisura interhemisférica central -->
+  <path d="M 200 78 L 200 182" stroke="rgba(20,8,40,0.85)" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Sinapsis parpadeantes - izquierda -->
+  <circle cx="118" cy="155" r="4.5" fill="#8CC63F" filter="url(#glow2)">
+   <animate attributeName="opacity" values="1;0.25;1" dur="2.2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="100" cy="200" r="3" fill="#a855f7">
+   <animate attributeName="opacity" values="0.8;0.15;0.8" dur="1.8s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="135" cy="250" r="3.5" fill="#8CC63F" filter="url(#glow2)">
+   <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.6s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Sinapsis parpadeantes - derecha -->
+  <circle cx="282" cy="155" r="4.5" fill="#8CC63F" filter="url(#glow2)">
+   <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="300" cy="200" r="3" fill="#c084fc">
+   <animate attributeName="opacity" values="0.75;0.1;0.75" dur="2.0s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="265" cy="248" r="3.5" fill="#8CC63F" filter="url(#glow2)">
+   <animate attributeName="opacity" values="0.85;0.2;0.85" dur="1.9s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Nodo central (cuerpo calloso) -->
+  <circle cx="200" cy="210" r="5" fill="#c084fc" opacity="0.7" filter="url(#glow2)">
+   <animate attributeName="opacity" values="0.7;0.2;0.7" dur="3.2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Conexiones sinápticas -->
+  <line x1="118" y1="155" x2="200" y2="210" stroke="rgba(140,198,63,0.3)" stroke-width="1" stroke-dasharray="5,4">
+   <animate attributeName="stroke-opacity" values="0.3;0.06;0.3" dur="2.2s" repeatCount="indefinite"/>
+  </line>
+  <line x1="282" y1="155" x2="200" y2="210" stroke="rgba(140,198,63,0.3)" stroke-width="1" stroke-dasharray="5,4">
+   <animate attributeName="stroke-opacity" values="0.3;0.06;0.3" dur="2.5s" repeatCount="indefinite"/>
+  </line>
+  <line x1="100" y1="200" x2="200" y2="210" stroke="rgba(168,85,247,0.25)" stroke-width="1" stroke-dasharray="4,5">
+   <animate attributeName="stroke-opacity" values="0.25;0.05;0.25" dur="1.8s" repeatCount="indefinite"/>
+  </line>
  </svg>
  </div>
  </div>
