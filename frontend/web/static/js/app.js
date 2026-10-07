@@ -299,13 +299,58 @@ function nuevaConversacion() {
 }
 
 // ── Quiz ─────────────────────────────────────────────────────────────
+let quizNivelSeleccionado = 'Principiante';
+
 function abrirQuiz() {
  quizPreguntas = []; quizIndice = 0; quizAciertos = 0; quizRespondida = false;
  const modal = document.getElementById('quiz-modal');
  modal.classList.add('open');
  document.body.style.overflow = 'hidden';
+ mostrarSelectorNivelQuiz();  // Primero elegir nivel
+}
+
+function mostrarSelectorNivelQuiz() {
+ const content = document.getElementById('quiz-content');
+ const niveles = [
+   { key: 'Principiante', desc: 'Conceptos fundamentales de neuroanatomía' },
+   { key: 'General',      desc: 'Conocimiento intermedio y aplicado' },
+   { key: 'Avanzado',     desc: 'Profundización clínica y funcional' },
+ ];
+ const botones = niveles.map(n => `
+   <button onclick="iniciarQuizConNivel('${n.key}')"
+     style="width:100%;text-align:left;background:var(--bg-card);border:1px solid var(--border);
+            border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;
+            transition:border-color .2s,transform .1s;color:var(--text-main);"
+     onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateX(3px)'"
+     onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+     <strong style="display:block;margin-bottom:2px;">${n.key}</strong>
+     <span style="font-size:0.82rem;color:var(--text-muted);">${n.desc}</span>
+   </button>`).join('');
+
+ content.innerHTML = `
+   <div style="padding:8px 4px;">
+     <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:18px;">
+       Selecciona el nivel de dificultad para tu autoevaluación:
+     </p>
+     ${botones}
+     <button onclick="iniciarQuizConNivel('todos')"
+       style="width:100%;text-align:left;background:transparent;border:1px dashed var(--border);
+              border-radius:10px;padding:14px 18px;cursor:pointer;color:var(--text-muted);
+              transition:border-color .2s;" 
+       onmouseover="this.style.borderColor='var(--accent)'"
+       onmouseout="this.style.borderColor='var(--border)'">
+       <strong style="display:block;color:var(--text-main);margin-bottom:2px;">Todos los niveles</strong>
+       <span style="font-size:0.82rem;">Mezcla aleatoria de principiante, general y avanzado</span>
+     </button>
+   </div>`;
+}
+
+function iniciarQuizConNivel(nivel) {
+ quizNivelSeleccionado = nivel;
+ quizPreguntas = []; quizIndice = 0; quizAciertos = 0; quizRespondida = false;
  cargarPreguntasQuiz();
 }
+
 function cerrarQuiz() {
  document.getElementById('quiz-modal').classList.remove('open');
  document.body.style.overflow = '';
@@ -313,19 +358,22 @@ function cerrarQuiz() {
 
 async function cargarPreguntasQuiz() {
  const content = document.getElementById('quiz-content');
+ const nivelLabel = quizNivelSeleccionado === 'todos' ? 'todos los niveles' : `nivel ${quizNivelSeleccionado}`;
  content.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);">
  <div class="spinner" style="border-top-color:var(--accent);margin:0 auto 16px;width:28px;height:28px;border-width:3px;"></div>
- Cargando preguntas de nivel ${nivelActual}…
+ Cargando preguntas de ${nivelLabel}…
  </div>`;
 
  try {
- const r = await fetch(`${API_BASE}/api/evaluacion/preguntas?nivel=${encodeURIComponent(nivelActual)}&cantidad=10&aleatorio=true`);
+ const nivelParam = quizNivelSeleccionado && quizNivelSeleccionado !== 'todos'
+   ? `&nivel=${encodeURIComponent(quizNivelSeleccionado)}` : '';
+ const r = await fetch(`${API_BASE}/api/evaluacion/preguntas?cantidad=10&aleatorio=true${nivelParam}`);
  if (!r.ok) throw new Error(`HTTP ${r.status}`);
  const data = await r.json();
 
  if (!data.preguntas || data.preguntas.length === 0) {
  content.innerHTML = `<div style="text-align:center;padding:40px;">
- <p style="color:var(--text-muted);">No hay preguntas para el nivel <strong>${nivelActual}</strong>.</p>
+ <p style="color:var(--text-muted);">No hay preguntas para este nivel. Ve al panel Admin para agregar preguntas.</p>
  <button class="btn btn-outline" style="margin-top:16px;" onclick="cerrarQuiz()">Cerrar</button>
  </div>`;
  return;
