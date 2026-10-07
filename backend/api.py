@@ -537,6 +537,70 @@ async def subir_documento(
         raise HTTPException(status_code=500, detail=f"Error al subir documento: {e}")
 
 
+# ── Publicar documentos a GitHub (persistencia permanente en Render) ──────────
+
+@app.post("/api/admin/publicar", tags=["Admin"])
+async def publicar_a_github(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
+    """
+    Hace commit + push de Docs/ y chroma_neuro_db/ a GitHub.
+    Requiere la variable de entorno GITHUB_TOKEN configurada en Render.
+    Al actualizarse GitHub, Render redespliega automáticamente y los documentos
+    quedan permanentemente disponibles aunque el servidor se reinicie.
+    """
+    _verificar_pin(x_admin_pin)
+
+    import subprocess
+
+    token = os.environ.get("GITHUB_TOKEN", "")
+    repo_url = os.environ.get("GITHUB_REPO_URL", "")  # ej: https://github.com/Vivi271/Atena.git
+
+    if not token:
+        raise HTTPException(
+            status_code=503,
+            detail="GITHUB_TOKEN no está configurado en las variables de entorno del servidor."
+        )
+
+    try:
+        # Configurar git con el token de autenticación
+        remote_with_token = repo_url.replace("https://", f"https://x-token:{token}@")
+
+        env = {**os.environ, "GIT_AUTHOR_NAME": "Atena Admin", "GIT_AUTHOR_EMAIL": "atena@konradlorenz.edu.co",
+               "GIT_COMMITTER_NAME": "Atena Admin", "GIT_COMMITTER_EMAIL": "atena@konradlorenz.edu.co"}
+
+        base = "/app"  # ruta en Docker; en local usar os.getcwd()
+        if not os.path.exists(os.path.join(base, ".git")):
+            base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+        def run(cmd):
+            r = subprocess.run(cmd, cwd=base, capture_output=True, text=True, env=env)
+            if r.returncode != 0:
+                raise RuntimeError(r.stderr or r.stdout)
+            return r.stdout.strip()
+
+        run(["git", "config", "user.email", "atena@konradlorenz.edu.co"])
+        run(["git", "config", "user.name", "Atena Admin"])
+        run(["git", "add", "Docs/", "backend/chroma_neuro_db/", "chroma_neuro_db/"])
+        status = run(["git", "status", "--porcelain"])
+
+        if not status:
+            return {"ok": True, "mensaje": "No hay cambios nuevos para publicar. Los documentos ya están sincronizados."}
+
+        run(["git", "commit", "-m", "docs(lab): actualizar documentos y base vectorial desde panel admin"])
+        run(["git", "remote", "set-url", "origin", remote_with_token])
+        run(["git", "push", "origin", "main"])
+        run(["git", "remote", "set-url", "origin", repo_url])  # limpiar token de la url
+
+        logger.info("Documentos publicados exitosamente en GitHub desde el panel admin.")
+        return {
+            "ok": True,
+            "mensaje": "Documentos publicados en GitHub. Render redesplegará en ~2 minutos y los cambios serán permanentes."
+        }
+
+    except Exception as e:
+        logger.error(f"Error al publicar en GitHub: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al publicar: {str(e)[:200]}")
+
+
 @app.delete("/api/admin/delete/{filename}", tags=["Admin"])
 async def eliminar_documento(
     filename: str,

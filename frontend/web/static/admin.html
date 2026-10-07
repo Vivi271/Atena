@@ -127,11 +127,16 @@
  <section id="section-docs" class="admin-section" style="margin-top:24px;">
  <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
  <h2 style="margin:0;">Documentos indexados</h2>
- <div style="margin-left:auto;display:flex;gap:8px;">
+ <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
  <button class="btn btn-outline" onclick="cargarDocs()">↺ Actualizar</button>
  <button class="btn btn-outline" id="btn-rebuild" onclick="reindexar()">Reindexar todo</button>
+ <button class="btn btn-primary" id="btn-publicar" onclick="publicarEnNube()"
+  title="Sube documentos y vectores a GitHub. Render redesplegará en ~2 min y los cambios serán permanentes.">
+  Publicar en la nube
+ </button>
  </div>
  </div>
+ <div id="publicar-msg" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:8px;font-size:0.85rem;"></div>
 
  <!-- Upload dropzone -->
  <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()"

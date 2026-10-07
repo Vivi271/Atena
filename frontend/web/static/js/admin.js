@@ -174,6 +174,40 @@ async function reindexar() {
  }
 }
 
+
+async function publicarEnNube() {
+  const btn = document.getElementById('btn-publicar');
+  const msg = document.getElementById('publicar-msg');
+
+  function setMsg(text, ok) {
+    msg.textContent = text;
+    msg.style.display = 'block';
+    msg.style.background = ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+    msg.style.color   = ok ? '#22c55e' : '#ef4444';
+    msg.style.border  = '1px solid ' + (ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)');
+  }
+
+  if (!confirm('¿Publicar en GitHub?\nRender redesplegará en ~2 minutos y los documentos serán permanentes.')) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Publicando…';
+  msg.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API_BASE}/api/admin/publicar`, {
+      method: 'POST',
+      headers: { 'X-Admin-Pin': adminPin },
+    });
+    const data = await r.json();
+    setMsg(data.mensaje || data.detail || 'Listo.', r.ok);
+  } catch(e) {
+    setMsg('Error de red: ' + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Publicar en la nube';
+  }
+}
+
 // Drag & Drop + upload
 function handleDrop(e) {
  e.preventDefault();
