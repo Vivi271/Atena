@@ -179,8 +179,65 @@
  }
 
  /* RESPONSIVE */
- @media(max-width: 900px) {
- .hero { grid-template-columns: 1fr; padding: 100px 28px 60px; text-align: center; }
+ /* ── RESPONSIVIDAD ────────────────────────────── */
+
+  /* Hamburger */
+  .nav-hamburger {
+   display: none; background: none; border: none; cursor: pointer;
+   color: var(--text-main); padding: 6px;
+  }
+  .nav-mobile-menu {
+   display: none; position: fixed; top: 60px; left: 0; right: 0;
+   background: rgba(13,17,23,0.97); backdrop-filter: blur(12px);
+   border-bottom: 1px solid var(--border); z-index: 49;
+   flex-direction: column; padding: 12px 20px 16px; gap: 4px;
+  }
+  [data-theme="light"] .nav-mobile-menu { background: rgba(255,255,255,0.97); }
+  .nav-mobile-menu.open { display: flex; }
+  .nav-mobile-menu .nav-link, .nav-mobile-menu .nav-cta {
+   width: 100%; text-align: left; padding: 10px 14px;
+  }
+
+  @media(max-width: 900px) {
+   .nav-links { display: none; }
+   .nav-hamburger { display: flex; align-items: center; }
+   .hero { grid-template-columns: 1fr; padding: 90px 28px 50px; text-align: center; }
+   .hero-right { display: none; }
+   .hero-left { max-width: 100%; }
+   .hero-actions { justify-content: center; }
+   .hero-stats { justify-content: center; flex-wrap: wrap; gap: 20px; }
+   .stat { text-align: center; }
+   .hero h1 { font-size: clamp(2rem, 8vw, 3rem); }
+   .slide-inner { padding: 0 20px; }
+   .features-grid { grid-template-columns: 1fr; gap: 12px; }
+   .slide-prev { left: 8px; }
+   .slide-next { right: 8px; }
+   .slide-nav { width: 38px; height: 38px; }
+   .steps { flex-direction: column; align-items: center; gap: 20px; }
+   .step { width: 100%; max-width: 320px; }
+   .step:not(:last-child)::after { display: none; }
+  }
+
+  @media(max-width: 600px) {
+   .hero { padding: 75px 20px 40px; }
+   .hero h1 { font-size: clamp(1.8rem, 9vw, 2.5rem); }
+   .hero-sub { font-size: 0.92rem; }
+   .btn-hero { padding: 11px 20px; font-size: 0.88rem; }
+   .hero-stats { gap: 14px; }
+   .stat-num { font-size: 1.3rem; }
+   .stat-label { font-size: 0.68rem; }
+   .slide-prev, .slide-next {
+    top: auto; bottom: 52px; transform: none;
+    width: 36px; height: 36px;
+   }
+   .slide-prev { left: calc(50% - 52px); right: auto; }
+   .slide-next { right: calc(50% - 52px); left: auto; }
+   .slide-dots { bottom: 14px; }
+   .nav { padding: 0 16px; }
+   .nav-brand { font-size: 1.1rem; }
+   .chat-panel { width: 100vw !important; right: 0 !important; bottom: 0 !important; border-radius: 16px 16px 0 0 !important; max-height: 90vh; }
+   .quiz-modal-inner { margin: 12px; padding: 24px 18px; max-height: 92vh; }
+  }
  .hero-right { display: none; }
  .hero-actions { justify-content: center; }
  .hero-stats { justify-content: center; }
@@ -550,7 +607,23 @@
   </svg>
  </button>
  </div>
+ <!-- Hamburguesa para móvil -->
+ <button class="nav-hamburger" id="nav-hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+   <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+ </button>
 </nav>
+
+<!-- Menú móvil desplegable -->
+<div class="nav-mobile-menu" id="nav-mobile-menu">
+ <button class="nav-link" onclick="irSlide(0);toggleMobileMenu()">Inicio</button>
+ <a href="#features" class="nav-link" onclick="irSlide(1);toggleMobileMenu()">Características</a>
+ <a href="#como-funciona" class="nav-link" onclick="irSlide(2);toggleMobileMenu()">Cómo funciona</a>
+ <button class="nav-link" onclick="abrirQuiz();toggleMobileMenu()">Autoevaluación</button>
+ <a href="/admin.html" class="nav-link">Admin</a>
+ <button class="nav-cta" onclick="toggleChat();toggleMobileMenu()" style="margin-top:8px;">Consultar</button>
+</div>
 
 <!-- ═══ HERO ═══ -->
 <section class="hero">
@@ -1037,5 +1110,20 @@ document.querySelectorAll('a[href="#como-funciona"]').forEach(a => {
 })();
 </script>
 
+
+<script>
+function toggleMobileMenu() {
+  const menu = document.getElementById('nav-mobile-menu');
+  if (menu) menu.classList.toggle('open');
+}
+// Cerrar menu al hacer click fuera
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('nav-mobile-menu');
+  const btn = document.getElementById('nav-hamburger');
+  if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.classList.remove('open');
+  }
+});
+</script>
 </body>
 </html>
