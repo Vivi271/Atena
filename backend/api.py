@@ -353,7 +353,7 @@ async def consultar_endpoint(body: ConsultaRequest):
     if vector_store is None:
         raise HTTPException(
             status_code=503,
-            detail="El vector store no está disponible. El servidor puede estar iniciando.",
+            detail="El asistente aún está cargando el material de estudio. Espera unos segundos e intenta de nuevo.",
         )
 
     if not body.pregunta or not body.pregunta.strip():
@@ -388,7 +388,34 @@ async def consultar_endpoint(body: ConsultaRequest):
         except Exception:
             pass  # Supabase no disponible, no es crítico
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en el pipeline RAG: {str(e)}")
+        err_str = str(e).lower()
+        # Detectar causas comunes y dar mensaje útil en lugar de error técnico
+        if "timeout" in err_str or "timed out" in err_str or "read timeout" in err_str:
+            raise HTTPException(
+                status_code=504,
+                detail="El modelo de IA tardó demasiado en responder. Intenta de nuevo en unos segundos.",
+            )
+        elif "api_key" in err_str or "authentication" in err_str or "invalid key" in err_str or "401" in err_str:
+            raise HTTPException(
+                status_code=502,
+                detail="Problema de autenticación con el modelo de IA (GROQ_API_KEY). Contacta al administrador.",
+            )
+        elif "rate limit" in err_str or "429" in err_str:
+            raise HTTPException(
+                status_code=429,
+                detail="Se alcanzó el límite de consultas por minuto. Espera unos segundos e intenta de nuevo.",
+            )
+        elif "connection" in err_str or "network" in err_str or "unreachable" in err_str:
+            raise HTTPException(
+                status_code=503,
+                detail="No se pudo conectar al servicio de IA. Verifica la conexión e intenta de nuevo.",
+            )
+        else:
+            logger.error(f"Error en el pipeline RAG: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error interno del asistente: {str(e)}",
+            )
 
     fuentes = []
     from config import nombre_legible

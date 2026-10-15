@@ -264,17 +264,41 @@ async function enviarPregunta() {
  });
  quitarTyping();
  if (!r.ok) {
- const detail = await r.json().catch(() => ({}));
+ let detail = {};
+ try { detail = await r.json(); } catch(_) {}
  const msg = detail.detail || `Error del servidor (${r.status})`;
- agregarMensaje('bot', ` ${msg}`, null);
+ // Ícono y sugerencia según tipo de error
+ let icono = '⚠️';
+ let sugerencia = '';
+ if (r.status === 503) {
+   icono = '⏳';
+   sugerencia = '\n\n*El servidor puede estar reiniciando. Espera 30 segundos e intenta de nuevo.*';
+ } else if (r.status === 504) {
+   icono = '🕐';
+   sugerencia = '\n\n*La IA tardó demasiado. Intenta con una pregunta más corta o espera un momento.*';
+ } else if (r.status === 429) {
+   icono = '🚦';
+   sugerencia = '\n\n*Demasiadas consultas seguidas. Espera unos segundos antes de preguntar de nuevo.*';
+ } else if (r.status === 502) {
+   icono = '🔑';
+   sugerencia = '\n\n*Hay un problema con la configuración del servicio. Contacta al administrador.*';
+ } else if (r.status === 500) {
+   icono = '🛠️';
+   sugerencia = '\n\n*Error interno. Si persiste, reporta el problema al administrador.*';
+ }
+ agregarMensaje('bot', `${icono} ${msg}${sugerencia}`, null);
  } else {
  const data = await r.json();
  agregarMensaje('bot', data.respuesta || '(Sin respuesta)', data.fuentes || []);
  }
  } catch(e) {
  quitarTyping();
- agregarMensaje('bot', 'No se pudo contactar al servidor. Verifica la conexión.', null);
+ const msg = e.name === 'AbortError'
+   ? '⏳ La solicitud tardó demasiado. El servidor puede estar iniciando. Espera 30 segundos e intenta de nuevo.'
+   : '📡 No se pudo contactar al servidor. Verifica tu conexión a internet e intenta de nuevo.';
+ agregarMensaje('bot', msg, null);
  } finally {
+
  estaGenerando = false;
  document.getElementById('panel-send').disabled = false;
  input.focus();
