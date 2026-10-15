@@ -265,31 +265,37 @@ def obtener_tendencia_aciertos_diaria(dias: int = 30) -> list:
     return rows
 
 
-# ── PIN de administrador (persistido en Supabase) ─────────────────────────────
+# Cache en memoria del PIN — se llena la primera vez que Supabase responde.
+# Si Supabase se cae, usamos el último PIN conocido en vez del default '12345'.
+_pin_cache: str = os.environ.get("ADMIN_PIN", "12345")
 
 def get_pin() -> str:
     """
     Lee el PIN de admin desde la tabla configuracion de Supabase.
-    Fallback: variable de entorno ADMIN_PIN, o '12345' si nada está configurado.
+    Fallback 1: último PIN leído en esta sesión (_pin_cache).
+    Fallback 2: variable de entorno ADMIN_PIN, o '12345' si nada está configurado.
     """
-    fallback = os.environ.get("ADMIN_PIN", "12345")
+    global _pin_cache
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute("SELECT valor FROM configuracion WHERE clave = 'admin_pin'")
             row = cur.fetchone()
         conn.close()
-        return row[0] if row else fallback
+        pin = row[0] if row else os.environ.get("ADMIN_PIN", "12345")
+        _pin_cache = pin  # actualiza el cache con el valor real de Supabase
+        return pin
     except Exception as e:
-        logger.warning(f"No se pudo leer PIN de Supabase, usando fallback: {e}")
-        return fallback
+        logger.warning(f"No se pudo leer PIN de Supabase, usando cache: {e}")
+        return _pin_cache  # devuelve el último PIN conocido, no el hardcoded
 
 
 def set_pin(nuevo_pin: str) -> None:
     """
-    Guarda el nuevo PIN en Supabase. Crea la fila si no existe.
-    Lanza RuntimeError si falla.
+    Guarda el nuevo PIN en Supabase y actualiza el cache en memoria.
+    Crea la fila si no existe. Lanza RuntimeError si falla.
     """
+    global _pin_cache
     conn = _get_conn()
     try:
         with conn:
@@ -299,6 +305,7 @@ def set_pin(nuevo_pin: str) -> None:
                        ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor""",
                     (nuevo_pin,)
                 )
-        logger.info("PIN de administrador actualizado en Supabase.")
+        _pin_cache = nuevo_pin  # actualiza cache inmediatamente
+        logger.info("PIN de administrador actualizado en Supabase y cache.")
     finally:
         conn.close()
