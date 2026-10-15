@@ -67,9 +67,19 @@ function setNivel(btn) {
 })();
 
 // ── Restaurar historial de chat al volver a la página ────────────────
+// El historial expira después de 4 horas para evitar que el chat
+// muestre conversaciones antiguas cuando el tab lleva mucho tiempo abierto.
+const CHAT_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas
 (function restaurarChat() {
   const saved = sessionStorage.getItem('atena_chat_html');
+  const savedAt = parseInt(sessionStorage.getItem('atena_chat_ts') || '0', 10);
   if (!saved) return;
+  // Si el chat guardado tiene más de 4 horas, descartarlo
+  if (Date.now() - savedAt > CHAT_TTL_MS) {
+    sessionStorage.removeItem('atena_chat_html');
+    sessionStorage.removeItem('atena_chat_ts');
+    return;
+  }
   const wrap = document.getElementById('panel-messages');
   const welcome = document.getElementById('panel-welcome');
   if (!wrap) return;
@@ -206,6 +216,7 @@ function agregarMensaje(rol, texto, fuentes) {
  wrap.appendChild(div);
  wrap.scrollTop = wrap.scrollHeight;
  sessionStorage.setItem('atena_chat_html', wrap.innerHTML);
+ sessionStorage.setItem('atena_chat_ts', Date.now().toString());
  return div;
 }
 
