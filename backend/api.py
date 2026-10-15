@@ -301,7 +301,12 @@ async def root():
 
 @app.get("/salud", tags=["Sistema"])
 async def salud():
-    """Health check — verifica que el servidor está vivo y expone la URL pública del servicio."""
+    """Health check — verifica que el servidor está vivo y expone la URL pública del servicio.
+
+    También realiza un ping silencioso a Supabase (SELECT 1) para evitar que el proyecto
+    se pause por inactividad en el plan gratuito. UptimeRobot llama a este endpoint cada
+    5 minutos, por lo que Supabase siempre tendrá actividad reciente.
+    """
     # En Render, RENDER_EXTERNAL_URL contiene la URL pública automáticamente.
     # En local, se puede setear API_BASE_URL en el .env.
     url_publica = (
@@ -309,11 +314,27 @@ async def salud():
         or os.environ.get("API_BASE_URL")
         or "http://localhost:8080"
     )
+
+    # Ping silencioso a Supabase para mantenerlo activo (evita pausa por inactividad).
+    supabase_activo = False
+    try:
+        from db_preguntas import get_connection
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        conn.close()
+        supabase_activo = True
+    except Exception:
+        # No interrumpimos el health check si Supabase falla
+        pass
+
     return {
         "estado": "ok",
         "servicio": "Atena API",
         "version": "1.0.0",
         "vector_store_listo": vector_store is not None,
+        "supabase_activo": supabase_activo,
         "url_base": url_publica,
     }
 
