@@ -720,15 +720,23 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
 
     docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=rag_k, threshold=rag_threshold)
 
+    # Limitar el contexto al LLM: máximo 6 chunks y 3000 caracteres en total
+    # k puede ser grande para la búsqueda, pero solo los mejores N pasan al LLM
+    # para evitar el error 413 (Request too large) en el tier gratuito de Groq.
+    MAX_CHUNKS_LLM = 6
+    MAX_CHARS_LLM  = 3000
     context_parts = []
-    for i, doc in enumerate(docs_contexto):
+    chars_acum = 0
+    for i, doc in enumerate(docs_contexto[:MAX_CHUNKS_LLM]):
         fuente = os.path.basename(doc.metadata.get("source", "desconocido"))
         cita = nombre_cita(fuente)
         pagina = doc.metadata.get("page", "?")
         contenido_limpio = _limpiar_texto_ocr(doc.page_content)
-        context_parts.append(
-            f"[{cita} | Página: {pagina}]\n{contenido_limpio}"
-        )
+        fragmento = f"[{cita} | Página: {pagina}]\n{contenido_limpio}"
+        if chars_acum + len(fragmento) > MAX_CHARS_LLM:
+            break
+        context_parts.append(fragmento)
+        chars_acum += len(fragmento)
     context = "\n\n---\n\n".join(context_parts)
 
     system_instruction = SYSTEM_INSTRUCTION_AVANZADO if nivel.lower() == "avanzado" else SYSTEM_INSTRUCTION_BASICO
