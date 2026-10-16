@@ -281,7 +281,39 @@ async function enviarPregunta() {
  let detail = {};
  try { detail = await r.json(); } catch(_) {}
  const msg = detail.detail || `Error del servidor (${r.status})`;
- // Ícono y sugerencia según tipo de error
+
+ if (r.status === 429) {
+   // Alta demanda: mostrar mensaje amigable y reintentar automáticamente en 8s
+   const msgEspera = agregarMensaje('bot',
+     'Atena está recibiendo muchas consultas en este momento. Reintentando en 8 segundos...', null);
+   setTimeout(async () => {
+     if (msgEspera) msgEspera.remove();
+     mostrarTyping();
+     try {
+       const r2 = await fetch(`${API_BASE}/api/consultar`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ pregunta, nivel: nivelActual, k: 6, formato_unity: false }),
+       });
+       quitarTyping();
+       if (r2.ok) {
+         const data2 = await r2.json();
+         agregarMensaje('bot', data2.respuesta || '(Sin respuesta)', data2.fuentes || []);
+       } else {
+         agregarMensaje('bot', 'Alta demanda en este momento. Por favor intenta tu pregunta en unos segundos.', null);
+       }
+     } catch(_) {
+       quitarTyping();
+       agregarMensaje('bot', 'No se pudo contactar al servidor. Verifica tu conexión e intenta de nuevo.', null);
+     } finally {
+       estaGenerando = false;
+       document.getElementById('panel-send').disabled = false;
+       document.getElementById('panel-input').focus();
+     }
+   }, 8000);
+   return; // salir del finally normal, el reintento lo maneja
+ }
+
  let icono = '⚠️';
  let sugerencia = '';
  if (r.status === 503) {
@@ -290,9 +322,6 @@ async function enviarPregunta() {
  } else if (r.status === 504) {
    icono = '🕐';
    sugerencia = '\n\n*La IA tardó demasiado. Intenta con una pregunta más corta o espera un momento.*';
- } else if (r.status === 429) {
-   icono = '🚦';
-   sugerencia = '\n\n*Demasiadas consultas seguidas. Espera unos segundos antes de preguntar de nuevo.*';
  } else if (r.status === 502) {
    icono = '🔑';
    sugerencia = '\n\n*Hay un problema con la configuración del servicio. Contacta al administrador.*';
@@ -312,7 +341,6 @@ async function enviarPregunta() {
    : '📡 No se pudo contactar al servidor. Verifica tu conexión a internet e intenta de nuevo.';
  agregarMensaje('bot', msg, null);
  } finally {
-
  estaGenerando = false;
  document.getElementById('panel-send').disabled = false;
  input.focus();

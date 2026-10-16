@@ -362,7 +362,45 @@ async def info():
     }
 
 
-@app.post("/consultar", response_model=ConsultaResponse, tags=["RAG"])
+# ── Caché de respuestas en memoria ───────────────────────────────────────────
+# Evita llamadas repetidas a Groq cuando varios usuarios hacen la misma pregunta.
+import re as _re
+import asyncio as _asyncio
+
+_CACHE_RESPUESTAS: dict = {}          # { clave: (resultado_dict, timestamp) }
+_CACHE_TTL = 2 * 60 * 60             # 2 horas en segundos
+_CACHE_MAX = 200                      # máximo de entradas (evita memoria ilimitada)
+
+
+def _clave_cache(pregunta: str, nivel: str) -> str:
+    """Normaliza la pregunta para usarla como clave de caché."""
+    q = pregunta.lower().strip()
+    q = _re.sub(r'[¿?¡!.,;:\-\'"()]', '', q)
+    q = _re.sub(r'\s+', ' ', q)
+    return f"{nivel.lower()}|{q}"
+
+
+def _get_cache(pregunta: str, nivel: str):
+    clave = _clave_cache(pregunta, nivel)
+    entry = _CACHE_RESPUESTAS.get(clave)
+    if entry:
+        resultado, ts = entry
+        if _time.time() - ts < _CACHE_TTL:
+            return resultado
+        del _CACHE_RESPUESTAS[clave]
+    return None
+
+
+def _set_cache(pregunta: str, nivel: str, resultado: dict):
+    # Si el caché está lleno, eliminar la entrada más antigua
+    if len(_CACHE_RESPUESTAS) >= _CACHE_MAX:
+        oldest = min(_CACHE_RESPUESTAS, key=lambda k: _CACHE_RESPUESTAS[k][1])
+        del _CACHE_RESPUESTAS[oldest]
+    clave = _clave_cache(pregunta, nivel)
+    _CACHE_RESPUESTAS[clave] = (resultado, _time.time())
+
+
+
 @app.post("/api/consultar", response_model=ConsultaResponse, tags=["RAG"])
 async def consultar_endpoint(body: ConsultaRequest):
     """
@@ -380,24 +418,66 @@ async def consultar_endpoint(body: ConsultaRequest):
     if not body.pregunta or not body.pregunta.strip():
         raise HTTPException(status_code=400, detail="La pregunta no puede estar vacía.")
 
-    try:
-        from rag_pipeline import consultar
-        t0 = _time.time()
-        resultado = consultar(
-            pregunta=body.pregunta.strip(),
-            vector_store=vector_store,
-            k=body.k,
-            nivel=body.nivel,
-        )
-        latencia = round(_time.time() - t0, 2)
-        # Registrar en log de sesión (en memoria, instantáneo, sin BD)
+    # 1. Verificar caché antes de llamar al RAG
+    cached = _get_cache(body.pregunta.strip(), body.nivel)
+    if cached:
+        resultado = cached
+        latencia  = 0.0
+        logger.info(f"Cache hit: '{body.pregunta.strip()[:60]}'")
+    else:
+        # 2. Llamar al RAG con reintento automático ante rate-limit de Groq
+        MAX_REINTENTOS = 3
+        ESPERA_REINTENTO = 6   # segundos entre reintentos
+        resultado = None
+        ultimo_error = None
+        for intento in range(MAX_REINTENTOS):
+            try:
+                from rag_pipeline import consultar
+                t0 = _time.time()
+                resultado = consultar(
+                    pregunta=body.pregunta.strip(),
+                    vector_store=vector_store,
+                    k=body.k,
+                    nivel=body.nivel,
+                )
+                latencia = round(_time.time() - t0, 2)
+                _set_cache(body.pregunta.strip(), body.nivel, resultado)
+                break   # exitoso, salir del loop
+            except Exception as e:
+                ultimo_error = e
+                err_str = str(e).lower()
+                es_rate_limit = (
+                    "rate limit" in err_str or "rate_limit" in err_str
+                    or "429" in err_str or "413" in err_str
+                    or "too large" in err_str or "tokens" in err_str
+                )
+                if es_rate_limit and intento < MAX_REINTENTOS - 1:
+                    logger.warning(f"Rate limit Groq (intento {intento+1}/{MAX_REINTENTOS}), reintentando en {ESPERA_REINTENTO}s...")
+                    await _asyncio.sleep(ESPERA_REINTENTO)
+                    continue
+                raise  # si no es rate limit o se agotaron reintentos, propagar
+
+        if resultado is None:
+            # Convertir el error en mensaje amigable según el tipo
+            err_str = str(ultimo_error).lower() if ultimo_error else ""
+            if "timeout" in err_str or "timed out" in err_str:
+                raise HTTPException(status_code=504, detail="Atena tardó demasiado en responder. Intenta de nuevo en unos segundos.")
+            elif "rate limit" in err_str or "429" in err_str or "413" in err_str or "tokens" in err_str:
+                raise HTTPException(status_code=429, detail="Atena está recibiendo muchas consultas en este momento. Reintentaremos en unos segundos — vuelve a preguntar.")
+            elif "api_key" in err_str or "authentication" in err_str or "401" in err_str:
+                raise HTTPException(status_code=502, detail="Problema de autenticación con el modelo de IA. Contacta al administrador.")
+            elif "connection" in err_str or "network" in err_str:
+                raise HTTPException(status_code=503, detail="No se pudo conectar al servicio de IA. Verifica la conexión.")
+            else:
+                raise HTTPException(status_code=500, detail="Error inesperado en el pipeline RAG.")
+
+        # Registrar en log de sesión
         _SESSION_LOG.append({
             "fecha": _dt.now().isoformat(timespec='seconds'),
             "pregunta": body.pregunta.strip()[:120],
             "nivel": body.nivel,
             "latencia": latencia,
         })
-        # Intentar guardar en Supabase (si está disponible) sin bloquear
         try:
             from db_metrics import registrar_consulta
             registrar_consulta(
@@ -407,36 +487,11 @@ async def consultar_endpoint(body: ConsultaRequest):
                 latencia=latencia,
             )
         except Exception:
-            pass  # Supabase no disponible, no es crítico
-    except Exception as e:
-        err_str = str(e).lower()
-        # Detectar causas comunes y dar mensaje útil en lugar de error técnico
-        if "timeout" in err_str or "timed out" in err_str or "read timeout" in err_str:
-            raise HTTPException(
-                status_code=504,
-                detail="El modelo de IA tardó demasiado en responder. Intenta de nuevo en unos segundos.",
-            )
-        elif "api_key" in err_str or "authentication" in err_str or "invalid key" in err_str or "401" in err_str:
-            raise HTTPException(
-                status_code=502,
-                detail="Problema de autenticación con el modelo de IA (GROQ_API_KEY). Contacta al administrador.",
-            )
-        elif "rate limit" in err_str or "429" in err_str:
-            raise HTTPException(
-                status_code=429,
-                detail="Se alcanzó el límite de consultas por minuto. Espera unos segundos e intenta de nuevo.",
-            )
-        elif "connection" in err_str or "network" in err_str or "unreachable" in err_str:
-            raise HTTPException(
-                status_code=503,
-                detail="No se pudo conectar al servicio de IA. Verifica la conexión e intenta de nuevo.",
-            )
-        else:
-            logger.error(f"Error en el pipeline RAG: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error interno del asistente: {str(e)}",
-            )
+            pass
+
+    if resultado is None:
+        raise HTTPException(status_code=500, detail="Error inesperado en el pipeline.")
+
 
     fuentes = []
     from config import nombre_legible
