@@ -368,7 +368,7 @@ import re as _re
 import asyncio as _asyncio
 
 _CACHE_RESPUESTAS: dict = {}          # { clave: (resultado_dict, timestamp) }
-_CACHE_TTL = 2 * 60 * 60             # 2 horas en segundos
+_CACHE_TTL = 4 * 60 * 60             # 4 horas en segundos (cubre una sesión completa)
 _CACHE_MAX = 200                      # máximo de entradas (evita memoria ilimitada)
 
 

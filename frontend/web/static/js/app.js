@@ -283,35 +283,63 @@ async function enviarPregunta() {
  const msg = detail.detail || `Error del servidor (${r.status})`;
 
  if (r.status === 429) {
-   // Alta demanda: mostrar mensaje amigable y reintentar automáticamente en 8s
-   const msgEspera = agregarMensaje('bot',
-     'Atena está recibiendo muchas consultas en este momento. Reintentando en 8 segundos...', null);
-   setTimeout(async () => {
-     if (msgEspera) msgEspera.remove();
-     mostrarTyping();
-     try {
-       const r2 = await fetch(`${API_BASE}/api/consultar`, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ pregunta, nivel: nivelActual, k: 6, formato_unity: false }),
-       });
-       quitarTyping();
-       if (r2.ok) {
-         const data2 = await r2.json();
-         agregarMensaje('bot', data2.respuesta || '(Sin respuesta)', data2.fuentes || []);
-       } else {
-         agregarMensaje('bot', 'Alta demanda en este momento. Por favor intenta tu pregunta en unos segundos.', null);
-       }
-     } catch(_) {
-       quitarTyping();
-       agregarMensaje('bot', 'No se pudo contactar al servidor. Verifica tu conexión e intenta de nuevo.', null);
-     } finally {
+   // Alta demanda: mostrar countdown con botón Cancelar y reintentar en 8s
+   let timerHandle = null;
+   let segundos = 8;
+   const msgId = `retry-msg-${Date.now()}`;
+   const renderMsg = () =>
+     `Atena está recibiendo muchas consultas. Reintentando en <b>${segundos}s</b>... &nbsp;<button id="${msgId}-cancel" style="background:none;border:1px solid rgba(180,160,200,0.4);color:inherit;border-radius:6px;padding:2px 10px;font-size:0.8rem;cursor:pointer;">Cancelar</button>`;
+
+   const msgEl = agregarMensaje('bot', renderMsg(), null);
+   if (msgEl) {
+     // Countdown visual cada segundo
+     const tick = setInterval(() => {
+       segundos--;
+       const contenido = msgEl.querySelector('.msg-content, p, div') || msgEl;
+       contenido.innerHTML = renderMsg();
+       document.getElementById(`${msgId}-cancel`)?.addEventListener('click', cancelar);
+       if (segundos <= 0) clearInterval(tick);
+     }, 1000);
+
+     function cancelar() {
+       clearInterval(tick);
+       if (timerHandle) clearTimeout(timerHandle);
+       if (msgEl) msgEl.remove();
        estaGenerando = false;
        document.getElementById('panel-send').disabled = false;
        document.getElementById('panel-input').focus();
      }
-   }, 8000);
-   return; // salir del finally normal, el reintento lo maneja
+
+     document.getElementById(`${msgId}-cancel`)?.addEventListener('click', cancelar);
+
+     timerHandle = setTimeout(async () => {
+       clearInterval(tick);
+       if (msgEl) msgEl.remove();
+       mostrarTyping();
+       try {
+         const r2 = await fetch(`${API_BASE}/api/consultar`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ pregunta, nivel: nivelActual, k: 6, formato_unity: false }),
+         });
+         quitarTyping();
+         if (r2.ok) {
+           const data2 = await r2.json();
+           agregarMensaje('bot', data2.respuesta || '(Sin respuesta)', data2.fuentes || []);
+         } else {
+           agregarMensaje('bot', 'Alta demanda continúa. Intenta tu pregunta en 1 minuto cuando el límite se resetee.', null);
+         }
+       } catch(_) {
+         quitarTyping();
+         agregarMensaje('bot', 'No se pudo contactar al servidor. Verifica tu conexión e intenta de nuevo.', null);
+       } finally {
+         estaGenerando = false;
+         document.getElementById('panel-send').disabled = false;
+         document.getElementById('panel-input').focus();
+       }
+     }, 8000);
+   }
+   return;
  }
 
  let icono = '⚠️';
