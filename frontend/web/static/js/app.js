@@ -67,19 +67,22 @@ function setNivel(btn) {
 })();
 
 // ── Restaurar historial de chat al volver a la página ────────────────
-// El historial expira después de 4 horas para evitar que el chat
-// muestre conversaciones antiguas cuando el tab lleva mucho tiempo abierto.
-const CHAT_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas
+// El chat se preserva si el usuario navega entre secciones (como Claude).
+// Si recarga la página (F5 / botón refresh), el chat empieza limpio.
 (function restaurarChat() {
-  const saved = sessionStorage.getItem('atena_chat_html');
-  const savedAt = parseInt(sessionStorage.getItem('atena_chat_ts') || '0', 10);
-  if (!saved) return;
-  // Si el chat guardado tiene más de 4 horas, descartarlo
-  if (Date.now() - savedAt > CHAT_TTL_MS) {
+  // Detectar si fue un refresh: type === 'reload' en navegadores modernos
+  const navEntry = performance.getEntriesByType('navigation')[0];
+  const esRefresh = navEntry ? navEntry.type === 'reload' : performance.navigation.type === 1;
+
+  if (esRefresh) {
+    // El usuario recargó → limpiar chat para empezar de cero
     sessionStorage.removeItem('atena_chat_html');
     sessionStorage.removeItem('atena_chat_ts');
     return;
   }
+
+  const saved = sessionStorage.getItem('atena_chat_html');
+  if (!saved) return;
   const wrap = document.getElementById('panel-messages');
   const welcome = document.getElementById('panel-welcome');
   if (!wrap) return;
