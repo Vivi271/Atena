@@ -1150,6 +1150,28 @@ function descargarPDF() {
     ? `Período: ${fechaInicio || '—'} al ${fechaFin || '—'}`
     : `Reporte generado: ${new Date().toLocaleDateString('es-CO')}`;
 
+  // Capturar gráficas como imágenes base64
+  const canvasNivel = document.getElementById('chart-nivel-sesion');
+  const canvasLat   = document.getElementById('chart-latencia-sesion');
+  const imgNivel = canvasNivel ? canvasNivel.toDataURL('image/png') : null;
+  const imgLat   = canvasLat   ? canvasLat.toDataURL('image/png')   : null;
+
+  // KPIs resumen
+  const total  = _statsAllData.length;
+  const lats   = _statsAllData.filter(r => r.latencia > 0).map(r => r.latencia);
+  const latAvg = lats.length ? (lats.reduce((a,b)=>a+b,0)/lats.length).toFixed(2) : '—';
+  const nivCount = {};
+  _statsAllData.forEach(r => { nivCount[r.nivel] = (nivCount[r.nivel]||0)+1; });
+  const kpisHtml = Object.entries(nivCount).map(([n,c]) =>
+    `<div class="kpi"><div class="kpi-val">${c}</div><div class="kpi-label">Nivel ${n}</div></div>`
+  ).join('');
+
+  const graficasHtml = (imgNivel || imgLat) ? `
+  <div class="graficas">
+    ${imgNivel ? `<div class="grafica-box"><h3>Consultas por nivel</h3><img src="${imgNivel}" style="max-width:240px;max-height:220px;"></div>` : ''}
+    ${imgLat   ? `<div class="grafica-box"><h3>Tiempo de respuesta por consulta</h3><img src="${imgLat}" style="max-width:420px;max-height:220px;"></div>` : ''}
+  </div>` : '';
+
   const filas = _statsAllData.map(r => {
     const dt    = r.fecha ? new Date(r.fecha) : null;
     const fecha = dt ? dt.toLocaleDateString('es-CO') : '';
@@ -1157,27 +1179,52 @@ function descargarPDF() {
     const resp  = (r.respuesta || '').replace(/</g,'&lt;').substring(0, 300);
     return `<tr>
       <td>${fecha}</td><td>${hora}</td>
-      <td style="max-width:220px;word-break:break-word;">${(r.pregunta || '').replace(/</g,'&lt;')}</td>
+      <td style="max-width:200px;word-break:break-word;">${(r.pregunta || '').replace(/</g,'&lt;')}</td>
       <td style="text-transform:capitalize;">${r.nivel || ''}</td>
       <td style="text-align:right;white-space:nowrap;">${r.latencia != null ? r.latencia + 's' : '—'}</td>
-      <td style="max-width:280px;word-break:break-word;font-size:9px;">${resp}${resp.length >= 300 ? '...' : ''}</td>
+      <td style="max-width:260px;word-break:break-word;font-size:9px;">${resp}${resp.length >= 300 ? '...' : ''}</td>
     </tr>`;
   }).join('');
 
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
   <title>Reporte Atena</title>
   <style>
-    body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#222;}
-    h1{font-size:16px;margin-bottom:4px;}
-    p{margin:0 0 12px;color:#555;font-size:10px;}
-    table{width:100%;border-collapse:collapse;}
-    th{background:#6c3483;color:#fff;padding:6px 8px;text-align:left;font-size:10px;}
-    td{border-bottom:1px solid #e0e0e0;padding:5px 8px;vertical-align:top;}
-    tr:nth-child(even) td{background:#f9f4fc;}
-    @media print{body{margin:10px;}}
+    body{font-family:Arial,sans-serif;font-size:11px;margin:24px;color:#222;}
+    .header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #6c3483;padding-bottom:10px;margin-bottom:14px;}
+    .logo{font-size:22px;font-weight:900;color:#6c3483;letter-spacing:-1px;}
+    .header-info{flex:1;}
+    h1{font-size:14px;margin:0 0 2px;color:#333;}
+    .sub{font-size:10px;color:#777;margin:0;}
+    .kpis{display:flex;gap:12px;margin:14px 0;flex-wrap:wrap;}
+    .kpi{background:#f5eeff;border:1px solid #d8b4fe;border-radius:8px;padding:8px 14px;min-width:80px;text-align:center;}
+    .kpi-val{font-size:18px;font-weight:700;color:#6c3483;}
+    .kpi-label{font-size:9px;color:#666;margin-top:2px;text-transform:capitalize;}
+    .kpi-total{background:#6c3483;border-color:#6c3483;}
+    .kpi-total .kpi-val,.kpi-total .kpi-label{color:#fff;}
+    .graficas{display:flex;gap:20px;margin:14px 0;flex-wrap:wrap;align-items:flex-start;}
+    .grafica-box{background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px 14px;}
+    .grafica-box h3{font-size:10px;color:#6c3483;margin:0 0 6px;font-weight:700;}
+    h2{font-size:12px;color:#6c3483;margin:16px 0 6px;border-bottom:1px solid #e9d5ff;padding-bottom:4px;}
+    table{width:100%;border-collapse:collapse;font-size:10px;}
+    th{background:#6c3483;color:#fff;padding:5px 7px;text-align:left;}
+    td{border-bottom:1px solid #ede9fe;padding:4px 7px;vertical-align:top;}
+    tr:nth-child(even) td{background:#faf5ff;}
+    @media print{body{margin:10px;} .graficas{page-break-inside:avoid;}}
   </style></head><body>
-  <h1>Atena — Reporte de Consultas</h1>
-  <p>${rango} &nbsp;|&nbsp; Total: ${_statsAllData.length} consultas</p>
+  <div class="header">
+    <div class="logo">Atena</div>
+    <div class="header-info">
+      <h1>Reporte de Estadísticas de Uso</h1>
+      <p class="sub">Fundación Universitaria Konrad Lorenz &nbsp;|&nbsp; ${rango}</p>
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi kpi-total"><div class="kpi-val">${total}</div><div class="kpi-label">Total consultas</div></div>
+    <div class="kpi"><div class="kpi-val">${latAvg}s</div><div class="kpi-label">Tiempo promedio</div></div>
+    ${kpisHtml}
+  </div>
+  ${graficasHtml}
+  <h2>Detalle de consultas</h2>
   <table>
     <thead><tr><th>Fecha</th><th>Hora</th><th>Pregunta</th><th>Nivel</th><th>Tiempo</th><th>Respuesta</th></tr></thead>
     <tbody>${filas}</tbody>
@@ -1185,7 +1232,7 @@ function descargarPDF() {
   <script>window.onload = () => { window.print(); }<\/script>
   </body></html>`;
 
-  const win = window.open('', '_blank', 'width=900,height=700');
+  const win = window.open('', '_blank', 'width=1000,height=750');
   if (win) {
     win.document.write(html);
     win.document.close();
