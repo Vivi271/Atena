@@ -1113,6 +1113,22 @@ function aplicarFiltroStats() {
   cargarStats(inicio, fin);
 }
 
+/** Convierte texto con Markdown a texto plano para Excel */
+function _stripMd(text) {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.+?)\*\*/gs, '$1')   // **negrita** → negrita
+    .replace(/\*(.+?)\*/gs,    '$1')    // *cursiva* → cursiva
+    .replace(/#{1,6}\s+/g, '')          // ## Título → Título
+    .replace(/`([^`]+)`/g, '$1')        // `código` → código
+    .replace(/^\s*[•\-\*]\s+/gm, '- ') // viñetas → guión simple
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [texto](url) → texto
+    .replace(/\n{2,}/g, ' | ')          // párrafos separados por |
+    .replace(/\n/g, ' ')                // saltos de línea → espacio
+    .replace(/\s{2,}/g, ' ')            // espacios dobles → uno
+    .trim();
+}
+
 function descargarCSV() {
   if (!_statsAllData || _statsAllData.length === 0) {
     alert('No hay datos para exportar. Carga las estadísticas primero.');
@@ -1126,7 +1142,7 @@ function descargarCSV() {
     const preg  = (r.pregunta  || '').replace(/"/g, '""');
     const nivel = r.nivel || '';
     const lat   = r.latencia != null ? r.latencia : '';
-    const resp  = (r.respuesta || '').replace(/"/g, '""').replace(/\n/g, ' ');
+    const resp  = _stripMd(r.respuesta || '').replace(/"/g, '""'); // texto plano sin Markdown
     return `"${fecha}";"${hora}";"${preg}";"${nivel}";"${lat}";"${resp}"`;
   });
   const csv = '\uFEFF' + 'sep=;\r\n' + [cabecera.join(';'), ...filas].join('\r\n'); // BOM + sep para Excel en español
