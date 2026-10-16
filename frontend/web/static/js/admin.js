@@ -1118,15 +1118,16 @@ function descargarCSV() {
     alert('No hay datos para exportar. Carga las estadísticas primero.');
     return;
   }
-  const cabecera = ['Fecha', 'Hora', 'Pregunta', 'Nivel', 'Tiempo de respuesta (s)'];
+  const cabecera = ['Fecha', 'Hora', 'Pregunta', 'Nivel', 'Tiempo de respuesta (s)', 'Respuesta'];
   const filas = _statsAllData.map(r => {
     const dt   = r.fecha ? new Date(r.fecha) : null;
     const fecha = dt ? dt.toLocaleDateString('es-CO') : '';
     const hora  = dt ? dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '';
-    const preg  = (r.pregunta || '').replace(/"/g, '""');
+    const preg  = (r.pregunta  || '').replace(/"/g, '""');
     const nivel = r.nivel || '';
     const lat   = r.latencia != null ? r.latencia : '';
-    return `"${fecha}","${hora}","${preg}","${nivel}","${lat}"`;
+    const resp  = (r.respuesta || '').replace(/"/g, '""').replace(/\n/g, ' ');
+    return `"${fecha}","${hora}","${preg}","${nivel}","${lat}","${resp}"`;
   });
   const csv = '\uFEFF' + [cabecera.join(','), ...filas].join('\r\n'); // BOM para Excel
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1153,11 +1154,13 @@ function descargarPDF() {
     const dt    = r.fecha ? new Date(r.fecha) : null;
     const fecha = dt ? dt.toLocaleDateString('es-CO') : '';
     const hora  = dt ? dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '';
+    const resp  = (r.respuesta || '').replace(/</g,'&lt;').substring(0, 300);
     return `<tr>
       <td>${fecha}</td><td>${hora}</td>
-      <td style="max-width:320px;word-break:break-word;">${(r.pregunta || '').replace(/</g,'&lt;')}</td>
+      <td style="max-width:220px;word-break:break-word;">${(r.pregunta || '').replace(/</g,'&lt;')}</td>
       <td style="text-transform:capitalize;">${r.nivel || ''}</td>
-      <td style="text-align:right;">${r.latencia != null ? r.latencia + 's' : '—'}</td>
+      <td style="text-align:right;white-space:nowrap;">${r.latencia != null ? r.latencia + 's' : '—'}</td>
+      <td style="max-width:280px;word-break:break-word;font-size:9px;">${resp}${resp.length >= 300 ? '...' : ''}</td>
     </tr>`;
   }).join('');
 
@@ -1176,7 +1179,7 @@ function descargarPDF() {
   <h1>Atena — Reporte de Consultas</h1>
   <p>${rango} &nbsp;|&nbsp; Total: ${_statsAllData.length} consultas</p>
   <table>
-    <thead><tr><th>Fecha</th><th>Hora</th><th>Pregunta</th><th>Nivel</th><th>Respuesta</th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Hora</th><th>Pregunta</th><th>Nivel</th><th>Tiempo</th><th>Respuesta</th></tr></thead>
     <tbody>${filas}</tbody>
   </table>
   <script>window.onload = () => { window.print(); }<\/script>

@@ -878,9 +878,9 @@ async def stats_sesion(
                 word_freq.update(w for w in words if len(w) > 4 and w not in stop)
             temas_frecuentes = [{"tema": w, "veces": c} for w, c in word_freq.most_common(8)]
 
-            # Últimas 500 consultas (más para exportación)
+            # Últimas 500 consultas (más para exportación) — incluye respuesta
             cur.execute(
-                f"SELECT fecha, pregunta, nivel, latencia FROM consultas {where_clause} ORDER BY fecha DESC LIMIT 500",
+                f"SELECT fecha, pregunta, respuesta, nivel, latencia FROM consultas {where_clause} ORDER BY fecha DESC LIMIT 500",
                 params
             )
             recientes = []
