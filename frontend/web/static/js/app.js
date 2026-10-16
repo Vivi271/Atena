@@ -179,6 +179,9 @@ function renderMd(text) {
  let clean = _eliminarTablasMd(text);
  // 2. Convertir etiquetas Unity <color=...> a spans HTML
  clean = clean.replace(/<color=([^>]+)>(.*?)<\/color>/gi, '<span style="color:$1;font-size:0.85em;">$2</span>');
+ // 3. Resaltar citas bibliograficas
+ clean = clean.replace(/\(([^()]{3,80}\|\s*Pagina:[^()]{1,30})\)/gi, '<span class="cita-fuente">($1)</span>');
+ clean = clean.replace(/\(([^()]{3,80},\s*pag\.[^()]{1,20})\)/gi, '<span class="cita-fuente">($1)</span>');
  try { return marked.parse(clean); }
  catch { return escHtml(clean).replace(/\n/g, '<br>'); }
 }

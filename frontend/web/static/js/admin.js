@@ -1127,9 +1127,9 @@ function descargarCSV() {
     const nivel = r.nivel || '';
     const lat   = r.latencia != null ? r.latencia : '';
     const resp  = (r.respuesta || '').replace(/"/g, '""').replace(/\n/g, ' ');
-    return `"${fecha}","${hora}","${preg}","${nivel}","${lat}","${resp}"`;
+    return `"${fecha}";"${hora}";"${preg}";"${nivel}";"${lat}";"${resp}"`;
   });
-  const csv = '\uFEFF' + [cabecera.join(','), ...filas].join('\r\n'); // BOM para Excel
+  const csv = '\uFEFF' + 'sep=;\r\n' + [cabecera.join(';'), ...filas].join('\r\n'); // BOM + sep para Excel en español
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
