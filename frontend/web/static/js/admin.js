@@ -1117,15 +1117,11 @@ function aplicarFiltroStats() {
 function _stripMd(text) {
   if (!text) return '';
   return text
-    .replace(/\*\*(.+?)\*\*/gs, '$1')   // **negrita** → negrita
-    .replace(/\*(.+?)\*/gs,    '$1')    // *cursiva* → cursiva
-    .replace(/#{1,6}\s+/g, '')          // ## Título → Título
-    .replace(/`([^`]+)`/g, '$1')        // `código` → código
-    .replace(/^\s*[•\-\*]\s+/gm, '- ') // viñetas → guión simple
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [texto](url) → texto
-    .replace(/\n{2,}/g, ' | ')          // párrafos separados por |
-    .replace(/\n/g, ' ')                // saltos de línea → espacio
-    .replace(/\s{2,}/g, ' ')            // espacios dobles → uno
+    .replace(/\*+/g, '')        // quitar asteriscos (**negrita**, *cursiva*)
+    .replace(/^#{1,6}\s*/gm, '') // quitar # de encabezados
+    .replace(/`/g, '')           // quitar comillas de código
+    .replace(/\n/g, ' ')         // saltos de línea → espacio
+    .replace(/\s{2,}/g, ' ')     // espacios dobles → uno
     .trim();
 }
 
