@@ -498,13 +498,19 @@ let _chartNivel = null;
 let _chartLatencia = null;
 let _statsAllData = []; // cache para filtrado client-side
 
-async function cargarStats() {
+async function cargarStats(fechaInicio = null, fechaFin = null) {
  const kpisGrid = document.getElementById('kpis-grid');
  if (!kpisGrid) return;
  kpisGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:20px;"><div class="spinner" style="border-top-color:var(--accent);margin:0 auto 10px;width:22px;height:22px;border-width:3px;"></div>Cargando…</div>';
 
+ let url = API_BASE + '/api/admin/stats_sesion';
+ const params = new URLSearchParams();
+ if (fechaInicio) params.append('fecha_inicio', fechaInicio);
+ if (fechaFin)    params.append('fecha_fin', fechaFin);
+ if ([...params].length > 0) url += '?' + params.toString();
+
  try {
- const r = await fetch(API_BASE + '/api/admin/stats_sesion', { headers: { 'X-Admin-Pin': adminPin } });
+ const r = await fetch(url, { headers: { 'X-Admin-Pin': adminPin } });
  if (!r.ok) throw new Error('HTTP ' + r.status);
  const d = await r.json();
 
@@ -1097,4 +1103,90 @@ async function guardarConfigRag() {
     msg.style.color = '#e55';
   }
   setTimeout(() => { if (msg) msg.textContent = ''; }, 4000);
+}
+
+// ── Filtro de fechas y exportación de reportes ────────────────────────────────
+
+function aplicarFiltroStats() {
+  const inicio = document.getElementById('stats-fecha-inicio')?.value || null;
+  const fin    = document.getElementById('stats-fecha-fin')?.value    || null;
+  cargarStats(inicio, fin);
+}
+
+function descargarCSV() {
+  if (!_statsAllData || _statsAllData.length === 0) {
+    alert('No hay datos para exportar. Carga las estadísticas primero.');
+    return;
+  }
+  const cabecera = ['Fecha', 'Hora', 'Pregunta', 'Nivel', 'Tiempo de respuesta (s)'];
+  const filas = _statsAllData.map(r => {
+    const dt   = r.fecha ? new Date(r.fecha) : null;
+    const fecha = dt ? dt.toLocaleDateString('es-CO') : '';
+    const hora  = dt ? dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '';
+    const preg  = (r.pregunta || '').replace(/"/g, '""');
+    const nivel = r.nivel || '';
+    const lat   = r.latencia != null ? r.latencia : '';
+    return `"${fecha}","${hora}","${preg}","${nivel}","${lat}"`;
+  });
+  const csv = '\uFEFF' + [cabecera.join(','), ...filas].join('\r\n'); // BOM para Excel
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `atena_consultas_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function descargarPDF() {
+  if (!_statsAllData || _statsAllData.length === 0) {
+    alert('No hay datos para exportar. Carga las estadísticas primero.');
+    return;
+  }
+  const fechaInicio = document.getElementById('stats-fecha-inicio')?.value || '';
+  const fechaFin    = document.getElementById('stats-fecha-fin')?.value    || '';
+  const rango = (fechaInicio || fechaFin)
+    ? `Período: ${fechaInicio || '—'} al ${fechaFin || '—'}`
+    : `Reporte generado: ${new Date().toLocaleDateString('es-CO')}`;
+
+  const filas = _statsAllData.map(r => {
+    const dt    = r.fecha ? new Date(r.fecha) : null;
+    const fecha = dt ? dt.toLocaleDateString('es-CO') : '';
+    const hora  = dt ? dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '';
+    return `<tr>
+      <td>${fecha}</td><td>${hora}</td>
+      <td style="max-width:320px;word-break:break-word;">${(r.pregunta || '').replace(/</g,'&lt;')}</td>
+      <td style="text-transform:capitalize;">${r.nivel || ''}</td>
+      <td style="text-align:right;">${r.latencia != null ? r.latencia + 's' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Reporte Atena</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#222;}
+    h1{font-size:16px;margin-bottom:4px;}
+    p{margin:0 0 12px;color:#555;font-size:10px;}
+    table{width:100%;border-collapse:collapse;}
+    th{background:#6c3483;color:#fff;padding:6px 8px;text-align:left;font-size:10px;}
+    td{border-bottom:1px solid #e0e0e0;padding:5px 8px;vertical-align:top;}
+    tr:nth-child(even) td{background:#f9f4fc;}
+    @media print{body{margin:10px;}}
+  </style></head><body>
+  <h1>Atena — Reporte de Consultas</h1>
+  <p>${rango} &nbsp;|&nbsp; Total: ${_statsAllData.length} consultas</p>
+  <table>
+    <thead><tr><th>Fecha</th><th>Hora</th><th>Pregunta</th><th>Nivel</th><th>Respuesta</th></tr></thead>
+    <tbody>${filas}</tbody>
+  </table>
+  <script>window.onload = () => { window.print(); }<\/script>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  } else {
+    alert('El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio.');
+  }
 }

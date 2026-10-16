@@ -247,17 +247,32 @@
 
  <!-- ── SECCIÓN: ESTADÍSTICAS ── -->
  <section id="section-stats" class="admin-section" style="display:none;margin-top:24px;">
- <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
- <h2 style="margin:0;">Estadísticas de uso</h2>
- <div style="margin-left:auto;">
- <button class="btn btn-outline" onclick="cargarStats()">↺ Actualizar</button>
- </div>
+ <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+  <h2 style="margin:0;">Estadísticas de uso</h2>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+   <!-- Filtro de fechas -->
+   <label style="font-size:0.8rem;color:var(--text-sub);white-space:nowrap;">Desde</label>
+   <input type="date" id="stats-fecha-inicio"
+    style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:0.82rem;color:var(--text);cursor:pointer;">
+   <label style="font-size:0.8rem;color:var(--text-sub);white-space:nowrap;">Hasta</label>
+   <input type="date" id="stats-fecha-fin"
+    style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:0.82rem;color:var(--text);cursor:pointer;">
+   <button class="btn btn-outline" onclick="aplicarFiltroStats()">Filtrar</button>
+   <button class="btn btn-outline" onclick="cargarStats()">↺ Actualizar</button>
+   <button class="btn btn-outline" onclick="descargarCSV()"
+    style="background:rgba(100,180,100,0.1);border-color:rgba(100,180,100,0.4);"
+    title="Exportar consultas a Excel/CSV">CSV</button>
+   <button class="btn btn-outline" onclick="descargarPDF()"
+    style="background:rgba(180,100,100,0.1);border-color:rgba(180,100,100,0.4);"
+    title="Exportar reporte en PDF">PDF</button>
+  </div>
  </div>
  <!-- KPIs + contenido inyectado por cargarStats() -->
  <div id="kpis-grid"
  style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:4px;">
  </div>
  </section>
+
 
 
  <!-- ── SECCIÓN: SISTEMA ── -->

@@ -822,9 +822,14 @@ async def reconstruir_vectorstore(
 # ── Estadísticas persistentes (Supabase) con fallback a sesión en RAM ────────
 
 @app.get("/api/admin/stats_sesion", tags=["Admin"])
-async def stats_sesion(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
+async def stats_sesion(
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+    fecha_inicio: str = Query(None, description="Filtro inicio: YYYY-MM-DD"),
+    fecha_fin:    str = Query(None, description="Filtro fin:    YYYY-MM-DD (inclusive)"),
+):
     """
     Estadísticas de uso leídas desde Supabase (persistentes entre reinicios).
+    Acepta filtros opcionales fecha_inicio y fecha_fin (formato YYYY-MM-DD).
     Si Supabase no está disponible, devuelve los datos de la sesión en RAM.
     """
     _verificar_pin(x_admin_pin)
@@ -838,20 +843,31 @@ async def stats_sesion(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
         )
         import psycopg2.extras
 
+        # Construir cláusula WHERE de fechas si se proporcionan
+        where_parts = []
+        params: list = []
+        if fecha_inicio:
+            where_parts.append("fecha >= %s::date")
+            params.append(fecha_inicio)
+        if fecha_fin:
+            where_parts.append("fecha < (%s::date + interval '1 day')")
+            params.append(fecha_fin)
+        where_clause = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
         conn = _get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # Total y latencia promedio
-            cur.execute("SELECT COUNT(*) AS total, AVG(latencia) AS lat_prom FROM consultas")
+            cur.execute(f"SELECT COUNT(*) AS total, AVG(latencia) AS lat_prom FROM consultas {where_clause}", params)
             row = cur.fetchone()
             total    = int(row["total"]) if row else 0
             lat_prom = round(float(row["lat_prom"]), 2) if row and row["lat_prom"] else None
 
             # Distribución por nivel
-            cur.execute("SELECT nivel, COUNT(*) AS cnt FROM consultas GROUP BY nivel ORDER BY cnt DESC")
+            cur.execute(f"SELECT nivel, COUNT(*) AS cnt FROM consultas {where_clause} GROUP BY nivel ORDER BY cnt DESC", params)
             por_nivel = {r["nivel"]: int(r["cnt"]) for r in cur.fetchall()}
 
             # Palabras clave más frecuentes
-            cur.execute("SELECT pregunta FROM consultas ORDER BY fecha DESC LIMIT 500")
+            cur.execute(f"SELECT pregunta FROM consultas {where_clause} ORDER BY fecha DESC LIMIT 500", params)
             from collections import Counter
             stop = {"qué","que","cual","cuál","como","cómo","es","son","de","del","en",
                     "la","el","los","las","un","una","por","y","a","se","su","con",
@@ -862,9 +878,10 @@ async def stats_sesion(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
                 word_freq.update(w for w in words if len(w) > 4 and w not in stop)
             temas_frecuentes = [{"tema": w, "veces": c} for w, c in word_freq.most_common(8)]
 
-            # Últimas 200 consultas
+            # Últimas 500 consultas (más para exportación)
             cur.execute(
-                "SELECT fecha, pregunta, nivel, latencia FROM consultas ORDER BY fecha DESC LIMIT 200"
+                f"SELECT fecha, pregunta, nivel, latencia FROM consultas {where_clause} ORDER BY fecha DESC LIMIT 500",
+                params
             )
             recientes = []
             for r in cur.fetchall():
@@ -881,6 +898,7 @@ async def stats_sesion(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
             "por_nivel": por_nivel,
             "temas_frecuentes": temas_frecuentes,
             "recientes": recientes,
+            "filtro": {"fecha_inicio": fecha_inicio, "fecha_fin": fecha_fin},
         }
 
     except Exception as db_err:
