@@ -1051,3 +1051,50 @@ function responderAdmin(idx, esCorrecta) {
   };
   fb.after(btn);
 }
+
+// ── Configuración del motor RAG ───────────────────────────────────────────────
+
+async function cargarConfigRag() {
+  try {
+    const res = await fetch('/api/admin/config-rag', {
+      headers: { 'X-Admin-Pin': adminPin }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const sliderK  = document.getElementById('rag-topk-slider');
+    const sliderTh = document.getElementById('rag-threshold-slider');
+    const valK     = document.getElementById('rag-topk-val');
+    const valTh    = document.getElementById('rag-threshold-val');
+    if (sliderK)  { sliderK.value  = data.top_k;     valK.textContent  = data.top_k; }
+    if (sliderTh) { sliderTh.value = data.threshold;  valTh.textContent = parseFloat(data.threshold).toFixed(2); }
+  } catch (e) {
+    console.warn('No se pudo cargar config RAG:', e);
+  }
+}
+
+async function guardarConfigRag() {
+  const topK      = parseInt(document.getElementById('rag-topk-slider').value);
+  const threshold = parseFloat(document.getElementById('rag-threshold-slider').value);
+  const msg       = document.getElementById('rag-config-msg');
+  msg.textContent = 'Guardando...';
+  msg.style.color = 'var(--text-sub)';
+  try {
+    const res = await fetch('/api/admin/config-rag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': adminPin },
+      body: JSON.stringify({ top_k: topK, threshold })
+    });
+    if (res.ok) {
+      msg.textContent = 'Guardado correctamente. Aplica en la siguiente consulta.';
+      msg.style.color = '#8cc63f';
+    } else {
+      const err = await res.json();
+      msg.textContent = 'Error: ' + (err.detail || 'No se pudo guardar.');
+      msg.style.color = '#e55';
+    }
+  } catch (e) {
+    msg.textContent = 'Error de red al guardar.';
+    msg.style.color = '#e55';
+  }
+  setTimeout(() => { if (msg) msg.textContent = ''; }, 4000);
+}

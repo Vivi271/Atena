@@ -901,6 +901,47 @@ async def diagnostico_db(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
         return {"conexion": "error", "detalle": str(e)[:120]}
 
 
+# ── Configuración del motor RAG ───────────────────────────────────────────────
+
+class ConfigRagRequest(BaseModel):
+    top_k:     int   = 40
+    threshold: float = 0.25
+
+
+@app.get("/api/admin/config-rag", tags=["Admin"])
+async def obtener_config_rag(x_admin_pin: str = Header(..., alias="X-Admin-Pin")):
+    """Devuelve la configuración actual del motor RAG (top_k y threshold)."""
+    _verificar_pin(x_admin_pin)
+    try:
+        from db_metrics import get_config_rag
+        return {
+            "top_k":     int(get_config_rag("rag_top_k")),
+            "threshold": float(get_config_rag("rag_threshold")),
+        }
+    except Exception as e:
+        return {"top_k": 40, "threshold": 0.25, "aviso": str(e)[:80]}
+
+
+@app.post("/api/admin/config-rag", tags=["Admin"])
+async def guardar_config_rag(
+    body: ConfigRagRequest,
+    x_admin_pin: str = Header(..., alias="X-Admin-Pin"),
+):
+    """Actualiza los parámetros del motor RAG. Cambios aplicados en la siguiente consulta."""
+    _verificar_pin(x_admin_pin)
+    if not (5 <= body.top_k <= 100):
+        raise HTTPException(status_code=400, detail="top_k debe estar entre 5 y 100.")
+    if not (0.05 <= body.threshold <= 0.90):
+        raise HTTPException(status_code=400, detail="threshold debe estar entre 0.05 y 0.90.")
+    try:
+        from db_metrics import set_config_rag
+        set_config_rag("rag_top_k",     str(body.top_k))
+        set_config_rag("rag_threshold", str(body.threshold))
+        return {"ok": True, "top_k": body.top_k, "threshold": body.threshold}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar la configuración: {e}")
+
+
 # ── Endpoints de Métricas y Registro (para frontend web) ──────────────────────
 
 

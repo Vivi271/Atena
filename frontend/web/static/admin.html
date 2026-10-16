@@ -84,7 +84,7 @@
  </svg>
  Estadísticas
  </button>
- <button class="sidebar-item" onclick="showSection('sistema',this)">
+ <button class="sidebar-item" onclick="showSection('sistema',this);cargarConfigRag()">
  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
  <circle cx="12" cy="12" r="3" />
  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
@@ -265,6 +265,67 @@
  <h2 style="margin-bottom:20px;">Estado del sistema</h2>
  <div id="sistema-info" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
  </div>
+
+ <!-- Configuración del motor RAG -->
+ <div style="margin-top:32px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;">
+  <h3 style="font-size:1rem;font-weight:600;margin-bottom:6px;">Configuración del motor de búsqueda</h3>
+  <p style="font-size:0.82rem;color:var(--text-sub);margin-bottom:24px;">
+   Controla cómo Atena busca en los libros. Los cambios aplican en la siguiente consulta.
+  </p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+   <!-- Slider top-k -->
+   <div>
+    <label style="display:block;font-size:0.88rem;font-weight:500;margin-bottom:4px;">
+     Fragmentos a revisar
+    </label>
+    <p style="font-size:0.78rem;color:var(--text-sub);margin-bottom:10px;">
+     Cuántos fragmentos de los libros considera Atena por pregunta.<br>
+     Mas fragmentos = mas completo pero mas lento.
+    </p>
+    <div style="display:flex;align-items:center;gap:12px;">
+     <input type="range" id="rag-topk-slider" min="5" max="100" step="5" value="40"
+      oninput="document.getElementById('rag-topk-val').textContent=this.value"
+      style="flex:1;accent-color:var(--accent);">
+     <span id="rag-topk-val" style="font-size:1rem;font-weight:600;min-width:32px;text-align:right;">40</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-sub);margin-top:4px;">
+     <span>5 (mas rapido)</span><span>100 (mas completo)</span>
+    </div>
+   </div>
+
+   <!-- Slider threshold -->
+   <div>
+    <label style="display:block;font-size:0.88rem;font-weight:500;margin-bottom:4px;">
+     Relevancia minima
+    </label>
+    <p style="font-size:0.78rem;color:var(--text-sub);margin-bottom:10px;">
+     Fragmentos con relevancia menor a este valor se descartan.<br>
+     Mas alto = mas estricto, menos ruido.
+    </p>
+    <div style="display:flex;align-items:center;gap:12px;">
+     <input type="range" id="rag-threshold-slider" min="0.05" max="0.80" step="0.05" value="0.25"
+      oninput="document.getElementById('rag-threshold-val').textContent=parseFloat(this.value).toFixed(2)"
+      style="flex:1;accent-color:var(--accent);">
+     <span id="rag-threshold-val" style="font-size:1rem;font-weight:600;min-width:36px;text-align:right;">0.25</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-sub);margin-top:4px;">
+     <span>0.05 (permisivo)</span><span>0.80 (estricto)</span>
+    </div>
+   </div>
+
+  </div>
+
+  <div style="margin-top:20px;display:flex;align-items:center;gap:12px;">
+   <button onclick="guardarConfigRag()"
+    style="background:var(--accent);color:white;border:none;border-radius:8px;padding:10px 22px;font-size:0.9rem;font-weight:600;cursor:pointer;">
+    Guardar configuracion
+   </button>
+   <span id="rag-config-msg" style="font-size:0.82rem;color:var(--text-sub);"></span>
+  </div>
+ </div>
+
  </section>
 
  </div>

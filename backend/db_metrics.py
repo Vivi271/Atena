@@ -309,3 +309,55 @@ def set_pin(nuevo_pin: str) -> None:
         logger.info("PIN de administrador actualizado en Supabase y cache.")
     finally:
         conn.close()
+
+
+# ── Configuración del motor RAG (top_k y threshold) ───────────────────────────
+# Valores por defecto usados como fallback si Supabase no responde.
+_RAG_DEFAULTS = {
+    "rag_top_k":     "40",
+    "rag_threshold": "0.25",
+}
+_rag_cache: dict = {}  # cache en memoria para evitar consultas repetidas
+
+
+def get_config_rag(clave: str) -> str:
+    """
+    Lee un parámetro de configuración del motor RAG desde Supabase.
+    Devuelve el valor como string. Si Supabase falla, usa el cache o el default.
+    Claves válidas: 'rag_top_k', 'rag_threshold'.
+    """
+    global _rag_cache
+    fallback = _rag_cache.get(clave) or _RAG_DEFAULTS.get(clave, "")
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT valor FROM configuracion WHERE clave = %s", (clave,))
+            row = cur.fetchone()
+        conn.close()
+        valor = row[0] if row else _RAG_DEFAULTS.get(clave, fallback)
+        _rag_cache[clave] = valor
+        return valor
+    except Exception as e:
+        logger.warning(f"No se pudo leer '{clave}' de Supabase, usando cache/default: {e}")
+        return fallback
+
+
+def set_config_rag(clave: str, valor: str) -> None:
+    """
+    Guarda un parámetro de configuración del motor RAG en Supabase y actualiza el cache.
+    Lanza RuntimeError si falla la escritura.
+    """
+    global _rag_cache
+    conn = _get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO configuracion (clave, valor) VALUES (%s, %s)
+                       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor""",
+                    (clave, valor)
+                )
+        _rag_cache[clave] = valor
+        logger.info(f"Configuración RAG '{clave}' = '{valor}' guardada en Supabase.")
+    finally:
+        conn.close()

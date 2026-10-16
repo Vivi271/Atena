@@ -594,7 +594,7 @@ def _reranking_por_relevancia(pregunta: str, docs_con_score: list, top_n: int = 
     return [doc for doc, _score in scored[:top_n]]
 
 
-def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
+def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10, threshold: float = 0.25) -> list:
     """
     Búsqueda híbrida: combina similitud vectorial con coincidencia
     de palabras clave para recuperar fragmentos que la búsqueda
@@ -603,9 +603,9 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
     words_orig, expanded_words = _get_query_keywords(pregunta)
     query_expandida = _expandir_query(pregunta)
 
-    # 1. Búsqueda vectorial
+    # 1. Búsqueda vectorial (k ampliado para el escaneo; se filtra luego por threshold)
     docs_vector = vector_store.similarity_search_with_relevance_scores(
-        query_expandida, k=100
+        query_expandida, k=50
     )
     vector_scores = {doc.page_content: score for doc, score in docs_vector}
 
@@ -650,13 +650,15 @@ def _busqueda_hibrida(pregunta: str, vector_store: Chroma, k: int = 10) -> list:
 
         hybrid_score = (0.3 * vec_score + 0.7 * keyword_score) * prose_penalty
 
-        if vec_score > 0 or keyword_score > 0:
+        # Aplicar threshold: descarta chunks con similitud semántica muy baja
+        # (ruido como tablas de índice, bibliografías o fragmentos sin relación)
+        if vec_score >= threshold or keyword_score > 0:
             doc = Document(page_content=doc_content, metadata=meta)
             scored_docs.append((doc, hybrid_score))
 
     scored_docs.sort(key=lambda x: x[1], reverse=True)
 
-    # 3. Re-ranking temático
+    # 3. Re-ranking temático (devuelve los top-k tras el re-ranking)
     return _reranking_por_relevancia(pregunta, scored_docs, top_n=k)
 
 
@@ -708,7 +710,15 @@ def consultar(pregunta: str, vector_store: Chroma, k: int = 10, nivel: str = "av
             "tokens_contexto_aprox": 0,
         }
 
-    docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=k)
+    # Leer configuración del motor RAG desde Supabase (con fallback a defaults)
+    try:
+        from db_metrics import get_config_rag
+        rag_k         = int(get_config_rag("rag_top_k"))
+        rag_threshold = float(get_config_rag("rag_threshold"))
+    except Exception:
+        rag_k, rag_threshold = 40, 0.25
+
+    docs_contexto = _busqueda_hibrida(pregunta, vector_store, k=rag_k, threshold=rag_threshold)
 
     context_parts = []
     for i, doc in enumerate(docs_contexto):
