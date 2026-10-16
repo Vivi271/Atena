@@ -401,6 +401,7 @@ def _set_cache(pregunta: str, nivel: str, resultado: dict):
 
 
 
+@app.post("/consultar", response_model=ConsultaResponse, tags=["RAG"])
 @app.post("/api/consultar", response_model=ConsultaResponse, tags=["RAG"])
 async def consultar_endpoint(body: ConsultaRequest):
     """
